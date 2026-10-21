@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { calculateCandidateScreening } from '../src/services/screeningEngine';
-import { analyzeResumeATS } from '../src/services/atsService';
 import { JobVacancy, TeacherProfile } from '@sikchakhub/shared-types';
 
 test('Screening Engine: High Match Candidate Evaluation', () => {
@@ -130,15 +129,4 @@ test('Screening Engine: Unmatched Candidate with Low Experience and Different Su
 
   assert.ok(result.overallScore < 55, `Expected score < 55, received ${result.overallScore}`);
   assert.strictEqual(result.autoFilteredStatus, 'UNMATCHED');
-});
-
-test('ATS Resume Service: Pedagogy Keyword & Quantified Result Scoring', () => {
-  const resumeText = `Senior Physics Faculty with 8 years experience in Lesson Planning, Formative Assessment, Differentiated Instruction, and NEP 2020 Guidelines. Mentored 200+ students with 94% board average and produced top 100 JEE Advanced ranks. Expert in Smart Class & EdTech tools.`;
-  
-  const atsResult = analyzeResumeATS(resumeText, 8);
-
-  assert.ok(atsResult.overallScore >= 80, `Expected ATS score >= 80, got ${atsResult.overallScore}`);
-  assert.ok(atsResult.matchingKeywords.length >= 4);
-  assert.ok(atsResult.recommendations.length > 0);
-  assert.ok(['A+', 'A'].includes(atsResult.grade));
 });

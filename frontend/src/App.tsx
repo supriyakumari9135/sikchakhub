@@ -2,9 +2,9 @@ import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
+import { AuthModal } from './components/AuthModal';
 import { HomePage } from './pages/HomePage';
 import { JobsPage } from './pages/JobsPage';
-import { AtsCheckerPage } from './pages/AtsCheckerPage';
 import { TeacherDashboard } from './pages/TeacherDashboard';
 import { EmployerDashboard } from './pages/EmployerDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
@@ -17,7 +17,6 @@ export const App: React.FC = () => {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/jobs" element={<JobsPage />} />
-          <Route path="/ats-checker" element={<AtsCheckerPage />} />
           <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
           <Route path="/employer-dashboard" element={<EmployerDashboard />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
@@ -25,6 +24,7 @@ export const App: React.FC = () => {
         </Routes>
       </main>
       <Footer />
+      <AuthModal />
     </div>
   );
 };

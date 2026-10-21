@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { JobVacancy, ApplicationMatchResult } from '@sikchakhub/shared-types';
 import { useAuth } from '../context/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   X, 
   CheckCircle2, 
@@ -23,6 +24,7 @@ interface ApplyJobModalProps {
 
 export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAppliedSuccess }) => {
   const { user, profile, token } = useAuth();
+  const queryClient = useQueryClient();
 
   const [coverLetter, setCoverLetter] = useState(
     `Dear Hiring Committee at ${job.institution?.name || 'Institution'}, I am writing to express my enthusiastic interest in the ${job.title} position. With my background in ${job.subject} instruction and student mentorship, I am confident in my ability to contribute meaningfully to your academic objectives.`
@@ -64,6 +66,11 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
       const data = await res.json();
       if (data.success) {
         setMatchResult(data.application.matchResult);
+        queryClient.invalidateQueries({ queryKey: ['my-applications'] });
+        queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        queryClient.invalidateQueries({ queryKey: ['employer-jobs'] });
+        queryClient.invalidateQueries({ queryKey: ['job-candidates'] });
+        queryClient.invalidateQueries({ queryKey: ['employer-stats'] });
         if (onAppliedSuccess) onAppliedSuccess();
       } else {
         setErrorMsg(data.message || 'Failed to submit application.');
@@ -81,12 +88,15 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
-              Structured Recruitment Form
-            </span>
-            <h3 className="text-lg font-bold text-slate-900 mt-1 font-serif line-clamp-1">{job.title}</h3>
-            <p className="text-xs text-slate-500">{job.institution?.name} • {job.city}, {job.state}</p>
+          <div className="flex items-center gap-3">
+            <img src="/logo.jpeg" alt="SikshaHub" className="w-10 h-10 rounded-xl object-cover border border-amber-300/40 bg-white shrink-0" />
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
+                Structured Recruitment Form
+              </span>
+              <h3 className="text-lg font-bold text-slate-900 mt-1 font-serif line-clamp-1">{job.title}</h3>
+              <p className="text-xs text-slate-500">{job.institution?.name} • {job.city}, {job.state}</p>
+            </div>
           </div>
           <button
             onClick={onClose}

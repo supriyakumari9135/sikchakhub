@@ -9,7 +9,7 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:seed": "tsx src/db/seed.ts",
-    "test": "node --test"
+    "test": "tsx --test \"test/**/*.test.ts\""
   },
   "dependencies": {
     "@prisma/client": "^5.15.0",

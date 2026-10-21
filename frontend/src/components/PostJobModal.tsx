@@ -132,12 +132,15 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
-              Recruitment Posting Wizard
-            </span>
-            <h3 className="text-lg font-bold text-slate-900 mt-0.5 font-serif">Create New Vacancy Opening</h3>
-            <p className="text-xs text-slate-500">Post for: {institution?.name || 'Your Institution'}</p>
+          <div className="flex items-center gap-3">
+            <img src="/logo.jpeg" alt="SikshaHub" className="w-10 h-10 rounded-xl object-cover border border-amber-300/40 bg-white shrink-0" />
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
+                Recruitment Posting Wizard
+              </span>
+              <h3 className="text-lg font-bold text-slate-900 mt-0.5 font-serif">Create New Vacancy Opening</h3>
+              <p className="text-xs text-slate-500">Post for: {institution?.name || 'Your Institution'}</p>
+            </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
             <X className="w-5 h-5" />

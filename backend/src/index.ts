@@ -8,7 +8,6 @@ import jobRoutes from './routes/jobs.routes';
 import applicationRoutes from './routes/applications.routes';
 import interviewRoutes from './routes/interviews.routes';
 import institutionRoutes from './routes/institutions.routes';
-import atsRoutes from './routes/ats.routes';
 import adminRoutes from './routes/admin.routes';
 import masterDataRoutes from './routes/masterData.routes';
 import { connectMongoDB } from './db/mongodb';
@@ -45,7 +44,6 @@ app.use('/api/v1/jobs', jobRoutes);
 app.use('/api/v1/applications', applicationRoutes);
 app.use('/api/v1/interviews', interviewRoutes);
 app.use('/api/v1/institutions', institutionRoutes);
-app.use('/api/v1/ats', atsRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/master-data', masterDataRoutes);
 

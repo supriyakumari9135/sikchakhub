@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { JobApplication, ApplicationStage } from '@sikchakhub/shared-types';
 import { useAuth } from '../context/AuthContext';
+import { useQuery } from '@tanstack/react-query';
 import { 
   X, 
   CheckCircle2, 
@@ -14,7 +15,9 @@ import {
   GraduationCap, 
   IndianRupee,
   Clock,
-  Save
+  Save,
+  Award,
+  BookOpen
 } from 'lucide-react';
 
 interface CandidateMatchDrawerProps {
@@ -36,9 +39,22 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [noteSavedMessage, setNoteSavedMessage] = useState(false);
 
-  const teacher = application.teacher;
+  // Fetch full live application details from backend
+  const { data: fullAppData } = useQuery({
+    queryKey: ['single-application', application.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/v1/applications/${application.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.json();
+    },
+    enabled: !!application?.id && !!token,
+  });
+
+  const appRecord: any = fullAppData?.application || application;
+  const teacher = appRecord.teacher || application.teacher;
   const profile = teacher?.profile;
-  const matchResult = application.matchResult;
+  const matchResult = appRecord.matchResult || application.matchResult;
 
   const handleStageSelect = async (newStage: ApplicationStage) => {
     setStage(newStage);
@@ -99,6 +115,9 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
                 </span>
               )}
             </h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Email: <strong>{teacher?.email}</strong> {appRecord.appliedAt && `• Applied: ${new Date(appRecord.appliedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -138,17 +157,32 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
                 <span>Notice: {profile?.noticePeriodDays || 30} days</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-brand-600" />
+                <FileText className="w-3.5 h-3.5 text-sky-600" />
                 <a
-                  href={application.resumeUrl}
+                  href={appRecord.resumeUrl || application.resumeUrl || '/sample-resume.pdf'}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-brand-600 font-semibold underline hover:text-brand-700"
+                  className="text-sky-600 font-semibold underline hover:text-sky-700"
                 >
                   View CV Resume
                 </a>
               </div>
             </div>
+
+            {/* Teaching Subjects */}
+            {profile?.subjects && profile.subjects.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-200/60">
+                <span className="text-[11px] font-bold text-slate-500 mr-1 flex items-center gap-1">
+                  <BookOpen className="w-3 h-3 text-slate-400" />
+                  <span>Subjects:</span>
+                </span>
+                {profile.subjects.map((sub: string) => (
+                  <span key={sub} className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                    {sub}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* AI / Screening Score Breakdown */}
@@ -174,7 +208,7 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
               <div className="space-y-1.5 pt-1">
                 <span className="text-[11px] font-semibold text-slate-600">Screening Rules Evaluation:</span>
                 <div className="space-y-1.5">
-                  {matchResult.breakdown.map((item, idx) => (
+                  {matchResult.breakdown?.map((item: any, idx: number) => (
                     <div key={idx} className="bg-white p-2.5 rounded-lg border border-slate-200 text-xs flex flex-col gap-1">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
