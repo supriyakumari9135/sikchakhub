@@ -1,12 +1,12 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import { Image, View, Text } from 'react-native';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#15803d',
+        tabBarActiveTintColor: '#e11d48',
         tabBarInactiveTintColor: '#64748b',
         headerShown: true,
         headerStyle: {
@@ -16,6 +16,12 @@ export default function TabLayout() {
           fontWeight: 'bold',
           color: '#0f172a',
         },
+        headerLeft: () => (
+          <Image
+            source={require('../../assets/logo.jpeg')}
+            style={{ width: 34, height: 34, borderRadius: 8, marginLeft: 16 }}
+          />
+        ),
       }}
     >
       <Tabs.Screen

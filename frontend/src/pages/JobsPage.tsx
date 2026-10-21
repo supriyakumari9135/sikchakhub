@@ -301,9 +301,9 @@ export const JobsPage: React.FC = () => {
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div className="flex items-start gap-3.5">
                       <img
-                        src={job.institution?.logoUrl || 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&w=80&h=80&q=80'}
+                        src={job.institution?.logoUrl || '/logo.jpeg'}
                         alt={job.institution?.name}
-                        className="w-12 h-12 rounded-xl object-cover border border-slate-100 shrink-0"
+                        className="w-12 h-12 rounded-xl object-cover border border-slate-100 shrink-0 bg-white"
                       />
                       <div>
                         <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
@@ -383,12 +383,19 @@ export const JobsPage: React.FC = () => {
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
-                  {activeJobDetail.teachingLevel} • {activeJobDetail.board}
-                </span>
-                <h3 className="text-lg font-bold text-slate-900 mt-1 font-serif">{activeJobDetail.title}</h3>
-                <p className="text-xs text-slate-500">{activeJobDetail.institution?.name} • {activeJobDetail.city}</p>
+              <div className="flex items-center gap-3">
+                <img
+                  src={activeJobDetail.institution?.logoUrl || '/logo.jpeg'}
+                  alt={activeJobDetail.institution?.name}
+                  className="w-11 h-11 rounded-xl object-cover border border-amber-300/40 bg-white shrink-0"
+                />
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
+                    {activeJobDetail.teachingLevel} • {activeJobDetail.board}
+                  </span>
+                  <h3 className="text-lg font-bold text-slate-900 mt-0.5 font-serif">{activeJobDetail.title}</h3>
+                  <p className="text-xs text-slate-500">{activeJobDetail.institution?.name} • {activeJobDetail.city}</p>
+                </div>
               </div>
               <button onClick={() => setActiveJobDetail(null)} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
                 <X className="w-5 h-5" />
@@ -470,7 +477,9 @@ export const JobsPage: React.FC = () => {
         <ApplyJobModal
           job={selectedJobForApply}
           onClose={() => setSelectedJobForApply(null)}
-          onAppliedSuccess={() => {}}
+          onAppliedSuccess={() => {
+            setSelectedJobForApply(null);
+          }}
         />
       )}
     </div>

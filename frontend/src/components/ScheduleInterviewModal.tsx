@@ -67,12 +67,15 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
-              Recruitment Stage Transition
-            </span>
-            <h3 className="text-lg font-bold text-slate-900 mt-1 font-serif">Schedule Interview Round</h3>
-            <p className="text-xs text-slate-500">Candidate: {application.teacher?.fullName}</p>
+          <div className="flex items-center gap-3">
+            <img src="/logo.jpeg" alt="SikshaHub" className="w-10 h-10 rounded-xl object-cover border border-amber-300/40 bg-white shrink-0" />
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
+                Recruitment Stage Transition
+              </span>
+              <h3 className="text-lg font-bold text-slate-900 mt-1 font-serif">Schedule Interview Round</h3>
+              <p className="text-xs text-slate-500">Candidate: {application.teacher?.fullName}</p>
+            </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
             <X className="w-5 h-5" />

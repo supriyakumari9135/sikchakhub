@@ -94,19 +94,17 @@ export const AdminDashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Admin Header */}
-        <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="bg-gradient-to-r from-sky-900 via-blue-900 to-sky-950 text-white rounded-2xl p-6 shadow-md border border-sky-800/60 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-purple-600/30 border border-purple-500/40 text-purple-300 flex items-center justify-center font-bold">
-              <ShieldAlert className="w-7 h-7" />
-            </div>
+            <img src="/logo.jpeg" alt="SikshaHub Governance" className="w-14 h-14 rounded-2xl object-cover border-2 border-sky-300/60 bg-white shadow-md shrink-0" />
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold font-serif">Super Admin Governance Portal</h2>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/30">
+                <h2 className="text-xl font-bold font-serif">SikshaHub Super Admin Governance Portal</h2>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-200 border border-sky-400/30">
                   Full Compliance Access
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-sky-200/80 mt-0.5">
                 Centralized institution approval, candidate data privacy auditing, and recruitment operations monitoring.
               </p>
             </div>
@@ -193,9 +191,9 @@ export const AdminDashboard: React.FC = () => {
                 >
                   <div className="flex items-start gap-4">
                     <img
-                      src={inst.logoUrl || 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&w=120&h=120&q=80'}
+                      src={inst.logoUrl || '/logo.jpeg'}
                       alt={inst.name}
-                      className="w-14 h-14 rounded-2xl object-cover border border-slate-200 shrink-0"
+                      className="w-14 h-14 rounded-2xl object-cover border border-amber-300/40 bg-white shrink-0"
                     />
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
