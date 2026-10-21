@@ -1,0 +1,191 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String          @id @default(uuid())
+  email        String          @unique
+  passwordHash String
+  phone        String?
+  role         String          @default("TEACHER") // TEACHER, EMPLOYER, ADMIN
+  fullName     String
+  avatarUrl    String?
+  isVerified   Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  teacherProfile TeacherProfile?
+  institutions   Institution[]
+  applications   JobApplication[]
+  interviews     Interview[]
+  savedJobs      SavedJob[]
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+}
+
+model TeacherProfile {
+  id                     String   @id @default(uuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  headline               String?
+  bio                    String?
+  experienceYears        Float    @default(0)
+  highestQualification   String   @default("B.Ed / Masters")
+  teachingLevels         String   @default("[]") // JSON array of string
+  subjects               String   @default("[]") // JSON array of string
+  boards                 String   @default("[]") // JSON array of string
+  currentCity            String   @default("New Delhi")
+  preferredCities        String   @default("[]") // JSON array
+  isWillingToRelocate    Boolean  @default(false)
+  currentSalaryLPA       Float?
+  expectedSalaryLPA      Float?
+  noticePeriodDays       Int      @default(30)
+  resumeUrl              String?
+  resumeFileName         String?
+  skills                 String   @default("[]") // JSON array
+  certifications         String   @default("[]") // JSON array
+  profileCompletionScore Int      @default(60)
+  streakDays             Int      @default(1)
+  updatedAt              DateTime @updatedAt
+}
+
+model Institution {
+  id                 String         @id @default(uuid())
+  ownerId            String
+  owner              User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name               String
+  type               String         @default("SCHOOL") // SCHOOL, COLLEGE, COACHING_INSTITUTE, EDTECH, UNIVERSITY
+  logoUrl            String?
+  website            String?
+  description        String?
+  affiliationNumber  String?
+  verificationStatus String         @default("PENDING") // PENDING, VERIFIED, REJECTED, SUSPENDED
+  verificationNotes  String?
+  address            String
+  city               String
+  state              String
+  pincode            String
+  establishedYear    Int?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  jobs               JobVacancy[]
+  interviews         Interview[]
+}
+
+model JobVacancy {
+  id                    String           @id @default(uuid())
+  institutionId         String
+  institution           Institution      @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  title                 String
+  department            String?
+  subject               String
+  additionalSubjects    String           @default("[]") // JSON array
+  teachingLevel         String           @default("PGT")
+  board                 String           @default("CBSE")
+  employmentType        String           @default("FULL_TIME")
+  minExperienceYears    Float            @default(1)
+  maxExperienceYears    Float?
+  requiredQualification String           @default("Post Graduate with B.Ed")
+  description           String
+  responsibilities      String           @default("[]") // JSON array
+  benefits              String           @default("[]") // JSON array
+  minSalaryLPA          Float            @default(4)
+  maxSalaryLPA          Float            @default(8)
+  city                  String
+  state                 String
+  vacanciesCount        Int              @default(1)
+  deadline              String
+  status                String           @default("ACTIVE") // DRAFT, ACTIVE, PAUSED, CLOSED
+  customFields          String           @default("[]") // JSON array of FormFieldDefinition
+  screeningRules        String           @default("{}") // JSON object of ScreeningRule
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  applications          JobApplication[]
+  interviews            Interview[]
+  savedByUsers          SavedJob[]
+}
+
+model JobApplication {
+  id             String      @id @default(uuid())
+  jobId          String
+  job            JobVacancy  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  teacherId      String
+  teacher        User        @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  resumeUrl      String
+  coverLetter    String?
+  stage          String      @default("APPLIED") // APPLIED, SCREENING, SHORTLISTED, INTERVIEW_SCHEDULED, SELECTED, REJECTED, ON_HOLD
+  customAnswers  String      @default("{}") // JSON object of user's answers
+  matchResult    String      @default("{}") // JSON object of match calculation & score breakdown
+  recruiterNotes String?
+  appliedAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  interviews     Interview[]
+
+  @@unique([jobId, teacherId])
+}
+
+model Interview {
+  id              String         @id @default(uuid())
+  applicationId   String
+  application     JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  jobId           String
+  job             JobVacancy     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  teacherId       String
+  teacher         User           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  institutionId   String
+  institution     Institution    @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  interviewType   String         @default("ONLINE_MEETING") // DEMO_CLASS, ONLINE_MEETING, HR_ROUND, CAMPUS_IN_PERSON
+  scheduledTime   String
+  durationMinutes Int            @default(45)
+  meetingLink     String?
+  locationDetails String?
+  status          String         @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED, RESCHEDULED
+  feedback        String?
+  rating          Int?
+  createdAt       DateTime       @default(now())
+}
+
+model SavedJob {
+  id        String     @id @default(uuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String
+  job       JobVacancy @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@unique([userId, jobId])
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userEmail    String
+  action       String
+  resourceType String
+  resourceId   String
+  ipAddress    String?
+  userAgent    String?
+  details      String   @default("{}") // JSON object
+  createdAt    DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO, APPLICATION_UPDATE, INTERVIEW, SYSTEM
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
