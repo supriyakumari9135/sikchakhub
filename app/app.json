@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "SikshaHub",
+    "slug": "sikchakhub-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#15803d"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#15803d"
+      }
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "scheme": "sikchakhub"
+  }
+}
