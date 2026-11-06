@@ -21,7 +21,7 @@ async function main() {
       create: {
         id: u.id,
         email: u.email,
-        passwordHash: u.passwordHash || 'demo123',
+        passwordHash: u.passwordHash || '',
         fullName: u.fullName,
         role: u.role,
         phone: u.phone,

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { JobVacancy } from '@sikchakhub/shared-types';
 import { ApplyJobModal } from '../components/ApplyJobModal';
+import { apiUrl } from '../config/api';
 
 export const JobsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -44,7 +45,7 @@ export const JobsPage: React.FC = () => {
       if (selectedBoard) params.append('board', selectedBoard);
       if (minSalary) params.append('minSalary', minSalary);
 
-      const res = await fetch(`/api/v1/jobs?${params.toString()}`);
+      const res = await fetch(apiUrl(`/api/v1/jobs?${params.toString()}`));
       return res.json();
     },
   });

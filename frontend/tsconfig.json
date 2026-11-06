@@ -13,6 +13,7 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
+      "@/*": ["src/*"],
       "@sikchakhub/shared-types": ["src/types"],
       "@sikchakhub/shared-validation": ["src/validation"]
     },

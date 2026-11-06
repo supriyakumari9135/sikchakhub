@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { JobApplication, ApplicationStage } from '@sikchakhub/shared-types';
 import { useAuth } from '../context/AuthContext';
 import { useQuery } from '@tanstack/react-query';
+import { apiUrl } from '../config/api';
 import { 
   X, 
   CheckCircle2, 
@@ -43,7 +44,7 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
   const { data: fullAppData } = useQuery({
     queryKey: ['single-application', application.id],
     queryFn: async () => {
-      const res = await fetch(`/api/v1/applications/${application.id}`, {
+      const res = await fetch(apiUrl(`/api/v1/applications/${application.id}`), {
         headers: { Authorization: `Bearer ${token}` },
       });
       return res.json();
@@ -60,7 +61,7 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
     setStage(newStage);
     onStageChange(application.id, newStage);
     try {
-      await fetch(`/api/v1/applications/${application.id}/stage`, {
+      await fetch(apiUrl(`/api/v1/applications/${application.id}/stage`), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -76,7 +77,7 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
   const handleSaveNotes = async () => {
     setIsSavingNotes(true);
     try {
-      await fetch(`/api/v1/applications/${application.id}/notes`, {
+      await fetch(apiUrl(`/api/v1/applications/${application.id}/notes`), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -142,30 +143,34 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
               </div>
               <div className="flex items-center gap-1.5">
                 <GraduationCap className="w-3.5 h-3.5 text-slate-400" />
-                <span className="truncate">{profile?.highestQualification || 'B.Ed'}</span>
+                <span className="truncate">{profile?.highestQualification || 'Degree not specified'}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                <span>{profile?.currentCity || 'India'}</span>
+                <span>{profile?.currentCity || 'Location not specified'}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <IndianRupee className="w-3.5 h-3.5 text-slate-400" />
-                <span>Exp: ₹{profile?.expectedSalaryLPA || '8'} LPA</span>
+                <span>{profile?.expectedSalaryLPA ? `Exp: ₹${profile.expectedSalaryLPA} LPA` : 'Salary not specified'}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
-                <span>Notice: {profile?.noticePeriodDays || 30} days</span>
+                <span>Notice: {profile?.noticePeriodDays ?? 30} days</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-sky-600" />
-                <a
-                  href={appRecord.resumeUrl || application.resumeUrl || '/sample-resume.pdf'}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sky-600 font-semibold underline hover:text-sky-700"
-                >
-                  View CV Resume
-                </a>
+                {appRecord.resumeUrl || application.resumeUrl ? (
+                  <a
+                    href={appRecord.resumeUrl || application.resumeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sky-600 font-semibold underline hover:text-sky-700"
+                  >
+                    View CV Resume
+                  </a>
+                ) : (
+                  <span className="text-slate-400 font-normal">No resume uploaded</span>
+                )}
               </div>
             </div>
 

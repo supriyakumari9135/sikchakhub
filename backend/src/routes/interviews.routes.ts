@@ -42,14 +42,14 @@ router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req
     if (!job) job = dbStore.getJobById(app.jobId);
 
     // Employer ownership verification
+    let employerInst: any = null;
     if (req.user!.role === 'EMPLOYER') {
-      let employerInst: any = null;
       try {
         employerInst = await InstitutionModel.findOne({ ownerId: req.user!.id }).lean();
       } catch (e) {}
       if (!employerInst) employerInst = dbStore.institutions.find(i => i.ownerId === req.user!.id);
 
-      if (job && employerInst && job.institutionId !== employerInst.id && job.institutionId !== 'inst-1') {
+      if (job && employerInst && job.institutionId !== employerInst.id) {
         return res.status(403).json({ success: false, message: 'Unauthorized to schedule interview for this vacancy.' });
       }
     }
@@ -60,12 +60,12 @@ router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req
       applicationId,
       jobId: app.jobId,
       teacherId: app.teacherId,
-      institutionId: job?.institutionId || 'inst-1',
+      institutionId: job?.institutionId || employerInst?.id || '',
       interviewType,
       scheduledTime,
       durationMinutes: durationMinutes || 45,
-      meetingLink: meetingLink || 'https://meet.google.com/sik-demo-session',
-      locationDetails: locationDetails || 'Online Virtual Meeting Room',
+      meetingLink: meetingLink || '',
+      locationDetails: locationDetails || '',
       status: 'SCHEDULED' as const,
       feedback: '',
       rating: undefined,
@@ -122,9 +122,13 @@ router.get('/my-interviews', authenticateJWT, async (req: Request, res: Response
         filter.teacherId = userId;
       }
       mongoInterviews = await InterviewModel.find(filter).sort({ scheduledTime: 1 }).lean();
-    } catch (e) {}
+    } catch (e) {
+      if (dbStore.interviews.length > 0) {
+        mongoInterviews = dbStore.interviews;
+      }
+    }
 
-    let sourceInterviews = mongoInterviews.length > 0 ? mongoInterviews : dbStore.interviews;
+    let sourceInterviews = mongoInterviews;
     if (role === 'TEACHER') {
       sourceInterviews = sourceInterviews.filter(i => i.teacherId === userId);
     }

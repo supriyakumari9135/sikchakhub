@@ -28,6 +28,7 @@ import { JobVacancy, JobApplication, ApplicationStage } from '@sikchakhub/shared
 import { CandidateMatchDrawer } from '../components/CandidateMatchDrawer';
 import { ScheduleInterviewModal } from '../components/ScheduleInterviewModal';
 import { PostJobModal } from '../components/PostJobModal';
+import { apiUrl } from '../config/api';
 
 // Mini Bar Chart graphic matching the 4 stat cards in screenshot
 const MiniBarGraphic = ({ color = 'sky' }: { color?: 'sky' | 'emerald' | 'purple' }) => {
@@ -52,7 +53,7 @@ export const EmployerDashboard: React.FC = () => {
   const { user, institution, token } = useAuth();
 
   const [activeSidebarNav, setActiveSidebarNav] = useState('Overview');
-  const [selectedJobId, setSelectedJobId] = useState<string>('job-1');
+  const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [selectedStageFilter, setSelectedStageFilter] = useState<string>('ALL');
   const [searchCandidate, setSearchCandidate] = useState<string>('');
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
@@ -68,7 +69,7 @@ export const EmployerDashboard: React.FC = () => {
   const { data: statsData, refetch: refetchStats } = useQuery({
     queryKey: ['employer-stats', token],
     queryFn: async () => {
-      const res = await fetch('/api/v1/applications/stats/employer', {
+      const res = await fetch(apiUrl('/api/v1/applications/stats/employer'), {
         headers: { Authorization: `Bearer ${token}` },
       });
       return res.json();
@@ -80,7 +81,7 @@ export const EmployerDashboard: React.FC = () => {
   const { data: jobsData, refetch: refetchJobs } = useQuery({
     queryKey: ['employer-jobs'],
     queryFn: async () => {
-      const res = await fetch('/api/v1/jobs');
+      const res = await fetch(apiUrl('/api/v1/jobs'));
       return res.json();
     },
   });
@@ -88,12 +89,19 @@ export const EmployerDashboard: React.FC = () => {
   const jobs: JobVacancy[] = jobsData?.jobs || [];
   const currentJob = jobs.find(j => j.id === selectedJobId) || jobs[0];
 
+  // Auto-select first job if not set
+  React.useEffect(() => {
+    if (jobs.length > 0 && (!selectedJobId || !jobs.some(j => j.id === selectedJobId))) {
+      setSelectedJobId(jobs[0].id);
+    }
+  }, [jobs, selectedJobId]);
+
   // Fetch candidates for selected job
   const { data: candidatesData, refetch: refetchCandidates } = useQuery({
     queryKey: ['job-candidates', selectedJobId, selectedStageFilter],
     queryFn: async () => {
       const stageParam = selectedStageFilter !== 'ALL' ? `?stage=${selectedStageFilter}` : '';
-      const res = await fetch(`/api/v1/applications/job/${selectedJobId}${stageParam}`, {
+      const res = await fetch(apiUrl(`/api/v1/applications/job/${selectedJobId}${stageParam}`), {
         headers: { Authorization: `Bearer ${token}` },
       });
       return res.json();
@@ -101,122 +109,9 @@ export const EmployerDashboard: React.FC = () => {
     enabled: !!selectedJobId && !!token,
   });
 
-  // Base mock applicants from screenshot to ensure exact visual parity
-  const defaultScreenshotCandidates: any[] = [
-    {
-      id: 'app-scr-1',
-      jobId: selectedJobId,
-      stage: 'SHORTLISTED',
-      appliedAt: '2024-08-12T10:00:00Z',
-      displayDate: '12 Aug 2024',
-      teacher: {
-        id: 'teacher-scr-1',
-        fullName: 'Rohit Sharma',
-        email: 'rohit.sharma@gmail.com',
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80',
-        profile: {
-          headline: 'Senior Physics Faculty (IIT-JEE)',
-          subjects: ['Physics'],
-          highestQualification: 'M.Sc., B.Ed.',
-          experienceYears: 5,
-          currentCity: 'Bhopal, MP',
-          expectedSalaryLPA: 22,
-          resumeUrl: 'https://example.com/resume-rohit.pdf',
-        }
-      },
-      matchResult: {
-        overallScore: 92,
-        autoFilteredStatus: 'QUALIFIED'
-      }
-    },
-    {
-      id: 'app-scr-2',
-      jobId: selectedJobId,
-      stage: 'SCREENING',
-      appliedAt: '2024-08-14T10:00:00Z',
-      displayDate: '14 Aug 2024',
-      teacher: {
-        id: 'teacher-scr-2',
-        fullName: 'Neha Verma',
-        email: 'neha.verma@gmail.com',
-        avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=120&h=120&q=80',
-        profile: {
-          headline: 'JEE & CBSE Physics Specialist',
-          subjects: ['Physics'],
-          highestQualification: 'M.Sc., B.Ed.',
-          experienceYears: 4,
-          currentCity: 'Indore, MP',
-          expectedSalaryLPA: 20,
-          resumeUrl: 'https://example.com/resume-neha.pdf',
-        }
-      },
-      matchResult: {
-        overallScore: 86,
-        autoFilteredStatus: 'QUALIFIED'
-      }
-    },
-    {
-      id: 'app-scr-3',
-      jobId: selectedJobId,
-      stage: 'INTERVIEW_SCHEDULED',
-      appliedAt: '2024-08-16T10:00:00Z',
-      displayDate: '16 Aug 2024',
-      teacher: {
-        id: 'teacher-scr-3',
-        fullName: 'Amit Singh',
-        email: 'amit.singh@gmail.com',
-        avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&h=120&q=80',
-        profile: {
-          headline: 'PGT Physics & Coaching Mentor',
-          subjects: ['Physics'],
-          highestQualification: 'M.Sc., B.Ed.',
-          experienceYears: 6,
-          currentCity: 'Bhopal, MP',
-          expectedSalaryLPA: 24,
-          resumeUrl: 'https://example.com/resume-amit.pdf',
-        }
-      },
-      matchResult: {
-        overallScore: 82,
-        autoFilteredStatus: 'QUALIFIED'
-      }
-    },
-    {
-      id: 'app-scr-4',
-      jobId: selectedJobId,
-      stage: 'APPLIED',
-      appliedAt: '2024-08-18T10:00:00Z',
-      displayDate: '18 Aug 2024',
-      teacher: {
-        id: 'teacher-scr-4',
-        fullName: 'Sneha Patel',
-        email: 'sneha.patel@gmail.com',
-        avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=120&h=120&q=80',
-        profile: {
-          headline: 'Physics Teacher (TGT/PGT)',
-          subjects: ['Physics'],
-          highestQualification: 'M.Sc., B.Ed.',
-          experienceYears: 4,
-          currentCity: 'Jabalpur, MP',
-          expectedSalaryLPA: 18,
-          resumeUrl: 'https://example.com/resume-sneha.pdf',
-        }
-      },
-      matchResult: {
-        overallScore: 78,
-        autoFilteredStatus: 'QUALIFIED'
-      }
-    }
-  ];
-
-  // Merge live backend candidate applications with base candidates, prioritizing real database applications
+  // Real database candidates only
   const liveCandidates: JobApplication[] = candidatesData?.candidates || [];
-  const combinedCandidates = liveCandidates.length > 0
-    ? [
-        ...liveCandidates,
-        ...defaultScreenshotCandidates.filter(dc => !liveCandidates.some(lc => lc.id === dc.id))
-      ]
-    : defaultScreenshotCandidates;
+  const combinedCandidates = liveCandidates;
 
   // Filter candidates by stage & search query
   const filteredCandidates = combinedCandidates.filter(c => {
@@ -240,7 +135,7 @@ export const EmployerDashboard: React.FC = () => {
 
   const handleStageChange = async (appId: string, newStage: ApplicationStage) => {
     try {
-      const res = await fetch(`/api/v1/applications/${appId}/stage`, {
+      const res = await fetch(apiUrl(`/api/v1/applications/${appId}/stage`), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -278,7 +173,7 @@ export const EmployerDashboard: React.FC = () => {
     const csvContent = "data:text/csv;charset=utf-8," 
       + ["Candidate Name,Email,Subject,Experience,City,Match Score,Stage,Applied Date"]
         .concat(filteredCandidates.map(c => 
-          `"${c.teacher?.fullName}","${c.teacher?.email}","${c.teacher?.profile?.subjects?.join(' ')}","${c.teacher?.profile?.experienceYears} Yrs","${c.teacher?.profile?.currentCity}","${c.matchResult?.overallScore || 75}%","${c.stage}","${c.displayDate || 'Recent'}"`
+          `"${c.teacher?.fullName || 'Applicant'}","${c.teacher?.email || ''}","${c.teacher?.profile?.subjects?.join(' ') || ''}","${c.teacher?.profile?.experienceYears != null ? `${c.teacher.profile.experienceYears} Yrs` : ''}","${c.teacher?.profile?.currentCity || ''}","${c.matchResult?.overallScore != null ? `${c.matchResult.overallScore}%` : 'N/A'}","${c.stage}","${c.appliedAt ? new Date(c.appliedAt).toLocaleDateString() : 'N/A'}"`
         )).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -503,7 +398,7 @@ export const EmployerDashboard: React.FC = () => {
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <p className="text-xs text-slate-500 font-medium">
-                  Welcome back, <strong className="text-sky-600 font-bold">{user?.fullName || 'Sumit Kumar'}</strong> 👋
+                  Welcome back, <strong className="text-sky-600 font-bold">{user?.fullName || 'Recruiter'}</strong> 👋
                 </p>
                 <div className="flex items-center gap-3 mt-1">
                   <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -560,10 +455,10 @@ export const EmployerDashboard: React.FC = () => {
                   <div>
                     <span className="text-xs font-semibold text-slate-500 block">Total Applicants</span>
                     <span className="text-2xl font-black text-slate-900 block leading-tight">
-                      {statsData?.stats?.totalApplicants ?? (combinedCandidates.length || 1248)}
+                      {statsData?.stats?.totalApplicants ?? combinedCandidates.length}
                     </span>
                     <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
-                      <span>↑ 18% from last week</span>
+                      <span>Real-time tracked</span>
                     </span>
                   </div>
                 </div>
@@ -579,7 +474,7 @@ export const EmployerDashboard: React.FC = () => {
                   <div>
                     <span className="text-xs font-semibold text-slate-500 block">Shortlisted Pool</span>
                     <span className="text-2xl font-black text-slate-900 block leading-tight">
-                      {statsData?.stats?.shortlistedPool ?? 14}
+                      {statsData?.stats?.shortlistedPool ?? combinedCandidates.filter(c => c.stage === 'SHORTLISTED').length}
                     </span>
                     <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
                       <span>&gt; 80% Match score</span>
@@ -598,10 +493,10 @@ export const EmployerDashboard: React.FC = () => {
                   <div>
                     <span className="text-xs font-semibold text-slate-500 block">Interviews & Demos</span>
                     <span className="text-2xl font-black text-slate-900 block leading-tight">
-                      {statsData?.stats?.interviewsAndDemos ?? 6}
+                      {statsData?.stats?.interviewsAndDemos ?? combinedCandidates.filter(c => c.stage === 'INTERVIEW_SCHEDULED').length}
                     </span>
                     <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
-                      <span>3 upcoming this week</span>
+                      <span>Scheduled rounds</span>
                     </span>
                   </div>
                 </div>
@@ -646,14 +541,15 @@ export const EmployerDashboard: React.FC = () => {
                       onChange={(e) => setSelectedJobId(e.target.value)}
                       className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-200 rounded-xl px-3 py-2 pr-8 shadow-2xs focus:outline-none focus:border-sky-500 appearance-none"
                     >
-                      <option value="job-1">
-                        Senior Physics Faculty (IIT-JEE Advanced & Main) (Physics • ₹18-28L)
-                      </option>
-                      {jobs.filter(j => j.id !== 'job-1').map(j => (
-                        <option key={j.id} value={j.id}>
-                          {j.title} ({j.subject} • ₹{j.minSalaryLPA}-{j.maxSalaryLPA}L)
-                        </option>
-                      ))}
+                      {jobs.length === 0 ? (
+                        <option value="">No vacancies posted yet</option>
+                      ) : (
+                        jobs.map(j => (
+                          <option key={j.id} value={j.id}>
+                            {j.title} ({j.subject} • ₹{j.minSalaryLPA}-{j.maxSalaryLPA}L)
+                          </option>
+                        ))
+                      )}
                     </select>
                     <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-3 pointer-events-none" />
                   </div>
@@ -692,13 +588,13 @@ export const EmployerDashboard: React.FC = () => {
               {/* Stage Filter Tabs (Pills) */}
               <div className="flex flex-wrap items-center gap-2 pt-2 border-b border-slate-100 pb-3">
                 {[
-                  { key: 'ALL', label: 'All', count: statsData?.stats?.stageCounts?.ALL ?? (combinedCandidates.length || 1248) },
-                  { key: 'APPLIED', label: 'Applied', count: statsData?.stats?.stageCounts?.APPLIED ?? 340 },
-                  { key: 'SCREENING', label: 'Screening', count: statsData?.stats?.stageCounts?.SCREENING ?? 218 },
-                  { key: 'SHORTLISTED', label: 'Shortlisted', count: statsData?.stats?.stageCounts?.SHORTLISTED ?? 14 },
-                  { key: 'INTERVIEW_SCHEDULED', label: 'Interview Scheduled', count: statsData?.stats?.stageCounts?.INTERVIEW_SCHEDULED ?? 6 },
-                  { key: 'SELECTED', label: 'Selected', count: statsData?.stats?.stageCounts?.SELECTED ?? 3 },
-                  { key: 'REJECTED', label: 'Rejected', count: statsData?.stats?.stageCounts?.REJECTED ?? 42 },
+                  { key: 'ALL', label: 'All', count: statsData?.stats?.stageCounts?.ALL ?? combinedCandidates.length },
+                  { key: 'APPLIED', label: 'Applied', count: statsData?.stats?.stageCounts?.APPLIED ?? combinedCandidates.filter(c => c.stage === 'APPLIED').length },
+                  { key: 'SCREENING', label: 'Screening', count: statsData?.stats?.stageCounts?.SCREENING ?? combinedCandidates.filter(c => c.stage === 'SCREENING').length },
+                  { key: 'SHORTLISTED', label: 'Shortlisted', count: statsData?.stats?.stageCounts?.SHORTLISTED ?? combinedCandidates.filter(c => c.stage === 'SHORTLISTED').length },
+                  { key: 'INTERVIEW_SCHEDULED', label: 'Interview Scheduled', count: statsData?.stats?.stageCounts?.INTERVIEW_SCHEDULED ?? combinedCandidates.filter(c => c.stage === 'INTERVIEW_SCHEDULED').length },
+                  { key: 'SELECTED', label: 'Selected', count: statsData?.stats?.stageCounts?.SELECTED ?? combinedCandidates.filter(c => c.stage === 'SELECTED').length },
+                  { key: 'REJECTED', label: 'Rejected', count: statsData?.stats?.stageCounts?.REJECTED ?? combinedCandidates.filter(c => c.stage === 'REJECTED').length },
                 ].map((st) => {
                   const isActive = selectedStageFilter === st.key;
                   return (
@@ -745,10 +641,25 @@ export const EmployerDashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredCandidates.length === 0 ? (
+                    {jobs.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center text-slate-500 font-medium">
+                          <Briefcase className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                          <p className="text-sm font-bold text-slate-800">No job openings created yet</p>
+                          <p className="text-xs text-slate-500 mb-3">Post your first vacancy to start receiving and screening candidate applications.</p>
+                          <button
+                            onClick={() => setShowPostJobModal(true)}
+                            className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Post First Vacancy</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ) : filteredCandidates.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
-                          No candidates match the selected stage or search criteria.
+                          No applicants match the selected stage or search criteria for this vacancy.
                         </td>
                       </tr>
                     ) : (
@@ -774,16 +685,16 @@ export const EmployerDashboard: React.FC = () => {
                             <td className="py-3.5 px-3">
                               <div className="flex items-center gap-3">
                                 <img
-                                  src={cand.teacher?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80'}
+                                  src={cand.teacher?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cand.teacher?.fullName || 'Educator')}`}
                                   alt={cand.teacher?.fullName}
                                   className="w-9 h-9 rounded-full object-cover shrink-0 border border-slate-200"
                                 />
                                 <div>
                                   <p className="font-bold text-slate-900 leading-tight">
-                                    {cand.teacher?.fullName}
+                                    {cand.teacher?.fullName || 'Applicant'}
                                   </p>
                                   <p className="text-[11px] text-slate-500 font-normal">
-                                    {cand.teacher?.email}
+                                    {cand.teacher?.email || ''}
                                   </p>
                                 </div>
                               </div>
@@ -792,21 +703,21 @@ export const EmployerDashboard: React.FC = () => {
                             {/* Subject & Degree */}
                             <td className="py-3.5 px-3">
                               <p className="font-bold text-slate-900 leading-tight">
-                                {cand.teacher?.profile?.subjects?.[0] || 'Physics'}
+                                {cand.teacher?.profile?.subjects?.[0] || 'General Teaching'}
                               </p>
                               <p className="text-[11px] text-slate-500 font-normal">
-                                {cand.teacher?.profile?.highestQualification || 'M.Sc., B.Ed.'}
+                                {cand.teacher?.profile?.highestQualification || 'Qualification pending'}
                               </p>
                             </td>
 
                             {/* Experience / Location */}
                             <td className="py-3.5 px-3">
                               <p className="font-bold text-slate-900 leading-tight">
-                                {cand.teacher?.profile?.experienceYears || 5} Years
+                                {cand.teacher?.profile?.experienceYears ?? 0} Years
                               </p>
                               <div className="flex items-center gap-1 text-[11px] text-slate-500 font-normal">
                                 <MapPin className="w-3 h-3 text-slate-400" />
-                                <span>{cand.teacher?.profile?.currentCity || 'Bhopal, MP'}</span>
+                                <span>{cand.teacher?.profile?.currentCity || 'City not specified'}</span>
                               </div>
                             </td>
 
@@ -832,7 +743,7 @@ export const EmployerDashboard: React.FC = () => {
 
                             {/* Applied On Date */}
                             <td className="py-3.5 px-3 text-slate-500 text-xs font-medium">
-                              {cand.displayDate || '12 Aug 2024'}
+                              {cand.appliedAt ? new Date(cand.appliedAt).toLocaleDateString() : 'N/A'}
                             </td>
 
                             {/* Actions: View Profile & 3 dots */}

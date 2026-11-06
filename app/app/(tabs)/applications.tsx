@@ -7,10 +7,10 @@ import { JobApplication } from '../../src/types';
 export default function ApplicationsScreen() {
   const { data, isLoading } = useQuery({
     queryKey: ['mobile-my-applications'],
-    queryFn: () => fetchFromApi('/applications/job/job-1'), // fallback preview
+    queryFn: () => fetchFromApi('/applications/my-applications'),
   });
 
-  const applications: JobApplication[] = data?.candidates || [];
+  const applications: JobApplication[] = data?.applications || data?.candidates || [];
 
   return (
     <View style={styles.container}>
@@ -27,9 +27,9 @@ export default function ApplicationsScreen() {
               )}
             </View>
 
-            <Text style={styles.candidateName}>{item.teacher?.fullName || 'Senior Physics Faculty Application'}</Text>
+            <Text style={styles.candidateName}>{item.teacher?.fullName || 'Application'}</Text>
             <Text style={styles.subtext}>
-              {item.teacher?.profile?.highestQualification || 'B.Ed / M.Sc'} • {item.teacher?.profile?.experienceYears || 5} Yrs Exp
+              {item.teacher?.profile?.highestQualification || 'Qualification not set'} • {item.teacher?.profile?.experienceYears != null ? `${item.teacher.profile.experienceYears} Yrs Exp` : 'Experience not set'}
             </Text>
 
             {item.matchResult?.aiAnalysisSummary && (

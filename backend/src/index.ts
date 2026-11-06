@@ -62,18 +62,24 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 if (process.env.NODE_ENV !== 'test') {
-  const server = app.listen(PORT, () => {
-    console.log(`🚀 SikshaHub API running on http://localhost:${PORT}`);
-    console.log(`📚 Reference inspired by Tallento.ai with original branding and architecture`);
-  });
+  const startServer = (portToTry: number) => {
+    const server = app.listen(portToTry, () => {
+      console.log(`🚀 SikshaHub API running on http://localhost:${portToTry}`);
+      console.log(`📚 SikshaHub AI Recruitment Platform`);
+    });
 
-  server.on('error', (err: any) => {
-    if (err.code === 'EADDRINUSE') {
-      console.error(`⚠️ Port ${PORT} is currently in use. Please terminate existing process on port ${PORT} or configure PORT in .env`);
-    } else {
-      console.error('Server error:', err);
-    }
-  });
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        const nextPort = portToTry + 1;
+        console.warn(`⚠️ Port ${portToTry} is in use. Attempting next port ${nextPort}...`);
+        startServer(nextPort);
+      } else {
+        console.error('Server error:', err);
+      }
+    });
+  };
+
+  startServer(Number(PORT) || 5001);
 }
 
 export default app;

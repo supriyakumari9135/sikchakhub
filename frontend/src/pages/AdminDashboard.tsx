@@ -17,6 +17,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { Institution, AuditLog } from '@sikchakhub/shared-types';
+import { apiUrl } from '../config/api';
 
 export const AdminDashboard: React.FC = () => {
   const { token } = useAuth();
@@ -27,7 +28,7 @@ export const AdminDashboard: React.FC = () => {
   const { data: kpiData } = useQuery({
     queryKey: ['admin-kpis'],
     queryFn: async () => {
-      const res = await fetch('/api/v1/admin/kpis', {
+      const res = await fetch(apiUrl('/api/v1/admin/kpis'), {
         headers: { Authorization: `Bearer ${token}` },
       });
       return res.json();
@@ -39,7 +40,7 @@ export const AdminDashboard: React.FC = () => {
   const { data: pendingData, refetch: refetchPending } = useQuery({
     queryKey: ['admin-pending-institutions'],
     queryFn: async () => {
-      const res = await fetch('/api/v1/admin/pending-institutions', {
+      const res = await fetch(apiUrl('/api/v1/admin/pending-institutions'), {
         headers: { Authorization: `Bearer ${token}` },
       });
       return res.json();
@@ -51,7 +52,19 @@ export const AdminDashboard: React.FC = () => {
   const { data: auditData } = useQuery({
     queryKey: ['admin-audit-logs'],
     queryFn: async () => {
-      const res = await fetch('/api/v1/admin/audit-logs', {
+      const res = await fetch(apiUrl('/api/v1/admin/audit-logs'), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.json();
+    },
+    enabled: !!token,
+  });
+
+  // Fetch real analytics
+  const { data: analyticsData } = useQuery({
+    queryKey: ['admin-analytics'],
+    queryFn: async () => {
+      const res = await fetch(apiUrl('/api/v1/admin/analytics'), {
         headers: { Authorization: `Bearer ${token}` },
       });
       return res.json();
@@ -60,21 +73,22 @@ export const AdminDashboard: React.FC = () => {
   });
 
   const kpis = kpiData?.kpis || {
-    totalTeachers: 18520,
-    totalInstitutions: 1250,
-    pendingInstitutions: 1,
-    totalVacancies: 1420,
-    activeVacancies: 890,
-    totalApplications: 4120,
-    interviewsScheduled: 340,
+    totalTeachers: 0,
+    totalInstitutions: 0,
+    pendingInstitutions: 0,
+    totalVacancies: 0,
+    activeVacancies: 0,
+    totalApplications: 0,
+    interviewsScheduled: 0,
   };
 
   const pendingInstitutions: Institution[] = pendingData?.pending || [];
   const logs: AuditLog[] = auditData?.logs || [];
+  const analytics = analyticsData?.analytics;
 
   const handleVerify = async (institutionId: string, status: 'VERIFIED' | 'REJECTED') => {
     try {
-      await fetch('/api/v1/admin/verify-institution', {
+      await fetch(apiUrl('/api/v1/admin/verify-institution'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,7 +148,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs space-y-1">
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Recruitment Applications</span>
             <span className="text-2xl font-bold text-purple-700 font-serif">{kpis.totalApplications}</span>
-            <p className="text-[10px] text-purple-600 font-medium">Automated screen rate: 94%</p>
+            <p className="text-[10px] text-purple-600 font-medium">Recorded applications</p>
           </div>
         </div>
 
@@ -250,32 +264,40 @@ export const AdminDashboard: React.FC = () => {
               </p>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider text-[10px] border-y border-slate-200">
-                  <tr>
-                    <th className="py-3 px-3">Timestamp</th>
-                    <th className="py-3 px-3">Action</th>
-                    <th className="py-3 px-3">User Email</th>
-                    <th className="py-3 px-3">Resource Target</th>
-                    <th className="py-3 px-3">IP Address</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
-                  {logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-50">
-                      <td className="py-2.5 px-3 text-slate-500">{new Date(log.createdAt).toLocaleString()}</td>
-                      <td className="py-2.5 px-3">
-                        <span className="font-semibold text-slate-900">{log.action}</span>
-                      </td>
-                      <td className="py-2.5 px-3 text-brand-700">{log.userEmail}</td>
-                      <td className="py-2.5 px-3">{log.resourceType}: {log.resourceId}</td>
-                      <td className="py-2.5 px-3 text-slate-400">{log.ipAddress}</td>
+            {logs.length === 0 ? (
+              <div className="py-12 text-center space-y-2">
+                <FileText className="w-8 h-8 text-slate-300 mx-auto" />
+                <p className="text-xs font-semibold text-slate-700">No Audit Logs Recorded</p>
+                <p className="text-[11px] text-slate-400">Security audit records will appear here as users perform platform operations.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-600">
+                  <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider text-[10px] border-y border-slate-200">
+                    <tr>
+                      <th className="py-3 px-3">Timestamp</th>
+                      <th className="py-3 px-3">Action</th>
+                      <th className="py-3 px-3">User Email</th>
+                      <th className="py-3 px-3">Resource Target</th>
+                      <th className="py-3 px-3">IP Address</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                    {logs.map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-50">
+                        <td className="py-2.5 px-3 text-slate-500">{new Date(log.createdAt).toLocaleString()}</td>
+                        <td className="py-2.5 px-3">
+                          <span className="font-semibold text-slate-900">{log.action}</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-brand-700">{log.userEmail}</td>
+                        <td className="py-2.5 px-3">{log.resourceType}: {log.resourceId}</td>
+                        <td className="py-2.5 px-3 text-slate-400">{log.ipAddress}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -284,41 +306,49 @@ export const AdminDashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
               <h4 className="text-sm font-bold text-slate-900 font-serif">Openings by Educational Category</h4>
-              <div className="space-y-2 text-xs">
-                {[
-                  { name: 'IIT-JEE & NEET Coaching Faculty', count: '42%' },
-                  { name: 'PGT Senior Secondary (CBSE / ICSE)', count: '28%' },
-                  { name: 'TGT & Primary School Educators', count: '18%' },
-                  { name: 'College Lecturers & University Faculty', count: '12%' },
-                ].map((item, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex justify-between font-semibold text-slate-700">
-                      <span>{item.name}</span>
-                      <span>{item.count}</span>
-                    </div>
-                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-brand-600 rounded-full" style={{ width: item.count }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {(!analytics?.jobsByLevel || analytics.jobsByLevel.length === 0) ? (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  <Briefcase className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  No vacancy category data available yet.
+                </div>
+              ) : (
+                <div className="space-y-2 text-xs">
+                  {analytics.jobsByLevel.map((item: any, idx: number) => {
+                    const total = kpis.totalVacancies || 1;
+                    const pct = Math.round((item.count / total) * 100);
+                    return (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex justify-between font-semibold text-slate-700">
+                          <span>{item.name}</span>
+                          <span>{item.count} ({pct}%)</span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-brand-600 rounded-full" style={{ width: `${Math.min(pct, 100)}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
               <h4 className="text-sm font-bold text-slate-900 font-serif">Top Recruitment Hub Cities</h4>
-              <div className="space-y-2 text-xs">
-                {[
-                  { city: 'Kota, Rajasthan', share: '34% (National Coaching Hub)' },
-                  { city: 'Delhi NCR (Dwarka, Noida, Gurugram)', share: '29% (Top K-12 Board Schools)' },
-                  { city: 'Bengaluru, Karnataka', share: '18% (Cambridge & EdTech)' },
-                  { city: 'Pune & Hyderabad', share: '19% (Universities & Medical Wing)' },
-                ].map((item, idx) => (
-                  <div key={idx} className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
-                    <span className="font-semibold text-slate-800">{item.city}</span>
-                    <span className="text-slate-500 font-medium">{item.share}</span>
-                  </div>
-                ))}
-              </div>
+              {(!analytics?.topHiringCities || analytics.topHiringCities.length === 0) ? (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  <MapPin className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  No city hiring distribution data recorded yet.
+                </div>
+              ) : (
+                <div className="space-y-2 text-xs">
+                  {analytics.topHiringCities.map((item: any, idx: number) => (
+                    <div key={idx} className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
+                      <span className="font-semibold text-slate-800">{item.name}</span>
+                      <span className="text-slate-500 font-medium">{item.count} Vacanc{item.count === 1 ? 'y' : 'ies'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

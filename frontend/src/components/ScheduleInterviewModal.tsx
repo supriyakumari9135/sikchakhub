@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { JobApplication } from '@sikchakhub/shared-types';
 import { useAuth } from '../context/AuthContext';
 import { X, Calendar, Clock, Video, MapPin, Send, CheckCircle2 } from 'lucide-react';
+import { apiUrl } from '../config/api';
 
 interface ScheduleInterviewModalProps {
   application: JobApplication;
@@ -20,9 +21,9 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 16)
   );
   const [durationMinutes, setDurationMinutes] = useState(45);
-  const [meetingLink, setMeetingLink] = useState('https://meet.google.com/sik-demo-session');
-  const [locationDetails, setLocationDetails] = useState('Online Video Class & Interactive Demo');
-  const [feedbackNotes, setFeedbackNotes] = useState('Topic: Core Pedagogical Concept Demo (30 mins teaching + 15 mins Q&A with Academic Panel)');
+  const [meetingLink, setMeetingLink] = useState('');
+  const [locationDetails, setLocationDetails] = useState('');
+  const [feedbackNotes, setFeedbackNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -30,7 +31,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/v1/interviews', {
+      const res = await fetch(apiUrl('/api/v1/interviews'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -190,43 +190,31 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     // 2. Real Password Verification using bcryptjs
-    let passwordMatches = false;
     const storedHash = user.passwordHash || (dbStore.getUserByEmail(normalizedEmail) as any)?.passwordHash;
-    if (storedHash) {
-      if (storedHash.startsWith('$2a$') || storedHash.startsWith('$2b$')) {
-        passwordMatches = bcryptjs.compareSync(password, storedHash);
-      } else {
-        // Plaintext match fallback for seeded demo datasets
-        passwordMatches = storedHash === password || password === 'password123' || password === 'admin123';
-      }
-    } else {
-      // Seed user without stored hash: accept default password and automatically hash & persist to MongoDB
-      passwordMatches = password === 'password123' || password === 'admin123';
-      if (passwordMatches) {
-        const generatedHash = bcryptjs.hashSync(password, 10);
-        UserModel.findOneAndUpdate({ email: normalizedEmail }, { $set: { passwordHash: generatedHash } }).catch(() => {});
-      }
+    if (!storedHash) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password credentials.' });
     }
 
+    const passwordMatches = bcryptjs.compareSync(password, storedHash);
     if (!passwordMatches) {
       return res.status(401).json({ success: false, message: 'Invalid email or password credentials.' });
     }
 
     // 3. Fetch linked profile or institution from MongoDB Atlas
-    let profile: any = undefined;
-    let institution: any = undefined;
+    let profile: any = null;
+    let institution: any = null;
 
     if (user.role === 'TEACHER') {
       try {
         profile = await TeacherProfileModel.findOne({ userId: user.id }).lean();
       } catch (err) {}
-      if (!profile) profile = dbStore.profiles[user.id];
+      if (!profile) profile = dbStore.profiles[user.id] || null;
     } else if (user.role === 'EMPLOYER') {
       try {
         institution = await InstitutionModel.findOne({ ownerId: user.id }).lean();
       } catch (err) {}
       if (!institution) {
-        institution = dbStore.institutions.find(i => i.ownerId === user.id) || dbStore.institutions[0];
+        institution = dbStore.institutions.find(i => i.ownerId === user.id) || null;
       }
     }
 
@@ -358,13 +346,13 @@ router.post('/google', async (req: Request, res: Response) => {
       try {
         profile = await TeacherProfileModel.findOne({ userId: user.id }).lean();
       } catch (e) {}
-      if (!profile) profile = dbStore.profiles[user.id];
+      if (!profile) profile = dbStore.profiles[user.id] || null;
     } else if (user.role === 'EMPLOYER') {
       try {
         institution = await InstitutionModel.findOne({ ownerId: user.id }).lean();
       } catch (e) {}
       if (!institution) {
-        institution = dbStore.institutions.find(i => i.ownerId === user.id) || dbStore.institutions[0];
+        institution = dbStore.institutions.find(i => i.ownerId === user.id) || null;
       }
     }
 
@@ -418,13 +406,13 @@ router.get('/me', authenticateJWT, async (req: Request, res: Response) => {
       try {
         profile = await TeacherProfileModel.findOne({ userId: user.id }).lean();
       } catch (e) {}
-      if (!profile) profile = dbStore.profiles[user.id];
+      if (!profile) profile = dbStore.profiles[user.id] || null;
     } else if (user.role === 'EMPLOYER') {
       try {
         institution = await InstitutionModel.findOne({ ownerId: user.id }).lean();
       } catch (e) {}
       if (!institution) {
-        institution = dbStore.institutions.find(i => i.ownerId === user.id) || dbStore.institutions[0];
+        institution = dbStore.institutions.find(i => i.ownerId === user.id) || null;
       }
     }
 

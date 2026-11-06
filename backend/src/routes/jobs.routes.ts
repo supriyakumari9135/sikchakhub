@@ -61,10 +61,10 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
       mongoJobs = await JobVacancyModel.find(queryFilter).sort({ createdAt: -1 }).lean();
     } catch (dbErr) {
       console.warn('MongoDB JobVacancyModel.find error, falling back to memory store:', dbErr);
+      mongoJobs = dbStore.jobs;
     }
 
-    // Fallback merge with in-memory store if DB had nothing
-    let combined = mongoJobs.length > 0 ? mongoJobs : dbStore.jobs;
+    const combined = mongoJobs;
 
     // Attach real institutions and count real applications
     let results = await Promise.all(combined.map(async (j: any) => {
@@ -72,13 +72,13 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
       try {
         inst = await InstitutionModel.findOne({ id: j.institutionId }).lean();
       } catch (e) {}
-      if (!inst) inst = dbStore.getInstitutionById(j.institutionId);
+      if (!inst) inst = dbStore.getInstitutionById(j.institutionId) || null;
 
       let appCount = 0;
       try {
         appCount = await JobApplicationModel.countDocuments({ jobId: j.id });
       } catch (e) {}
-      if (appCount === 0) {
+      if (appCount === 0 && dbStore.applications.length > 0) {
         appCount = dbStore.applications.filter(a => a.jobId === j.id).length;
       }
 
@@ -184,7 +184,29 @@ router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req
     } catch (e) {}
 
     if (!institution) {
-      institution = dbStore.institutions.find(i => i.ownerId === req.user!.id) || dbStore.institutions[0];
+      institution = dbStore.institutions.find(i => i.ownerId === req.user!.id);
+    }
+
+    if (!institution) {
+      institution = {
+        id: `inst-${Date.now()}`,
+        ownerId: req.user!.id,
+        name: `${req.user!.fullName}'s Institution`,
+        type: 'SCHOOL',
+        logoUrl: '/logo.jpeg',
+        website: '',
+        description: 'Verified educational institution on SikshaHub.',
+        affiliationNumber: 'REG-PENDING',
+        verificationStatus: 'PENDING',
+        city: 'Delhi NCR',
+        state: 'Delhi',
+        address: 'Main Campus',
+        pincode: '110001',
+      };
+      try {
+        await InstitutionModel.create(institution);
+      } catch (e) {}
+      dbStore.institutions.push(institution);
     }
 
     const newJob: any = {

@@ -23,7 +23,28 @@ router.get('/stats/employer', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']
       institution = await InstitutionModel.findOne({ ownerId: userId }).lean();
     } catch (e) {}
     if (!institution) {
-      institution = dbStore.institutions.find(i => i.ownerId === userId) || dbStore.institutions[0];
+      institution = dbStore.institutions.find(i => i.ownerId === userId) || null;
+    }
+
+    if (!institution) {
+      return res.json({
+        success: true,
+        stats: {
+          activeOpenings: 0,
+          totalApplicants: 0,
+          shortlistedPool: 0,
+          interviewsAndDemos: 0,
+          stageCounts: {
+            ALL: 0,
+            APPLIED: 0,
+            SCREENING: 0,
+            SHORTLISTED: 0,
+            INTERVIEW_SCHEDULED: 0,
+            SELECTED: 0,
+            REJECTED: 0,
+          }
+        }
+      });
     }
 
     // Get all jobs belonging to this institution
@@ -31,8 +52,8 @@ router.get('/stats/employer', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']
     try {
       jobs = await JobVacancyModel.find({ institutionId: institution.id }).lean();
     } catch (e) {}
-    if (jobs.length === 0) {
-      jobs = dbStore.jobs.filter(j => j.institutionId === institution.id || j.institutionId === 'inst-1');
+    if (jobs.length === 0 && dbStore.jobs.length > 0) {
+      jobs = dbStore.jobs.filter(j => j.institutionId === institution.id);
     }
 
     const jobIds = jobs.map(j => j.id);
@@ -51,29 +72,30 @@ router.get('/stats/employer', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']
       REJECTED: 0,
     };
 
-    try {
-      const apps = await JobApplicationModel.find({ jobId: { $in: jobIds } }).lean();
-      totalApplicants = apps.length;
-      apps.forEach(a => {
-        stageCounts.ALL++;
-        if (stageCounts[a.stage] !== undefined) {
-          stageCounts[a.stage]++;
-        }
-        if (a.stage === 'SHORTLISTED') shortlistedCount++;
-        if (a.stage === 'INTERVIEW_SCHEDULED') interviewsCount++;
-      });
-    } catch (e) {}
+    if (jobIds.length > 0) {
+      try {
+        const apps = await JobApplicationModel.find({ jobId: { $in: jobIds } }).lean();
+        totalApplicants = apps.length;
+        apps.forEach(a => {
+          stageCounts.ALL++;
+          if (stageCounts[a.stage] !== undefined) {
+            stageCounts[a.stage]++;
+          }
+          if (a.stage === 'SHORTLISTED') shortlistedCount++;
+          if (a.stage === 'INTERVIEW_SCHEDULED') interviewsCount++;
+        });
+      } catch (e) {}
 
-    // Fallback if DB was empty
-    if (totalApplicants === 0) {
-      const fallbackApps = dbStore.applications.filter(a => jobIds.includes(a.jobId));
-      totalApplicants = fallbackApps.length;
-      fallbackApps.forEach(a => {
-        stageCounts.ALL++;
-        if (stageCounts[a.stage] !== undefined) stageCounts[a.stage]++;
-        if (a.stage === 'SHORTLISTED') shortlistedCount++;
-        if (a.stage === 'INTERVIEW_SCHEDULED') interviewsCount++;
-      });
+      if (totalApplicants === 0 && dbStore.applications.length > 0) {
+        const fallbackApps = dbStore.applications.filter(a => jobIds.includes(a.jobId));
+        totalApplicants = fallbackApps.length;
+        fallbackApps.forEach(a => {
+          stageCounts.ALL++;
+          if (stageCounts[a.stage] !== undefined) stageCounts[a.stage]++;
+          if (a.stage === 'SHORTLISTED') shortlistedCount++;
+          if (a.stage === 'INTERVIEW_SCHEDULED') interviewsCount++;
+        });
+      }
     }
 
     const activeOpenings = jobs.filter(j => j.status === 'ACTIVE').length;
@@ -81,18 +103,18 @@ router.get('/stats/employer', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']
     return res.json({
       success: true,
       stats: {
-        activeOpenings: activeOpenings || jobs.length,
-        totalApplicants: totalApplicants || 1248,
-        shortlistedPool: shortlistedCount || 14,
-        interviewsAndDemos: interviewsCount || 6,
+        activeOpenings,
+        totalApplicants,
+        shortlistedPool: shortlistedCount,
+        interviewsAndDemos: interviewsCount,
         stageCounts: {
-          ALL: totalApplicants || 1248,
-          APPLIED: stageCounts.APPLIED || 340,
-          SCREENING: stageCounts.SCREENING || 218,
-          SHORTLISTED: shortlistedCount || 14,
-          INTERVIEW_SCHEDULED: interviewsCount || 6,
-          SELECTED: stageCounts.SELECTED || 3,
-          REJECTED: stageCounts.REJECTED || 42,
+          ALL: totalApplicants,
+          APPLIED: stageCounts.APPLIED,
+          SCREENING: stageCounts.SCREENING,
+          SHORTLISTED: shortlistedCount,
+          INTERVIEW_SCHEDULED: interviewsCount,
+          SELECTED: stageCounts.SELECTED,
+          REJECTED: stageCounts.REJECTED,
         }
       }
     });
@@ -184,7 +206,7 @@ router.post('/', authenticateJWT, async (req: Request, res: Response) => {
       id: applicationId,
       jobId,
       teacherId,
-      resumeUrl: resumeUrl || teacherProfile?.resumeUrl || '/sample-resume.pdf',
+      resumeUrl: resumeUrl || teacherProfile?.resumeUrl || '',
       coverLetter: coverLetter || '',
       stage: initialStage,
       customAnswers: customAnswers || {},
@@ -238,10 +260,10 @@ router.get('/my-applications', authenticateJWT, async (req: Request, res: Respon
     let apps: any[] = [];
     try {
       apps = await JobApplicationModel.find({ teacherId }).sort({ appliedAt: -1 }).lean();
-    } catch (e) {}
-
-    if (apps.length === 0) {
-      apps = dbStore.getApplicationsByTeacherId(teacherId) as any;
+    } catch (e) {
+      if (dbStore.applications.length > 0) {
+        apps = dbStore.getApplicationsByTeacherId(teacherId) as any;
+      }
     }
 
     // Populate job and institution
@@ -298,7 +320,7 @@ router.get('/job/:jobId', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), a
         employerInst = dbStore.institutions.find(i => i.ownerId === req.user!.id);
       }
 
-      if (employerInst && job.institutionId !== employerInst.id && job.institutionId !== 'inst-1') {
+      if (employerInst && job.institutionId !== employerInst.id) {
         return res.status(403).json({ success: false, message: 'Unauthorized to view candidates for this vacancy.' });
       }
     }
@@ -311,12 +333,12 @@ router.get('/job/:jobId', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), a
         queryFilter.stage = stage;
       }
       apps = await JobApplicationModel.find(queryFilter).sort({ appliedAt: -1 }).lean();
-    } catch (e) {}
-
-    if (apps.length === 0) {
-      apps = dbStore.getApplicationsByJobId(jobId);
-      if (stage && stage !== 'ALL') {
-        apps = apps.filter(a => a.stage === stage);
+    } catch (e) {
+      if (dbStore.applications.length > 0) {
+        apps = dbStore.getApplicationsByJobId(jobId);
+        if (stage && stage !== 'ALL') {
+          apps = apps.filter(a => a.stage === stage);
+        }
       }
     }
 
@@ -411,7 +433,7 @@ router.get('/:id', authenticateJWT, async (req: Request, res: Response) => {
       } catch (e) {}
       if (!employerInst) employerInst = dbStore.institutions.find(i => i.ownerId === req.user!.id);
 
-      if (job && employerInst && job.institutionId !== employerInst.id && job.institutionId !== 'inst-1') {
+      if (job && employerInst && job.institutionId !== employerInst.id) {
         return res.status(403).json({ success: false, message: 'Forbidden: Unauthorized to access candidate profiles for this vacancy.' });
       }
     }
@@ -479,14 +501,14 @@ router.get('/:id/resume', authenticateJWT, async (req: Request, res: Response) =
       } catch (e) {}
       if (!employerInst) employerInst = dbStore.institutions.find(i => i.ownerId === req.user!.id);
 
-      if (job && employerInst && job.institutionId !== employerInst.id && job.institutionId !== 'inst-1') {
+      if (job && employerInst && job.institutionId !== employerInst.id) {
         return res.status(403).json({ success: false, message: 'Forbidden: Unauthorized to access CV for this vacancy.' });
       }
     }
 
     return res.json({
       success: true,
-      resumeUrl: app.resumeUrl || '/sample-resume.pdf',
+      resumeUrl: app.resumeUrl || null,
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, message: 'Failed to access resume document.' });
@@ -543,7 +565,7 @@ router.patch('/:id/stage', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), 
       } catch (e) {}
       if (!employerInst) employerInst = dbStore.institutions.find(i => i.ownerId === req.user!.id);
 
-      if (job && employerInst && job.institutionId !== employerInst.id && job.institutionId !== 'inst-1') {
+      if (job && employerInst && job.institutionId !== employerInst.id) {
         return res.status(403).json({ success: false, message: 'Forbidden: Unauthorized to update applications for this vacancy.' });
       }
     }
@@ -564,25 +586,6 @@ router.patch('/:id/stage', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), 
       app.stage = normalizedStage as any;
       app.updatedAt = new Date().toISOString();
       if (!updatedApp) updatedApp = app;
-    }
-
-    // If candidate was a benchmark item, persist new doc in MongoDB Atlas
-    if (!updatedApp && req.params.id.startsWith('app-scr-')) {
-      const benchmarkDoc = {
-        id: req.params.id,
-        jobId: targetApp?.jobId || 'job-1',
-        teacherId: targetApp?.teacherId || 'user-teacher-1',
-        resumeUrl: '/sample-resume.pdf',
-        stage: normalizedStage,
-        appliedAt: new Date(),
-        updatedAt: new Date(),
-      };
-      try {
-        await JobApplicationModel.create(benchmarkDoc);
-        updatedApp = benchmarkDoc;
-      } catch (e) {}
-      dbStore.applications.push(benchmarkDoc as any);
-      if (!updatedApp) updatedApp = benchmarkDoc;
     }
 
     if (!updatedApp) {

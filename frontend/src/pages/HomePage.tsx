@@ -24,10 +24,12 @@ import {
   CheckCircle,
   HelpCircle,
   School,
-  Flame
+  Flame,
+  AlertCircle
 } from 'lucide-react';
 import { JobVacancy } from '../types';
 import { ApplyJobModal } from '../components/ApplyJobModal';
+import { apiUrl } from '../config/api';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -38,181 +40,16 @@ export const HomePage: React.FC = () => {
   const [selectedJobForApply, setSelectedJobForApply] = useState<JobVacancy | null>(null);
 
   // Fetch featured jobs from API
-  const { data: jobsData, isLoading: jobsLoading } = useQuery({
+  const { data: jobsData, isLoading: jobsLoading, error: jobsError } = useQuery({
     queryKey: ['featured-jobs'],
     queryFn: async () => {
-      try {
-        const res = await fetch('/api/v1/jobs?limit=6');
-        if (!res.ok) throw new Error('Failed to fetch jobs');
-        return res.json();
-      } catch (err) {
-        console.warn('Using fallback jobs', err);
-        return { jobs: [] };
-      }
+      const res = await fetch(apiUrl('/api/v1/jobs?limit=6'));
+      if (!res.ok) throw new Error('Failed to fetch jobs from server');
+      return res.json();
     },
   });
 
-  const featuredJobs: JobVacancy[] = jobsData?.jobs && jobsData.jobs.length > 0 
-    ? jobsData.jobs 
-    : [
-        {
-          id: 'job-1',
-          institutionId: 'inst-1',
-          title: 'Senior Faculty - IIT-JEE Advanced Physics',
-          subject: 'Physics',
-          teachingLevel: 'COACHING_JEE' as any,
-          board: 'CBSE' as any,
-          minSalaryLPA: 18,
-          maxSalaryLPA: 28,
-          city: 'Kota',
-          state: 'Rajasthan',
-          minExperienceYears: 5,
-          description: 'Lead faculty required for top rankers batch in Kota. Strong problem-solving pedigree in Irodov and Pathfinder required.',
-          status: 'PUBLISHED' as any,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          institution: {
-            id: 'inst-1',
-            name: 'Apex IIT & Medical Academy',
-            type: 'COACHING_INSTITUTE' as any,
-            city: 'Kota',
-            state: 'Rajasthan',
-            logoUrl: 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?auto=format&fit=crop&w=160&h=160&q=80',
-            isVerified: true
-          } as any
-        },
-        {
-          id: 'job-2',
-          institutionId: 'inst-2',
-          title: 'PGT Senior Secondary Mathematics & AP Calculus',
-          subject: 'Mathematics',
-          teachingLevel: 'PGT' as any,
-          board: 'CBSE' as any,
-          minSalaryLPA: 9,
-          maxSalaryLPA: 14,
-          city: 'Delhi NCR',
-          state: 'Delhi',
-          minExperienceYears: 4,
-          description: 'Reputed senior secondary CBSE day-boarding school seeking dynamic PGT Mathematics teacher for classes 11th & 12th.',
-          status: 'PUBLISHED' as any,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          institution: {
-            id: 'inst-2',
-            name: 'Delhi Heritage International School',
-            type: 'SCHOOL_K12' as any,
-            city: 'Delhi NCR',
-            state: 'Delhi',
-            logoUrl: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&w=160&h=160&q=80',
-            isVerified: true
-          } as any
-        },
-        {
-          id: 'job-3',
-          institutionId: 'inst-3',
-          title: 'NEET Medical Faculty - Senior Zoology Expert',
-          subject: 'Biology / Zoology',
-          teachingLevel: 'COACHING_NEET' as any,
-          board: 'CBSE' as any,
-          minSalaryLPA: 15,
-          maxSalaryLPA: 24,
-          city: 'Bengaluru',
-          state: 'Karnataka',
-          minExperienceYears: 4,
-          description: 'Responsible for delivering high-yield NCERT diagrams and NEET UG conceptual test analysis for repeaters batch.',
-          status: 'PUBLISHED' as any,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          institution: {
-            id: 'inst-3',
-            name: 'Narayana Educational Institutions',
-            type: 'COACHING_INSTITUTE' as any,
-            city: 'Bengaluru',
-            state: 'Karnataka',
-            logoUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=160&h=160&q=80',
-            isVerified: true
-          } as any
-        },
-        {
-          id: 'job-4',
-          institutionId: 'inst-4',
-          title: 'TGT Science & STEM Coordinator',
-          subject: 'Science / Physics',
-          teachingLevel: 'TGT' as any,
-          board: 'ICSE' as any,
-          minSalaryLPA: 7,
-          maxSalaryLPA: 10,
-          city: 'Jaipur',
-          state: 'Rajasthan',
-          minExperienceYears: 3,
-          description: 'Experienced middle school science teacher with hands-on robotics and laboratory activity teaching approach.',
-          status: 'PUBLISHED' as any,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          institution: {
-            id: 'inst-4',
-            name: 'Cambridge Global Academy',
-            type: 'SCHOOL_K12' as any,
-            city: 'Jaipur',
-            state: 'Rajasthan',
-            logoUrl: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=160&h=160&q=80',
-            isVerified: true
-          } as any
-        },
-        {
-          id: 'job-5',
-          institutionId: 'inst-5',
-          title: 'Assistant Professor - Computer Science & AI',
-          subject: 'Computer Science',
-          teachingLevel: 'COLLEGE_PROFESSOR' as any,
-          board: 'OTHER' as any,
-          minSalaryLPA: 12,
-          maxSalaryLPA: 18,
-          city: 'Pune',
-          state: 'Maharashtra',
-          minExperienceYears: 3,
-          description: 'NAAC A+ accredited technical university hiring faculty for Machine Learning, Data Structures, and Python Programming.',
-          status: 'PUBLISHED' as any,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          institution: {
-            id: 'inst-5',
-            name: 'Horizon Institute of Technology',
-            type: 'COLLEGE_UNIVERSITY' as any,
-            city: 'Pune',
-            state: 'Maharashtra',
-            logoUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=160&h=160&q=80',
-            isVerified: true
-          } as any
-        },
-        {
-          id: 'job-6',
-          institutionId: 'inst-6',
-          title: 'Head of Department (HOD) - Chemistry',
-          subject: 'Chemistry',
-          teachingLevel: 'HOD_PRINCIPAL' as any,
-          board: 'CBSE' as any,
-          minSalaryLPA: 20,
-          maxSalaryLPA: 32,
-          city: 'Hyderabad',
-          state: 'Telangana',
-          minExperienceYears: 8,
-          description: 'Lead a team of 14 chemistry lecturers for JEE Main, Advanced, and state competitive exams. Exceptional leadership required.',
-          status: 'PUBLISHED' as any,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          institution: {
-            id: 'inst-6',
-            name: 'Sri Chaitanya Educational Group',
-            type: 'COACHING_INSTITUTE' as any,
-            city: 'Hyderabad',
-            state: 'Telangana',
-            logoUrl: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&w=160&h=160&q=80',
-            isVerified: true
-          } as any
-        }
-      ];
-
+  const featuredJobs: JobVacancy[] = jobsData?.jobs || [];
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
@@ -524,82 +361,110 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Job Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredJobs.map((job) => (
-              <div
-                key={job.id}
-                className="bg-white rounded-2xl p-6 border border-sky-100 hover:border-sky-300 hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col justify-between group shadow-xs"
+          {jobsLoading ? (
+            <div className="bg-white rounded-2xl p-12 text-center text-slate-400 space-y-2 border border-sky-100">
+              <div className="w-6 h-6 border-2 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs font-medium">Scanning verified teaching vacancies...</p>
+            </div>
+          ) : jobsError ? (
+            <div className="bg-white rounded-2xl p-8 text-center space-y-2 border border-red-200 bg-red-50/50">
+              <AlertCircle className="w-8 h-8 text-red-500 mx-auto" />
+              <p className="text-xs font-bold text-red-800">Unable to load job vacancies at this time.</p>
+              <p className="text-[11px] text-red-600">Please check your backend connection or refresh the page.</p>
+            </div>
+          ) : featuredJobs.length === 0 ? (
+            <div className="bg-white rounded-2xl p-12 text-center space-y-3 border border-sky-100">
+              <Briefcase className="w-10 h-10 text-slate-300 mx-auto" />
+              <h4 className="text-base font-bold text-slate-800">No vacancies posted yet</h4>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Educational institutions are currently finalizing their recruitment drives. Check back soon or register as an educator.
+              </p>
+              <Link
+                to="/jobs"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 text-white text-xs font-semibold rounded-xl hover:bg-sky-700 transition"
               >
-                <div className="space-y-4">
-                  {/* Institution info */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={job.institution?.logoUrl || '/logo.jpeg'}
-                        alt={job.institution?.name}
-                        className="w-12 h-12 rounded-xl object-cover border border-sky-100 bg-white"
-                      />
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900 line-clamp-1 flex items-center gap-1.5">
-                          <span>{job.institution?.name}</span>
-                          <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                        </h4>
-                        <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-sky-500" />
-                          <span>{job.city}, {job.state}</span>
-                        </p>
+                <span>Browse Jobs</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredJobs.map((job) => (
+                <div
+                  key={job.id}
+                  className="bg-white rounded-2xl p-6 border border-sky-100 hover:border-sky-300 hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col justify-between group shadow-xs"
+                >
+                  <div className="space-y-4">
+                    {/* Institution info */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={job.institution?.logoUrl || '/logo.jpeg'}
+                          alt={job.institution?.name}
+                          className="w-12 h-12 rounded-xl object-cover border border-sky-100 bg-white"
+                        />
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900 line-clamp-1 flex items-center gap-1.5">
+                            <span>{job.institution?.name}</span>
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          </h4>
+                          <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-sky-500" />
+                            <span>{job.city}, {job.state}</span>
+                          </p>
+                        </div>
                       </div>
+
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200 shrink-0">
+                        {job.teachingLevel}
+                      </span>
                     </div>
 
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200 shrink-0">
-                      {job.teachingLevel}
-                    </span>
+                    {/* Job Title */}
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900 font-serif line-clamp-2 group-hover:text-sky-600 transition">
+                      {job.title}
+                    </h3>
+
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-1.5 text-[11px]">
+                      <span className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-800 border border-sky-100 font-medium">
+                        Subject: {job.subject}
+                      </span>
+                      <span className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-800 border border-sky-100 font-medium">
+                        {job.board}
+                      </span>
+                      <span className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-800 border border-sky-100 font-medium">
+                        {job.minExperienceYears}+ Yrs Exp
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                      {job.description}
+                    </p>
                   </div>
 
-                  {/* Job Title */}
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900 font-serif line-clamp-2 group-hover:text-sky-600 transition">
-                    {job.title}
-                  </h3>
+                  {/* Card Footer: Offered CTC + Apply Button */}
+                  <div className="pt-4 mt-5 border-t border-sky-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-semibold uppercase">Offered CTC</span>
+                      <span className="text-sm font-black text-emerald-600">
+                        ₹{job.minSalaryLPA} - ₹{job.maxSalaryLPA} LPA
+                      </span>
+                    </div>
 
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-1.5 text-[11px]">
-                    <span className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-800 border border-sky-100 font-medium">
-                      Subject: {job.subject}
-                    </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-800 border border-sky-100 font-medium">
-                      {job.board}
-                    </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-800 border border-sky-100 font-medium">
-                      {job.minExperienceYears}+ Yrs Exp
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
-                    {job.description}
-                  </p>
-                </div>
-
-                {/* Card Footer: Offered CTC + Apply Button */}
-                <div className="pt-4 mt-5 border-t border-sky-100 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] text-slate-400 block font-semibold uppercase">Offered CTC</span>
-                    <span className="text-sm font-black text-emerald-600">
-                      ₹{job.minSalaryLPA} - ₹{job.maxSalaryLPA} LPA
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setSelectedJobForApply(job)}
-                      className="px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white text-xs font-bold rounded-xl hover:from-sky-600 hover:to-blue-700 shadow-xs transition transform active:scale-95"
-                    >
-                      Quick Apply
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setSelectedJobForApply(job)}
+                        className="px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white text-xs font-bold rounded-xl hover:from-sky-600 hover:to-blue-700 shadow-xs transition transform active:scale-95"
+                      >
+                        Quick Apply
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           <div className="text-center pt-4">
             <Link

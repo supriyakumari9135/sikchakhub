@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, TeacherProfile, Institution, UserRole } from '@sikchakhub/shared-types';
+import { apiUrl } from '../config/api';
 
 export type PortalRole = 'TEACHER' | 'EMPLOYER' | 'ADMIN';
 
@@ -54,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       try {
-        const res = await fetch('/api/v1/auth/me', {
+        const res = await fetch(apiUrl('/api/v1/auth/me'), {
           headers: { Authorization: `Bearer ${storedToken}` },
         });
         const data = await res.json();
@@ -87,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, pass: string, _expectedRole?: PortalRole) => {
     try {
-      const res = await fetch('/api/v1/auth/login', {
+      const res = await fetch(apiUrl('/api/v1/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: pass }),
@@ -109,7 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (formData: any) => {
     try {
-      const res = await fetch('/api/v1/auth/register', {
+      const res = await fetch(apiUrl('/api/v1/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -137,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, message: 'Google account email is required' };
       }
 
-      const res = await fetch('/api/v1/auth/google', {
+      const res = await fetch(apiUrl('/api/v1/auth/google'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -173,7 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProfile = async (profileData: Partial<TeacherProfile>) => {
     if (!token) return;
     try {
-      const res = await fetch('/api/v1/auth/profile', {
+      const res = await fetch(apiUrl('/api/v1/auth/profile'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

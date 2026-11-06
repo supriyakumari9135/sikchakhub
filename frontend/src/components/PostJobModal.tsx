@@ -11,6 +11,7 @@ import {
   Sliders
 } from 'lucide-react';
 import { FormFieldDefinition } from '@sikchakhub/shared-types';
+import { apiUrl } from '../config/api';
 
 interface PostJobModalProps {
   onClose: () => void;
@@ -76,7 +77,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
     setIsSubmitting(true);
 
     try {
-      const res = await fetch('/api/v1/jobs', {
+      const res = await fetch(apiUrl('/api/v1/jobs'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

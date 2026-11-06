@@ -15,6 +15,7 @@ import {
   Award
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { apiUrl } from '../config/api';
 
 interface ApplyJobModalProps {
   job: JobVacancy;
@@ -49,7 +50,7 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
     setErrorMsg(null);
 
     try {
-      const res = await fetch('/api/v1/applications', {
+      const res = await fetch(apiUrl('/api/v1/applications'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -58,7 +59,7 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
         body: JSON.stringify({
           jobId: job.id,
           coverLetter,
-          resumeUrl: profile?.resumeUrl || '/sample-resume.pdf',
+          resumeUrl: profile?.resumeUrl || '',
           customAnswers,
         }),
       });
@@ -201,15 +202,22 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
                   <div>
                     <h5 className="text-xs font-bold text-slate-900">{user?.fullName || 'Educator Applicant'}</h5>
                     <p className="text-[11px] text-slate-500">
-                      {profile?.highestQualification || 'B.Ed / Masters'} • {profile?.experienceYears || 2} Years Experience
+                      {profile?.highestQualification || 'Qualification not set'} • {profile?.experienceYears != null ? `${profile.experienceYears} Years Experience` : 'Experience not set'}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                    <FileText className="w-3 h-3" />
-                    CV Attached
-                  </span>
+                  {profile?.resumeUrl ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      <FileText className="w-3 h-3" />
+                      CV Attached
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                      <FileText className="w-3 h-3" />
+                      No CV Attached
+                    </span>
+                  )}
                 </div>
               </div>
 

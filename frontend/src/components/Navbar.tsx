@@ -242,98 +242,113 @@ export const Navbar: React.FC = () => {
             {/* Right Action Menu: + Post a Job + User Profile Menu */}
             <div className="flex items-center gap-3 sm:gap-4">
               {/* + Post a Job Action Button */}
-              <Link
-                to="/employer-dashboard"
-                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-sky-600 hover:text-sky-700 bg-white hover:bg-sky-50 border border-sky-500 transition-all shadow-2xs group"
-              >
-                <span>+ Post a Job</span>
-              </Link>
-
-              {/* Profile Menu Badge (Matches screenshot with SK avatar and Sumit Kumar / Employer) */}
-              <div className="relative" ref={userDropdownRef}>
-                <button
-                  onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className="flex items-center gap-2.5 p-1 rounded-2xl hover:bg-slate-50 transition"
+              {user?.role === 'EMPLOYER' ? (
+                <Link
+                  to="/employer-dashboard"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-sky-600 hover:text-sky-700 bg-white hover:bg-sky-50 border border-sky-500 transition-all shadow-2xs group"
                 >
-                  <div className="w-9 h-9 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
-                    {user?.fullName ? (
-                      user.fullName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
-                    ) : 'SK'}
-                  </div>
-                  <div className="hidden sm:flex flex-col text-left">
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[110px]">
-                        {user?.fullName || 'Sumit Kumar'}
-                      </span>
-                      <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 ${showUserDropdown ? 'rotate-180 text-sky-600' : ''}`} />
-                    </div>
-                    <span className="text-[10px] text-slate-500 font-medium">
-                      {user?.role === 'TEACHER' ? 'Job Seeker' : user?.role === 'ADMIN' ? 'Admin' : 'Employer'}
-                    </span>
-                  </div>
+                  <span>+ Post a Job</span>
+                </Link>
+              ) : (
+                <button
+                  onClick={() => openAuthModal('LOGIN', 'EMPLOYER')}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-sky-600 hover:text-sky-700 bg-white hover:bg-sky-50 border border-sky-500 transition-all shadow-2xs group"
+                >
+                  <span>+ Post a Job</span>
                 </button>
+              )}
 
-                {/* Dropdown Menu */}
-                {showUserDropdown && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-sky-100 py-2.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 overflow-hidden">
-                    <div className="px-4 py-3 border-b border-sky-100 bg-gradient-to-br from-sky-50/60 to-white">
-                      <p className="text-xs font-extrabold text-slate-900 truncate">
-                        {user?.fullName || 'Sumit Kumar'}
-                      </p>
-                      <p className="text-[11px] text-slate-500 truncate">
-                        {user?.email || 'sumit.kumar@sikchakhub.com'}
-                      </p>
-                      <span className="inline-block mt-1.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 border border-sky-200 uppercase tracking-wider">
-                        {user?.role || 'EMPLOYER'} ACTIVE
+              {/* User Profile Menu or Sign In */}
+              {user ? (
+                <div className="relative" ref={userDropdownRef}>
+                  <button
+                    onClick={() => setShowUserDropdown(!showUserDropdown)}
+                    className="flex items-center gap-2.5 p-1 rounded-2xl hover:bg-slate-50 transition"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
+                      {user.fullName ? (
+                        user.fullName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
+                      ) : 'U'}
+                    </div>
+                    <div className="hidden sm:flex flex-col text-left">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[110px]">
+                          {user.fullName}
+                        </span>
+                        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 ${showUserDropdown ? 'rotate-180 text-sky-600' : ''}`} />
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        {user.role === 'TEACHER' ? 'Job Seeker' : user.role === 'ADMIN' ? 'Admin' : 'Employer'}
                       </span>
                     </div>
+                  </button>
 
-                    <div className="py-1.5">
-                      <Link
-                        to="/employer-dashboard"
-                        onClick={() => setShowUserDropdown(false)}
-                        className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-sky-50 hover:text-sky-700 transition"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
-                          <Building2 className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="leading-tight font-bold">Recruiter Dashboard (Job Poster)</p>
-                          <span className="text-[10px] text-slate-400 font-normal">Manage Vacancies & Applicants</span>
-                        </div>
-                      </Link>
+                  {/* Dropdown Menu */}
+                  {showUserDropdown && (
+                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-sky-100 py-2.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 overflow-hidden">
+                      <div className="px-4 py-3 border-b border-sky-100 bg-gradient-to-br from-sky-50/60 to-white">
+                        <p className="text-xs font-extrabold text-slate-900 truncate">
+                          {user.fullName}
+                        </p>
+                        <p className="text-[11px] text-slate-500 truncate">
+                          {user.email}
+                        </p>
+                        <span className="inline-block mt-1.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 border border-sky-200 uppercase tracking-wider">
+                          {user.role} ACTIVE
+                        </span>
+                      </div>
 
-                      <Link
-                        to="/teacher-dashboard"
-                        onClick={() => setShowUserDropdown(false)}
-                        className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-sky-50 hover:text-sky-700 transition"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
-                          <UserCircle className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="leading-tight font-bold">Job Seeker Dashboard</p>
-                          <span className="text-[10px] text-slate-400 font-normal">Applications & Matches</span>
-                        </div>
-                      </Link>
+                      <div className="py-1.5">
+                        {user.role === 'EMPLOYER' && (
+                          <Link
+                            to="/employer-dashboard"
+                            onClick={() => setShowUserDropdown(false)}
+                            className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-sky-50 hover:text-sky-700 transition"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                              <Building2 className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="leading-tight font-bold">Recruiter Dashboard (Job Poster)</p>
+                              <span className="text-[10px] text-slate-400 font-normal">Manage Vacancies & Applicants</span>
+                            </div>
+                          </Link>
+                        )}
 
-                      <Link
-                        to="/admin-dashboard"
-                        onClick={() => setShowUserDropdown(false)}
-                        className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-sky-50 hover:text-sky-700 transition"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
-                          <ShieldAlert className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="leading-tight font-bold">Admin Console</p>
-                          <span className="text-[10px] text-slate-400 font-normal">Governance & Compliance</span>
-                        </div>
-                      </Link>
-                    </div>
+                        {user.role === 'TEACHER' && (
+                          <Link
+                            to="/teacher-dashboard"
+                            onClick={() => setShowUserDropdown(false)}
+                            className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-sky-50 hover:text-sky-700 transition"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                              <UserCircle className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="leading-tight font-bold">Job Seeker Dashboard</p>
+                              <span className="text-[10px] text-slate-400 font-normal">Applications & Matches</span>
+                            </div>
+                          </Link>
+                        )}
 
-                    <div className="border-t border-slate-100 pt-1.5 px-2">
-                      {user ? (
+                        {user.role === 'ADMIN' && (
+                          <Link
+                            to="/admin-dashboard"
+                            onClick={() => setShowUserDropdown(false)}
+                            className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-sky-50 hover:text-sky-700 transition"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                              <ShieldAlert className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="leading-tight font-bold">Admin Console</p>
+                              <span className="text-[10px] text-slate-400 font-normal">Governance & Compliance</span>
+                            </div>
+                          </Link>
+                        )}
+                      </div>
+
+                      <div className="border-t border-slate-100 pt-1.5 px-2">
                         <button
                           onClick={() => {
                             setShowUserDropdown(false);
@@ -344,22 +359,19 @@ export const Navbar: React.FC = () => {
                           <LogOut className="w-4 h-4" />
                           <span>Sign Out</span>
                         </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setShowUserDropdown(false);
-                            openAuthModal('LOGIN');
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-sky-700 hover:bg-sky-50 rounded-xl transition"
-                        >
-                          <UserCircle className="w-4 h-4" />
-                          <span>Login / Sign Up</span>
-                        </button>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => openAuthModal('LOGIN')}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-sm transition active:scale-95"
+                >
+                  <UserCircle className="w-4 h-4" />
+                  <span>Sign In</span>
+                </button>
+              )}
 
               {/* Mobile Hamburger Button with Colorful Touch */}
               <button

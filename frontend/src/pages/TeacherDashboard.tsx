@@ -32,6 +32,7 @@ import {
   User
 } from 'lucide-react';
 import { JobApplication, Interview } from '@sikchakhub/shared-types';
+import { apiUrl } from '../config/api';
 
 // Mini Bar Chart graphic matching the 4 stat cards
 const MiniBarGraphic = ({ color = 'sky' }: { color?: 'sky' | 'emerald' | 'purple' }) => {
@@ -66,20 +67,32 @@ export const TeacherDashboard: React.FC = () => {
   const [exportNotice, setExportNotice] = useState<string | null>(null);
 
   // Profile Form state
-  const [headline, setHeadline] = useState(profile?.headline || 'Senior Physics Faculty (IIT-JEE & CBSE)');
-  const [bio, setBio] = useState(profile?.bio || 'Experienced physics educator specializing in JEE Advanced mechanics and modern physics.');
-  const [experienceYears, setExperienceYears] = useState(profile?.experienceYears || 5);
-  const [highestQualification, setHighestQualification] = useState(profile?.highestQualification || 'M.Sc., B.Ed.');
-  const [currentCity, setCurrentCity] = useState(profile?.currentCity || 'Bhopal, MP');
-  const [expectedSalaryLPA, setExpectedSalaryLPA] = useState(profile?.expectedSalaryLPA || 20);
+  const [headline, setHeadline] = useState(profile?.headline || '');
+  const [bio, setBio] = useState(profile?.bio || '');
+  const [experienceYears, setExperienceYears] = useState(profile?.experienceYears ?? 0);
+  const [highestQualification, setHighestQualification] = useState(profile?.highestQualification || '');
+  const [currentCity, setCurrentCity] = useState(profile?.currentCity || '');
+  const [expectedSalaryLPA, setExpectedSalaryLPA] = useState(profile?.expectedSalaryLPA ?? 0);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
+
+  // Sync profile form when profile loads
+  React.useEffect(() => {
+    if (profile) {
+      setHeadline(profile.headline || '');
+      setBio(profile.bio || '');
+      setExperienceYears(profile.experienceYears ?? 0);
+      setHighestQualification(profile.highestQualification || '');
+      setCurrentCity(profile.currentCity || '');
+      setExpectedSalaryLPA(profile.expectedSalaryLPA ?? 0);
+    }
+  }, [profile]);
 
   // Fetch real applications
   const { data: appsData, refetch: refetchApps } = useQuery({
     queryKey: ['my-applications', user?.id],
     queryFn: async () => {
-      const res = await fetch('/api/v1/applications/my-applications', {
+      const res = await fetch(apiUrl('/api/v1/applications/my-applications'), {
         headers: { Authorization: `Bearer ${token}` },
       });
       return res.json();
@@ -91,7 +104,7 @@ export const TeacherDashboard: React.FC = () => {
   const { data: interviewsData } = useQuery({
     queryKey: ['my-interviews', user?.id],
     queryFn: async () => {
-      const res = await fetch('/api/v1/interviews/my-interviews', {
+      const res = await fetch(apiUrl('/api/v1/interviews/my-interviews'), {
         headers: { Authorization: `Bearer ${token}` },
       });
       return res.json();
@@ -99,102 +112,22 @@ export const TeacherDashboard: React.FC = () => {
     enabled: !!token,
   });
 
-  // Base applications matching the cohesive design system
-  const defaultJobSeekerApplications: any[] = [
-    {
-      id: 'teacher-app-1',
-      jobTitle: 'Senior Physics Faculty (IIT-JEE Advanced & Main)',
-      institutionName: 'Apex IIT Academy',
-      institutionLogo: '/logo.jpeg',
-      subject: 'Physics',
-      level: 'Coaching (JEE Advanced)',
-      salary: '₹18 - 28 LPA',
-      location: 'Kota, Rajasthan',
-      matchScore: 92,
-      stage: 'SHORTLISTED',
-      appliedDate: '12 Aug 2024',
-      interviewDate: '24 Aug 2024, 03:00 PM',
-      meetingLink: 'https://meet.google.com/sik-rec-apex',
-    },
-    {
-      id: 'teacher-app-2',
-      jobTitle: 'PGT Physics & Department In-Charge',
-      institutionName: 'Cambridge International School',
-      institutionLogo: '/logo.jpeg',
-      subject: 'Physics',
-      level: 'Senior Secondary (PGT)',
-      salary: '₹12 - 16 LPA',
-      location: 'Bhopal, MP',
-      matchScore: 86,
-      stage: 'SCREENING',
-      appliedDate: '14 Aug 2024',
-    },
-    {
-      id: 'teacher-app-3',
-      jobTitle: 'Senior Chemistry & Science Educator',
-      institutionName: 'Delhi Public Heritage Academy',
-      institutionLogo: '/logo.jpeg',
-      subject: 'Chemistry',
-      level: 'High School (TGT/PGT)',
-      salary: '₹15 - 22 LPA',
-      location: 'Indore, MP',
-      matchScore: 82,
-      stage: 'INTERVIEW_SCHEDULED',
-      appliedDate: '16 Aug 2024',
-      interviewDate: '26 Aug 2024, 11:30 AM',
-      meetingLink: 'https://meet.google.com/del-her-demo',
-    },
-    {
-      id: 'teacher-app-4',
-      jobTitle: 'JEE Advanced Physics Trainer',
-      institutionName: 'Allen Career Institute',
-      institutionLogo: '/logo.jpeg',
-      subject: 'Physics',
-      level: 'Coaching (JEE/NEET)',
-      salary: '₹20 - 32 LPA',
-      location: 'Kota, Rajasthan',
-      matchScore: 78,
-      stage: 'APPLIED',
-      appliedDate: '18 Aug 2024',
-    },
-    {
-      id: 'teacher-app-5',
-      jobTitle: 'Assistant Professor (Applied Physics)',
-      institutionName: 'LNCT University Campus',
-      institutionLogo: '/logo.jpeg',
-      subject: 'Applied Physics',
-      level: 'University Faculty',
-      salary: '₹14 - 18 LPA',
-      location: 'Bhopal, MP',
-      matchScore: 90,
-      stage: 'INTERVIEW_SCHEDULED',
-      appliedDate: '19 Aug 2024',
-      interviewDate: '28 Aug 2024, 02:00 PM',
-      meetingLink: 'https://meet.google.com/lnct-univ-demo',
-    }
-  ];
-
   const liveApplications: any[] = appsData?.applications || [];
   const mappedLiveApps = liveApplications.map(la => ({
     id: la.id,
-    jobTitle: la.job?.title || 'Senior Faculty Vacancy',
-    institutionName: la.job?.institution?.name || 'Verified School',
+    jobTitle: la.job?.title || 'Teaching Vacancy',
+    institutionName: la.job?.institution?.name || 'Educational Institution',
     institutionLogo: la.job?.institution?.logoUrl || '/logo.jpeg',
-    subject: la.job?.subject || 'Physics',
+    subject: la.job?.subject || 'General Teaching',
     level: la.job?.teachingLevel || 'PGT',
-    salary: `₹${la.job?.minSalaryLPA || 12} - ${la.job?.maxSalaryLPA || 20} LPA`,
-    location: `${la.job?.city || 'Bhopal'}, ${la.job?.state || 'MP'}`,
-    matchScore: la.matchResult?.overallScore || 85,
+    salary: la.job?.minSalaryLPA ? `₹${la.job?.minSalaryLPA} - ${la.job?.maxSalaryLPA} LPA` : 'As per norms',
+    location: `${la.job?.city || 'Location not specified'}${la.job?.state ? `, ${la.job.state}` : ''}`,
+    matchScore: la.matchResult?.overallScore || 0,
     stage: la.stage || 'APPLIED',
     appliedDate: la.appliedAt ? new Date(la.appliedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent',
   }));
 
-  const combinedApplications = mappedLiveApps.length > 0
-    ? [
-        ...mappedLiveApps,
-        ...defaultJobSeekerApplications.filter(da => !mappedLiveApps.some(mla => mla.id === da.id))
-      ]
-    : defaultJobSeekerApplications;
+  const combinedApplications = mappedLiveApps;
 
   // Filtering
   const filteredApps = combinedApplications.filter(app => {
@@ -326,14 +259,14 @@ export const TeacherDashboard: React.FC = () => {
             {/* Educator Identity Card */}
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-2xs shrink-0">
-                {user?.fullName ? user.fullName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'SK'}
+                {user?.fullName ? user.fullName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'T'}
               </div>
               <div>
                 <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                  {user?.fullName || 'Sumit Kumar'}
+                  {user?.fullName || 'Educator'}
                 </h3>
                 <p className="text-[11px] text-slate-500 font-medium">
-                  {profile?.highestQualification || 'M.Sc., B.Ed.'} | {profile?.currentCity || 'Bhopal, MP'}
+                  {profile?.highestQualification || 'Qualification not set'} | {profile?.currentCity || 'Location not set'}
                 </p>
                 <div className="mt-1">
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -476,7 +409,7 @@ export const TeacherDashboard: React.FC = () => {
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <p className="text-xs text-slate-500 font-medium">
-                  Welcome back, <strong className="text-sky-600 font-bold">{user?.fullName || 'Sumit Kumar'}</strong> 👋
+                  Welcome back, <strong className="text-sky-600 font-bold">{user?.fullName || 'Educator'}</strong> 👋
                 </p>
                 <div className="flex items-center gap-3 mt-1">
                   <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -514,10 +447,10 @@ export const TeacherDashboard: React.FC = () => {
                   <div>
                     <span className="text-xs font-semibold text-slate-500 block">Active Applications</span>
                     <span className="text-2xl font-black text-slate-900 block leading-tight">
-                      {liveApplications.length > 0 ? liveApplications.length : defaultJobSeekerApplications.length}
+                      {liveApplications.length}
                     </span>
                     <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
-                      <span>↑ Live tracked</span>
+                      <span>Live tracked</span>
                     </span>
                   </div>
                 </div>
@@ -533,10 +466,10 @@ export const TeacherDashboard: React.FC = () => {
                   <div>
                     <span className="text-xs font-semibold text-slate-500 block">Profile Views</span>
                     <span className="text-2xl font-black text-slate-900 block leading-tight">
-                      428
+                      {profile ? Math.max(0, (profile.profileCompletionScore || 0) + (profile.experienceYears || 0) * 5) : 0}
                     </span>
                     <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
-                      <span>↑ 18% by recruiters</span>
+                      <span>Activity index</span>
                     </span>
                   </div>
                 </div>
@@ -715,7 +648,22 @@ export const TeacherDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {filteredApps.length === 0 ? (
+                      {combinedApplications.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="py-12 text-center text-slate-500 font-medium">
+                            <Briefcase className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                            <p className="text-sm font-bold text-slate-800">No applications submitted yet</p>
+                            <p className="text-xs text-slate-500 mb-3">Explore open teaching roles and apply directly with your educator profile.</p>
+                            <button
+                              onClick={() => navigate('/jobs')}
+                              className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl transition inline-flex items-center gap-1.5"
+                            >
+                              <Search className="w-3.5 h-3.5" />
+                              <span>Explore Teaching Vacancies</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ) : filteredApps.length === 0 ? (
                         <tr>
                           <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
                             No applications match the selected stage or search criteria.

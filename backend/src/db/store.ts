@@ -7,23 +7,15 @@ import {
   Interview,
   AuditLog
 } from '@sikchakhub/shared-types';
-import { 
-  SEED_USERS, 
-  SEED_TEACHER_PROFILES, 
-  SEED_INSTITUTIONS, 
-  SEED_JOBS, 
-  SEED_APPLICATIONS, 
-  SEED_INTERVIEWS 
-} from './seedData';
 import { inMemoryAuditLogs } from '../middleware/auditLogger';
 
 class DataStore {
-  public users: (User & { passwordHash?: string })[] = [...SEED_USERS];
-  public profiles: Record<string, TeacherProfile> = { ...SEED_TEACHER_PROFILES };
-  public institutions: Institution[] = [...SEED_INSTITUTIONS];
-  public jobs: JobVacancy[] = [...SEED_JOBS];
-  public applications: JobApplication[] = [...SEED_APPLICATIONS];
-  public interviews: Interview[] = [...SEED_INTERVIEWS];
+  public users: (User & { passwordHash?: string })[] = [];
+  public profiles: Record<string, TeacherProfile> = {};
+  public institutions: Institution[] = [];
+  public jobs: JobVacancy[] = [];
+  public applications: JobApplication[] = [];
+  public interviews: Interview[] = [];
   public auditLogs: AuditLog[] = inMemoryAuditLogs;
   public savedJobs: { userId: string; jobId: string; createdAt: string }[] = [];
 

@@ -1,12 +1,4 @@
 import mongoose from 'mongoose';
-import { 
-  SEED_USERS, 
-  SEED_TEACHER_PROFILES, 
-  SEED_INSTITUTIONS, 
-  SEED_JOBS, 
-  SEED_APPLICATIONS, 
-  SEED_INTERVIEWS 
-} from './seedData';
 
 // User Schema
 const UserSchema = new mongoose.Schema({
@@ -162,57 +154,9 @@ export async function connectMongoDB() {
       serverSelectionTimeoutMS: 8000,
     });
     console.log('✅ Connected to MongoDB Atlas successfully!');
-
-    // Check if initial seeding is needed
-    await seedMongoIfEmpty();
     return true;
   } catch (error: any) {
     console.error('❌ MongoDB Connection Error:', error.message);
     return false;
-  }
-}
-
-async function seedMongoIfEmpty() {
-  try {
-    const userCount = await UserModel.countDocuments();
-    if (userCount === 0) {
-      console.log('🌱 Seeding MongoDB with initial verified institutions & educators...');
-      for (const u of SEED_USERS) {
-        await UserModel.create({
-          id: u.id,
-          email: u.email,
-          fullName: u.fullName,
-          role: u.role,
-          phone: u.phone,
-          avatarUrl: u.avatarUrl,
-          isVerified: u.isVerified,
-        });
-        const profile = SEED_TEACHER_PROFILES[u.id];
-        if (profile) {
-          await TeacherProfileModel.create({
-            ...profile,
-          });
-        }
-      }
-
-      for (const inst of SEED_INSTITUTIONS) {
-        await InstitutionModel.create(inst);
-      }
-
-      for (const job of SEED_JOBS) {
-        await JobVacancyModel.create(job);
-      }
-
-      for (const app of SEED_APPLICATIONS) {
-        await JobApplicationModel.create(app);
-      }
-
-      for (const interview of SEED_INTERVIEWS) {
-        await InterviewModel.create(interview);
-      }
-      console.log('✅ MongoDB initial seed completed!');
-    }
-  } catch (err: any) {
-    console.warn('MongoDB seed notice:', err.message);
   }
 }
