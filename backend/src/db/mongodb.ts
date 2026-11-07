@@ -8,6 +8,7 @@ const UserSchema = new mongoose.Schema({
   fullName: { type: String, required: true },
   role: { type: String, enum: ['TEACHER', 'EMPLOYER', 'ADMIN'], default: 'TEACHER' },
   phone: { type: String },
+  age: { type: Number },
   avatarUrl: { type: String },
   isVerified: { type: Boolean, default: true },
 }, { timestamps: true });
@@ -18,6 +19,7 @@ const TeacherProfileSchema = new mongoose.Schema({
   userId: { type: String, required: true, unique: true },
   headline: { type: String },
   bio: { type: String },
+  age: { type: Number },
   experienceYears: { type: Number, default: 0 },
   highestQualification: { type: String },
   teachingLevels: [{ type: String }],

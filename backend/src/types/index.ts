@@ -32,6 +32,7 @@ export interface User {
   id: string;
   email: string;
   phone?: string;
+  age?: number;
   role: UserRole;
   fullName: string;
   avatarUrl?: string;
@@ -45,6 +46,7 @@ export interface TeacherProfile {
   userId: string;
   headline?: string;
   bio?: string;
+  age?: number;
   experienceYears: number;
   highestQualification: string;
   teachingLevels: TeachingLevel[];

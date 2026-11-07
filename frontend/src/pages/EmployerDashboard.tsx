@@ -29,6 +29,7 @@ import { CandidateMatchDrawer } from '../components/CandidateMatchDrawer';
 import { ScheduleInterviewModal } from '../components/ScheduleInterviewModal';
 import { PostJobModal } from '../components/PostJobModal';
 import { apiUrl } from '../config/api';
+import { JobPosterAuthCard } from '../components/JobPosterAuthCard';
 
 // Mini Bar Chart graphic matching the 4 stat cards in screenshot
 const MiniBarGraphic = ({ color = 'sky' }: { color?: 'sky' | 'emerald' | 'purple' }) => {
@@ -51,6 +52,11 @@ const MiniBarGraphic = ({ color = 'sky' }: { color?: 'sky' | 'emerald' | 'purple
 
 export const EmployerDashboard: React.FC = () => {
   const { user, institution, token } = useAuth();
+
+  // If user is not authenticated as Employer, display Job Poster registration & signin form
+  if (!user || user.role !== 'EMPLOYER') {
+    return <JobPosterAuthCard />;
+  }
 
   const [activeSidebarNav, setActiveSidebarNav] = useState('Overview');
   const [selectedJobId, setSelectedJobId] = useState<string>('');

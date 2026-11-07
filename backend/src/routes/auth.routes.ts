@@ -31,8 +31,9 @@ router.post('/register', async (req: Request, res: Response) => {
     return res.status(400).json({ success: false, errors: parseResult.error.format() });
   }
 
-  const { email, password, fullName, role, phone } = parseResult.data;
+  const { email, password, fullName, role, phone, age } = parseResult.data;
   const normalizedEmail = email.trim().toLowerCase();
+  const parsedAge = age != null ? age : (req.body.age ? Number(req.body.age) : undefined);
 
   try {
     // 1. Verify uniqueness against MongoDB Atlas and in-memory store
@@ -61,7 +62,8 @@ router.post('/register', async (req: Request, res: Response) => {
       passwordHash,
       fullName,
       role: role as any,
-      phone: phone || '',
+      phone: phone || req.body.phone || '',
+      age: parsedAge,
       avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
       isVerified: true,
     };
@@ -83,23 +85,30 @@ router.post('/register', async (req: Request, res: Response) => {
 
     // 4. Create real role-specific entity in MongoDB Atlas
     if (role === 'TEACHER') {
+      const expYears = req.body.experienceYears != null ? Number(req.body.experienceYears) : (req.body.experience != null ? Number(req.body.experience) : 0);
+      const sub = req.body.subject || (Array.isArray(req.body.subjects) && req.body.subjects.length > 0 ? req.body.subjects[0] : 'General Teaching');
+      const qual = req.body.highestQualification || req.body.qualification || 'B.Ed / Post Graduate';
+      const lvl = req.body.teachingLevel || (Array.isArray(req.body.teachingLevels) && req.body.teachingLevels.length > 0 ? req.body.teachingLevels[0] : 'PGT');
+      const cityLoc = req.body.city || req.body.currentCity || 'Delhi NCR';
+
       profileDoc = {
         id: `profile-${Date.now()}`,
         userId,
-        headline: 'Educator / Teacher',
-        bio: '',
-        experienceYears: 1,
-        highestQualification: 'B.Ed / Post Graduate',
-        teachingLevels: ['PGT', 'TGT'],
-        subjects: req.body.subject ? [req.body.subject] : ['General Science'],
-        boards: ['CBSE'],
-        currentCity: req.body.city || 'New Delhi',
-        preferredCities: [req.body.city || 'New Delhi'],
+        headline: req.body.headline || `${sub} Educator`,
+        bio: req.body.bio || '',
+        age: parsedAge,
+        experienceYears: isNaN(expYears) ? 0 : expYears,
+        highestQualification: qual,
+        teachingLevels: [lvl, 'TGT'],
+        subjects: [sub],
+        boards: req.body.board ? [req.body.board] : ['CBSE'],
+        currentCity: cityLoc,
+        preferredCities: [cityLoc],
         isWillingToRelocate: false,
         noticePeriodDays: 30,
-        skills: ['Classroom Management', 'Lesson Planning'],
+        skills: ['Classroom Management', 'Lesson Planning', sub],
         certifications: [],
-        profileCompletionScore: 65,
+        profileCompletionScore: 75,
         streakDays: 1,
         resumeUrl: '',
         resumeFileName: '',
@@ -112,20 +121,25 @@ router.post('/register', async (req: Request, res: Response) => {
       }
       dbStore.profiles[userId] = profileDoc;
     } else if (role === 'EMPLOYER') {
+      const orgName = req.body.organizationName || `${fullName} Organization`;
+      const instType = req.body.institutionType || req.body.type || 'SCHOOL';
+      const cityLoc = req.body.city || 'Delhi NCR';
+      const stateLoc = req.body.state || 'Delhi';
+
       institutionDoc = {
         id: `inst-${Date.now()}`,
         ownerId: userId,
-        name: req.body.organizationName || `${fullName} Organization`,
-        type: 'SCHOOL',
+        name: orgName,
+        type: instType,
         logoUrl: '/logo.jpeg',
-        website: 'https://sikchakhub.ai',
-        description: 'Verified educational institution on SikshaHub.',
-        affiliationNumber: 'CBSE-REG',
+        website: req.body.website || 'https://sikchakhub.ai',
+        description: req.body.description || `Verified educational institution: ${orgName}.`,
+        affiliationNumber: req.body.affiliationNumber || 'CBSE-REG',
         verificationStatus: 'PENDING',
-        address: req.body.city || 'Delhi NCR',
-        city: req.body.city || 'Delhi NCR',
-        state: 'Delhi',
-        pincode: '110001',
+        address: req.body.address || cityLoc,
+        city: cityLoc,
+        state: stateLoc,
+        pincode: req.body.pincode || '110001',
       };
 
       try {
@@ -150,6 +164,7 @@ router.post('/register', async (req: Request, res: Response) => {
         role: newUserDoc.role,
         avatarUrl: newUserDoc.avatarUrl,
         phone: newUserDoc.phone,
+        age: newUserDoc.age,
       },
       profile: profileDoc,
       institution: institutionDoc,
@@ -231,6 +246,7 @@ router.post('/login', async (req: Request, res: Response) => {
         role: user.role,
         avatarUrl: user.avatarUrl,
         phone: user.phone,
+        age: user.age,
       },
       profile,
       institution,
@@ -370,6 +386,7 @@ router.post('/google', async (req: Request, res: Response) => {
         role: user.role,
         avatarUrl: user.avatarUrl,
         phone: user.phone,
+        age: user.age,
       },
       profile,
       institution,
@@ -425,6 +442,7 @@ router.get('/me', authenticateJWT, async (req: Request, res: Response) => {
         role: user.role,
         avatarUrl: user.avatarUrl,
         phone: user.phone,
+        age: user.age,
       },
       profile,
       institution,

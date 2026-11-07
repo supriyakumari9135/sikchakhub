@@ -6,6 +6,7 @@ export const RegisterSchema = z.object({
   fullName: z.string().min(2, 'Full name must have at least 2 characters'),
   role: z.enum(['TEACHER', 'EMPLOYER', 'ADMIN']).default('TEACHER'),
   phone: z.string().optional(),
+  age: z.coerce.number().min(18, 'Age must be at least 18').max(100, 'Please enter a valid age').optional(),
 });
 
 export const LoginSchema = z.object({

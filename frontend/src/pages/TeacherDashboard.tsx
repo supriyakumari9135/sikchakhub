@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { JobApplication, Interview } from '@sikchakhub/shared-types';
 import { apiUrl } from '../config/api';
+import { JobSeekerAuthCard } from '../components/JobSeekerAuthCard';
 
 // Mini Bar Chart graphic matching the 4 stat cards
 const MiniBarGraphic = ({ color = 'sky' }: { color?: 'sky' | 'emerald' | 'purple' }) => {
@@ -56,6 +57,11 @@ const MiniBarGraphic = ({ color = 'sky' }: { color?: 'sky' | 'emerald' | 'purple
 export const TeacherDashboard: React.FC = () => {
   const { user, profile, token, updateProfile } = useAuth();
   const navigate = useNavigate();
+
+  // If user is not authenticated as Teacher, display Job Seeker registration & signin form
+  if (!user || user.role !== 'TEACHER') {
+    return <JobSeekerAuthCard />;
+  }
 
   const [activeSidebarNav, setActiveSidebarNav] = useState('Overview');
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('ALL');

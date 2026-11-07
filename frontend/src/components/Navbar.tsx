@@ -364,13 +364,21 @@ export const Navbar: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <button
-                  onClick={() => openAuthModal('LOGIN')}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-sm transition active:scale-95"
-                >
-                  <UserCircle className="w-4 h-4" />
-                  <span>Sign In</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => openAuthModal('LOGIN')}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm text-slate-700 hover:text-sky-700 hover:bg-sky-50 transition"
+                  >
+                    <UserCircle className="w-4 h-4" />
+                    <span>Sign In</span>
+                  </button>
+                  <button
+                    onClick={() => openAuthModal('REGISTER', 'TEACHER')}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-xs transition active:scale-95"
+                  >
+                    <span>Sign Up</span>
+                  </button>
+                </div>
               )}
 
               {/* Mobile Hamburger Button with Colorful Touch */}
