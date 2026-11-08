@@ -1,4 +1,6 @@
 import { Router, Request, Response } from 'express';
+import path from 'path';
+import fs from 'fs';
 import { dbStore } from '../db/store';
 import { 
   JobApplicationModel, 
@@ -9,7 +11,7 @@ import {
 } from '../db/mongodb';
 import { authenticateJWT, requireRole } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
-import { calculateCandidateScreening } from '../services/screeningEngine';
+import { calculateCandidateScreening, analyzeApplicationATS } from '../services/screeningEngine';
 import { SubmitApplicationSchema } from '@sikchakhub/shared-validation';
 
 const router = Router();
@@ -175,6 +177,7 @@ router.post('/', authenticateJWT, async (req: Request, res: Response) => {
     if (existingApp) {
       return res.status(400).json({ 
         success: false, 
+        alreadyApplied: true,
         message: 'You have already applied for this opening. You can track your status in your Job Seeker Dashboard.' 
       });
     }
@@ -192,10 +195,18 @@ router.post('/', authenticateJWT, async (req: Request, res: Response) => {
     } catch (e) {}
     if (!teacherProfile) teacherProfile = dbStore.getProfileByUserId(teacherId);
 
-    // 5. Execute candidate screening engine
-    const matchResult = calculateCandidateScreening(
+    const applicationResumeUrl = resumeUrl || teacherProfile?.resumeUrl || '';
+    const applicationResumeFileName = req.body.resumeFileName || teacherProfile?.resumeFileName || (applicationResumeUrl ? 'Educator_CV.pdf' : '');
+
+    // 5. Execute candidate screening engine with resume parsing
+    const matchResult = await analyzeApplicationATS(
       job,
-      { fullName: teacherUser?.fullName || 'Applicant', profile: teacherProfile },
+      { 
+        fullName: teacherUser?.fullName || 'Applicant', 
+        profile: teacherProfile,
+        resumeUrl: applicationResumeUrl,
+        resumeFileName: applicationResumeFileName,
+      },
       customAnswers
     );
 
@@ -206,7 +217,8 @@ router.post('/', authenticateJWT, async (req: Request, res: Response) => {
       id: applicationId,
       jobId,
       teacherId,
-      resumeUrl: resumeUrl || teacherProfile?.resumeUrl || '',
+      resumeUrl: applicationResumeUrl,
+      resumeFileName: applicationResumeFileName,
       coverLetter: coverLetter || '',
       stage: initialStage,
       customAnswers: customAnswers || {},
@@ -294,55 +306,73 @@ router.get('/my-applications', authenticateJWT, async (req: Request, res: Respon
   }
 });
 
-// GET /api/v1/applications/job/:jobId - Recruiter pipeline candidate list with authorization
+// GET /api/v1/applications/job/:jobId - Recruiter pipeline candidate list with authorization & auto ATS ranking
 router.get('/job/:jobId', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
   const { jobId } = req.params;
-  const { stage, minScore, status, q } = req.query;
+  const { stage, minScore, status, q, limit } = req.query;
 
   try {
-    // 1. Authorization: verify employer owns the institution
-    let job: any = null;
-    try {
-      job = await JobVacancyModel.findOne({ id: jobId }).lean();
-    } catch (e) {}
-    if (!job) job = dbStore.getJobById(jobId);
-
-    if (!job) {
-      return res.status(404).json({ success: false, message: 'Job opening not found.' });
-    }
-
+    let employerInst: any = null;
     if (req.user!.role === 'EMPLOYER') {
-      let employerInst: any = null;
       try {
         employerInst = await InstitutionModel.findOne({ ownerId: req.user!.id }).lean();
       } catch (e) {}
       if (!employerInst) {
         employerInst = dbStore.institutions.find(i => i.ownerId === req.user!.id);
       }
+    }
 
-      if (employerInst && job.institutionId !== employerInst.id) {
+    let targetJobIds: string[] = [];
+    const jobsMap = new Map<string, any>();
+
+    if (jobId.toUpperCase() === 'ALL') {
+      let employerJobs: any[] = [];
+      try {
+        const jobFilter = employerInst ? { institutionId: employerInst.id } : {};
+        employerJobs = await JobVacancyModel.find(jobFilter).lean();
+      } catch (e) {}
+      if (employerJobs.length === 0) {
+        employerJobs = employerInst ? dbStore.jobs.filter(j => j.institutionId === employerInst.id) : dbStore.jobs;
+      }
+      targetJobIds = employerJobs.map(j => j.id);
+      employerJobs.forEach(j => jobsMap.set(j.id, j));
+    } else {
+      let job: any = null;
+      try {
+        job = await JobVacancyModel.findOne({ id: jobId }).lean();
+      } catch (e) {}
+      if (!job) job = dbStore.getJobById(jobId);
+
+      if (!job) {
+        return res.status(404).json({ success: false, message: 'Job opening not found.' });
+      }
+
+      if (req.user!.role === 'EMPLOYER' && employerInst && job.institutionId !== employerInst.id) {
         return res.status(403).json({ success: false, message: 'Unauthorized to view candidates for this vacancy.' });
       }
+
+      targetJobIds = [job.id];
+      jobsMap.set(job.id, job);
     }
 
     // 2. Fetch candidates from MongoDB Atlas
     let apps: any[] = [];
     try {
-      const queryFilter: any = { jobId };
+      const queryFilter: any = { jobId: { $in: targetJobIds } };
       if (stage && stage !== 'ALL') {
         queryFilter.stage = stage;
       }
       apps = await JobApplicationModel.find(queryFilter).sort({ appliedAt: -1 }).lean();
     } catch (e) {
       if (dbStore.applications.length > 0) {
-        apps = dbStore.getApplicationsByJobId(jobId);
+        apps = dbStore.applications.filter(a => targetJobIds.includes(a.jobId));
         if (stage && stage !== 'ALL') {
           apps = apps.filter(a => a.stage === stage);
         }
       }
     }
 
-    // 3. Populate complete teacher profiles
+    // 3. Populate complete teacher profiles & jobs
     let candidates = await Promise.all(apps.map(async (app: any) => {
       let teacher: any = null;
       try {
@@ -356,8 +386,20 @@ router.get('/job/:jobId', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), a
       } catch (e) {}
       if (!profile) profile = dbStore.getProfileByUserId(app.teacherId);
 
+      const relJob = jobsMap.get(app.jobId);
+
       return {
         ...app,
+        job: relJob ? {
+          id: relJob.id,
+          title: relJob.title,
+          subject: relJob.subject,
+          teachingLevel: relJob.teachingLevel,
+          city: relJob.city,
+          state: relJob.state,
+          minSalaryLPA: relJob.minSalaryLPA,
+          maxSalaryLPA: relJob.maxSalaryLPA,
+        } : undefined,
         teacher: teacher ? {
           id: teacher.id,
           fullName: teacher.fullName,
@@ -382,21 +424,189 @@ router.get('/job/:jobId', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), a
           c.teacher?.fullName?.toLowerCase().includes(query) ||
           c.teacher?.email?.toLowerCase().includes(query) ||
           c.teacher?.profile?.subjects?.some((s: string) => s.toLowerCase().includes(query)) ||
-          c.teacher?.profile?.currentCity?.toLowerCase().includes(query)
+          c.teacher?.profile?.currentCity?.toLowerCase().includes(query) ||
+          c.job?.title?.toLowerCase().includes(query) ||
+          c.job?.subject?.toLowerCase().includes(query)
       );
     }
 
-    // Sort by match score descending by default
+    // Sort strictly by ATS match score descending (highest ATS score first)
     candidates.sort((a, b) => (b.matchResult?.overallScore || 0) - (a.matchResult?.overallScore || 0));
+
+    // Limit top results if requested (e.g. top 50 or top 60)
+    const topLimit = limit ? Number(limit) : undefined;
+    const returnedCandidates = topLimit ? candidates.slice(0, topLimit) : candidates;
 
     return res.json({
       success: true,
       total: candidates.length,
-      candidates,
+      candidates: returnedCandidates,
     });
   } catch (error: any) {
     console.error('Job applicants fetch error:', error);
     return res.status(500).json({ success: false, message: 'Failed to retrieve candidate applications.' });
+  }
+});
+
+// POST /api/v1/applications/upload-candidate - Direct recruiter CV upload (PDF <= 1MB) with automated ATS ranking
+router.post('/upload-candidate', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
+  const { jobId, fullName, email, phone, experienceYears, highestQualification, subject, base64Data, fileName } = req.body;
+
+  if (!jobId || !fullName || !email) {
+    return res.status(400).json({ success: false, message: 'Job, candidate full name, and email are required.' });
+  }
+
+  try {
+    let job: any = null;
+    try {
+      job = await JobVacancyModel.findOne({ id: jobId }).lean();
+    } catch (e) {}
+    if (!job) job = dbStore.getJobById(jobId);
+
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Target job vacancy not found.' });
+    }
+
+    let resumeUrl = '';
+    const safeFileName = (fileName || 'Candidate_Resume.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
+
+    // Handle PDF upload if provided
+    if (base64Data) {
+      const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      const base64String = matches && matches.length === 3 ? matches[2] : base64Data;
+      const buffer = Buffer.from(base64String, 'base64');
+
+      if (buffer.length > 1024 * 1024) {
+        return res.status(400).json({ success: false, message: 'Uploaded CV exceeds the 1MB limit. Please upload a PDF under 1MB.' });
+      }
+
+      const uploadDir = path.join(process.cwd(), 'uploads', 'resumes');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      const uniqueFileName = `cv-${Date.now()}-${Math.random().toString(36).substring(2, 7)}-${safeFileName}`;
+      const filePath = path.join(uploadDir, uniqueFileName);
+      fs.writeFileSync(filePath, buffer);
+      resumeUrl = `/uploads/resumes/${uniqueFileName}`;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    let candidateUser: any = null;
+    try {
+      candidateUser = await UserModel.findOne({ email: normalizedEmail }).lean();
+    } catch (e) {}
+    if (!candidateUser) candidateUser = dbStore.getUserByEmail(normalizedEmail);
+
+    let candidateId = candidateUser?.id;
+    if (!candidateUser) {
+      candidateId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      candidateUser = {
+        id: candidateId,
+        email: normalizedEmail,
+        passwordHash: 'UPLOADED_CANDIDATE_NO_PASSWORD',
+        fullName: fullName.trim(),
+        role: 'TEACHER',
+        avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
+        phone: phone || '',
+      };
+      try {
+        await UserModel.create(candidateUser);
+      } catch (e) {}
+      dbStore.users.push(candidateUser);
+    }
+
+    const candidateProfile: any = {
+      userId: candidateId,
+      headline: `${subject || job.subject} Teacher`,
+      bio: `Candidate profile for ${fullName}`,
+      experienceYears: Number(experienceYears) || 0,
+      highestQualification: highestQualification || 'B.Ed / Graduate',
+      subjects: [subject || job.subject],
+      teachingLevels: [job.teachingLevel],
+      boards: [job.board],
+      currentCity: job.city,
+      isWillingToRelocate: true,
+      expectedSalaryLPA: job.minSalaryLPA || 5,
+      skills: ['Classroom Teaching', 'Curriculum Planning', 'Student Mentoring'],
+      certifications: [],
+      resumeUrl: resumeUrl || candidateUser?.profile?.resumeUrl || '',
+      resumeFileName: safeFileName,
+      profileCompletionScore: 85,
+    };
+
+    try {
+      await TeacherProfileModel.findOneAndUpdate(
+        { userId: candidateId },
+        { $set: candidateProfile },
+        { upsert: true, new: true }
+      );
+    } catch (e) {}
+
+    // Run ATS screening engine to score candidate against job rules with resume parsing
+    const matchResult = await analyzeApplicationATS(
+      job,
+      { 
+        fullName: candidateUser.fullName, 
+        profile: candidateProfile,
+        resumeUrl: resumeUrl || candidateProfile.resumeUrl || '',
+        resumeFileName: safeFileName,
+      }
+    );
+
+    const applicationId = `app-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const newApp: any = {
+      id: applicationId,
+      jobId,
+      teacherId: candidateId,
+      resumeUrl: resumeUrl || candidateProfile.resumeUrl || '',
+      resumeFileName: safeFileName,
+      coverLetter: `Direct recruiter candidate upload for ${job.title}.`,
+      stage: matchResult.overallScore >= 75 ? 'SHORTLISTED' : 'APPLIED',
+      customAnswers: {},
+      matchResult,
+      recruiterNotes: 'CV added via Recruiter Resume Upload.',
+      appliedAt: new Date(),
+    };
+
+    try {
+      await JobApplicationModel.create(newApp);
+      await JobVacancyModel.findOneAndUpdate(
+        { id: jobId },
+        { $inc: { totalApplicants: 1 } }
+      );
+    } catch (e) {}
+
+    dbStore.applications.unshift({
+      ...newApp,
+      appliedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    logAuditEvent(req, 'CANDIDATE_CV_UPLOADED', 'JobApplication', applicationId, {
+      jobId,
+      score: matchResult.overallScore,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Candidate CV uploaded and ranked by ATS successfully!',
+      application: {
+        ...newApp,
+        teacher: {
+          ...candidateUser,
+          profile: candidateProfile,
+        },
+        job: {
+          id: job.id,
+          title: job.title,
+          subject: job.subject,
+        },
+      },
+    });
+  } catch (err: any) {
+    console.error('Candidate CV upload error:', err);
+    return res.status(500).json({ success: false, message: 'Server error processing candidate CV upload.' });
   }
 });
 
@@ -458,6 +668,32 @@ router.get('/:id', authenticateJWT, async (req: Request, res: Response) => {
       if (!institution) institution = dbStore.getInstitutionById(job.institutionId);
     }
 
+    // Auto-update ATS score with real resume text if not yet scanned
+    const effectiveResumeUrl = app.resumeUrl || profile?.resumeUrl;
+    if (effectiveResumeUrl && (!app.matchResult?.parsedResume || app.matchResult?.overallScore === 78)) {
+      try {
+        const freshAts = await analyzeApplicationATS(
+          job,
+          {
+            fullName: user?.fullName || 'Applicant',
+            profile,
+            resumeUrl: effectiveResumeUrl,
+            resumeFileName: app.resumeFileName || profile?.resumeFileName,
+          },
+          app.customAnswers || {}
+        );
+        app.matchResult = freshAts;
+        await JobApplicationModel.findOneAndUpdate(
+          { id: app.id },
+          { $set: { matchResult: freshAts } }
+        );
+        const memApp = dbStore.applications.find(a => a.id === app.id);
+        if (memApp) memApp.matchResult = freshAts;
+      } catch (atsErr) {
+        console.warn('Auto ATS rescan notice:', atsErr);
+      }
+    }
+
     return res.json({
       success: true,
       application: {
@@ -468,6 +704,70 @@ router.get('/:id', authenticateJWT, async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, message: 'Failed to retrieve application details.' });
+  }
+});
+
+// POST /api/v1/applications/:id/rescan-ats - On-demand 1-click ATS scan & keyword extraction
+router.post('/:id/rescan-ats', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
+  try {
+    let app: any = null;
+    try {
+      app = await JobApplicationModel.findOne({ id: req.params.id }).lean();
+    } catch (e) {}
+    if (!app) app = dbStore.applications.find(a => a.id === req.params.id);
+
+    if (!app) {
+      return res.status(404).json({ success: false, message: 'Application not found.' });
+    }
+
+    let job: any = null;
+    try {
+      job = await JobVacancyModel.findOne({ id: app.jobId }).lean();
+    } catch (e) {}
+    if (!job) job = dbStore.getJobById(app.jobId);
+
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Associated vacancy not found.' });
+    }
+
+    let user: any = null;
+    try {
+      user = await UserModel.findOne({ id: app.teacherId }).lean();
+    } catch (e) {}
+    if (!user) user = dbStore.getUserById(app.teacherId);
+
+    let profile: any = null;
+    try {
+      profile = await TeacherProfileModel.findOne({ userId: app.teacherId }).lean();
+    } catch (e) {}
+    if (!profile) profile = dbStore.getProfileByUserId(app.teacherId);
+
+    const effectiveResumeUrl = app.resumeUrl || profile?.resumeUrl;
+    const freshAts = await analyzeApplicationATS(
+      job,
+      {
+        fullName: user?.fullName || 'Applicant',
+        profile,
+        resumeUrl: effectiveResumeUrl,
+        resumeFileName: app.resumeFileName || profile?.resumeFileName,
+      },
+      app.customAnswers || {}
+    );
+
+    await JobApplicationModel.findOneAndUpdate(
+      { id: app.id },
+      { $set: { matchResult: freshAts } }
+    );
+    const memApp = dbStore.applications.find(a => a.id === app.id);
+    if (memApp) memApp.matchResult = freshAts;
+
+    return res.json({
+      success: true,
+      message: 'ATS score and keyword breakdown refreshed directly from resume document.',
+      matchResult: freshAts,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to re-scan ATS score.' });
   }
 });
 

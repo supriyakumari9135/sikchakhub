@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import bcryptjs from 'bcryptjs';
 
 // User Schema
 const UserSchema = new mongoose.Schema({
@@ -84,6 +85,9 @@ const JobVacancySchema = new mongoose.Schema({
   status: { type: String, enum: ['DRAFT', 'ACTIVE', 'PAUSED', 'CLOSED'], default: 'ACTIVE' },
   customFields: { type: mongoose.Schema.Types.Mixed, default: [] },
   screeningRules: { type: mongoose.Schema.Types.Mixed, default: {} },
+  requireResume: { type: Boolean, default: true },
+  syllabusDocumentUrl: { type: String },
+  syllabusDocumentName: { type: String },
   totalApplicants: { type: Number, default: 0 },
 }, { timestamps: true });
 
@@ -93,6 +97,7 @@ const JobApplicationSchema = new mongoose.Schema({
   jobId: { type: String, required: true },
   teacherId: { type: String, required: true },
   resumeUrl: { type: String },
+  resumeFileName: { type: String },
   coverLetter: { type: String },
   stage: { 
     type: String, 
@@ -143,6 +148,31 @@ export const JobApplicationModel = mongoose.models.JobApplication || mongoose.mo
 export const InterviewModel = mongoose.models.Interview || mongoose.model('Interview', InterviewSchema);
 export const AuditLogModel = mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);
 
+export async function seedDefaultAdminIfNeeded() {
+  try {
+    const adminEmail = 'sikshahub@gmail.com';
+    const existingAdmin = await UserModel.findOne({ email: adminEmail });
+    if (!existingAdmin) {
+      const passwordHash = bcryptjs.hashSync('admin@12345', 10);
+      const adminDoc = {
+        id: `admin-${Date.now()}`,
+        email: adminEmail,
+        passwordHash,
+        fullName: 'SikshaHub Super Admin',
+        role: 'ADMIN',
+        phone: '9783143866',
+        age: 32,
+        avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=SikshaHubAdmin',
+        isVerified: true,
+      };
+      await UserModel.create(adminDoc);
+      console.log('✅ Default Super Admin seeded in MongoDB: sikshahub@gmail.com / admin@12345');
+    }
+  } catch (err: any) {
+    console.warn('Admin seed notice:', err.message);
+  }
+}
+
 export async function connectMongoDB() {
   const uri = process.env.MONGODB_URI || process.env.MONGO_URL;
   if (!uri) {
@@ -156,6 +186,7 @@ export async function connectMongoDB() {
       serverSelectionTimeoutMS: 8000,
     });
     console.log('✅ Connected to MongoDB Atlas successfully!');
+    await seedDefaultAdminIfNeeded();
     return true;
   } catch (error: any) {
     console.error('❌ MongoDB Connection Error:', error.message);

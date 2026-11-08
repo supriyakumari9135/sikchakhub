@@ -14,13 +14,15 @@ import {
   MapPin,
   Lock,
   Search,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 import { Institution, AuditLog } from '@sikchakhub/shared-types';
 import { apiUrl } from '../config/api';
+import { AdminAuthCard } from '../components/AdminAuthCard';
 
 export const AdminDashboard: React.FC = () => {
-  const { token } = useAuth();
+  const { user, token, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<'VERIFICATION' | 'AUDIT_LOGS' | 'ANALYTICS'>('VERIFICATION');
   const [actionNotes, setActionNotes] = useState('');
 
@@ -102,6 +104,19 @@ export const AdminDashboard: React.FC = () => {
       console.error('Failed to verify institution:', err);
     }
   };
+
+  if (isLoading && !user) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+        <p className="text-sm font-semibold text-slate-300">Loading administrator console...</p>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== 'ADMIN') {
+    return <AdminAuthCard />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">

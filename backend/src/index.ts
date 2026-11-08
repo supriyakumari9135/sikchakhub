@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
 
 import authRoutes from './routes/auth.routes';
 import jobRoutes from './routes/jobs.routes';
@@ -22,10 +24,18 @@ connectMongoDB().catch(err => {
   console.warn('Initial MongoDB connection warning:', err.message);
 });
 
-// Middleware
+// Middleware (10MB body limit to comfortably accommodate 1MB PDFs in base64 payload)
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev'));
+
+// Static storage for free local PDF CV/Resume uploads
+const uploadsDir = path.join(__dirname, '../uploads/resumes');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check
 app.get('/api/health', (req, res) => {

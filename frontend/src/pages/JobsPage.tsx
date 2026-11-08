@@ -14,14 +14,32 @@ import {
   Check,
   ChevronRight,
   Clock,
-  Sparkles
+  Sparkles,
+  Award,
+  CheckCircle2
 } from 'lucide-react';
 import { JobVacancy } from '@sikchakhub/shared-types';
 import { ApplyJobModal } from '../components/ApplyJobModal';
+import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../config/api';
 
 export const JobsPage: React.FC = () => {
+  const { user, token } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Fetch logged-in educator's existing applications
+  const { data: myAppsData } = useQuery({
+    queryKey: ['my-applications', user?.id],
+    queryFn: async () => {
+      const res = await fetch(apiUrl('/api/v1/applications/my-applications'), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.json();
+    },
+    enabled: !!token && user?.role === 'TEACHER',
+  });
+
+  const appliedJobIds = new Set((myAppsData?.applications || []).map((a: any) => a.jobId));
 
   const [keyword, setKeyword] = useState(searchParams.get('q') || '');
   const [selectedCity, setSelectedCity] = useState(searchParams.get('city') || '');
@@ -32,6 +50,29 @@ export const JobsPage: React.FC = () => {
   const [selectedJobForApply, setSelectedJobForApply] = useState<JobVacancy | null>(null);
   const [activeJobDetail, setActiveJobDetail] = useState<JobVacancy | null>(null);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [toastNotice, setToastNotice] = useState<string | null>(null);
+
+  // Saved Jobs persisted in localStorage
+  const [savedJobIds, setSavedJobIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('sikchakhub_saved_jobs');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleSaveJob = (jobId: string) => {
+    setSavedJobIds(prev => {
+      const updated = prev.includes(jobId) ? prev.filter(id => id !== jobId) : [...prev, jobId];
+      try {
+        localStorage.setItem('sikchakhub_saved_jobs', JSON.stringify(updated));
+      } catch (err) {}
+      setToastNotice(prev.includes(jobId) ? 'Vacancy removed from Saved Openings' : 'Vacancy saved! View it anytime in your Job Seeker Dashboard.');
+      setTimeout(() => setToastNotice(null), 3000);
+      return updated;
+    });
+  };
 
   // Fetch jobs with active query params
   const { data, isLoading } = useQuery({
@@ -75,6 +116,14 @@ export const JobsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
+      {/* Toast Notification */}
+      {toastNotice && (
+        <div className="fixed top-24 right-6 z-50 bg-slate-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-xl border border-slate-700 animate-in fade-in duration-200 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <span>{toastNotice}</span>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Top Header & Search Bar */}
@@ -293,7 +342,9 @@ export const JobsPage: React.FC = () => {
                 </button>
               </div>
             ) : (
-              jobs.map((job) => (
+              jobs.map((job) => {
+                const isSaved = savedJobIds.includes(job.id);
+                return (
                 <div
                   key={job.id}
                   className="bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200/90 hover:border-brand-400 hover:shadow-md transition space-y-4"
@@ -319,11 +370,22 @@ export const JobsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="text-left sm:text-right shrink-0">
-                      <span className="text-sm sm:text-base font-extrabold text-slate-900 block font-serif">
-                        ₹{job.minSalaryLPA} - ₹{job.maxSalaryLPA} LPA
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">Annual Fixed + Benefits</span>
+                    <div className="flex items-center sm:items-start gap-3 justify-between sm:justify-end">
+                      <div className="text-left sm:text-right shrink-0">
+                        <span className="text-sm sm:text-base font-extrabold text-slate-900 block font-serif">
+                          ₹{job.minSalaryLPA} - ₹{job.maxSalaryLPA} LPA
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">Annual Fixed + Benefits</span>
+                      </div>
+                      <button
+                        onClick={() => toggleSaveJob(job.id)}
+                        className={`p-2 rounded-xl border transition shrink-0 ${
+                          isSaved ? 'text-amber-600 bg-amber-50 border-amber-200 shadow-2xs' : 'text-slate-400 bg-slate-50 border-slate-200 hover:text-slate-700 hover:bg-slate-100'
+                        }`}
+                        title={isSaved ? 'Remove from Saved Openings' : 'Save Opening'}
+                      >
+                        <Award className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
 
@@ -364,16 +426,28 @@ export const JobsPage: React.FC = () => {
                       >
                         View Details
                       </button>
-                      <button
-                        onClick={() => setSelectedJobForApply(job)}
-                        className="flex-1 sm:flex-none px-5 py-2 bg-brand-600 text-white text-xs font-semibold rounded-xl hover:bg-brand-700 shadow-2xs transition"
-                      >
-                        Apply Now
-                      </button>
+                      {appliedJobIds.has(job.id) ? (
+                        <button
+                          disabled
+                          className="flex-1 sm:flex-none px-4 py-2 bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed shadow-2xs"
+                          title="You have already applied for this opening"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Already Applied ✓</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setSelectedJobForApply(job)}
+                          className="flex-1 sm:flex-none px-5 py-2 bg-brand-600 text-white text-xs font-semibold rounded-xl hover:bg-brand-700 shadow-2xs transition"
+                        >
+                          Apply Now
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
-              ))
+              );
+            })
             )}
           </main>
         </div>
@@ -457,16 +531,23 @@ export const JobsPage: React.FC = () => {
                 >
                   Close
                 </button>
-                <button
-                  onClick={() => {
-                    const j = activeJobDetail;
-                    setActiveJobDetail(null);
-                    setSelectedJobForApply(j);
-                  }}
-                  className="px-5 py-2.5 bg-brand-600 text-white font-semibold rounded-xl hover:bg-brand-700"
-                >
-                  Proceed to Structured Application
-                </button>
+                {appliedJobIds.has(activeJobDetail.id) ? (
+                  <span className="px-5 py-2.5 bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-2xs">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Already Applied for this Vacancy ✓</span>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => {
+                      const j = activeJobDetail;
+                      setActiveJobDetail(null);
+                      setSelectedJobForApply(j);
+                    }}
+                    className="px-5 py-2.5 bg-brand-600 text-white font-semibold rounded-xl hover:bg-brand-700"
+                  >
+                    Proceed to Structured Application
+                  </button>
+                )}
               </div>
             </div>
           </div>

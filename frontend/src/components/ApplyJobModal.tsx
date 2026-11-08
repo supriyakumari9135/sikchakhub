@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { JobVacancy, ApplicationMatchResult } from '@sikchakhub/shared-types';
 import { useAuth } from '../context/AuthContext';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { 
   X, 
   CheckCircle2, 
@@ -12,7 +12,9 @@ import {
   Check, 
   ArrowRight,
   TrendingUp,
-  Award
+  Award,
+  Upload,
+  Eye
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiUrl } from '../config/api';
@@ -24,8 +26,22 @@ interface ApplyJobModalProps {
 }
 
 export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAppliedSuccess }) => {
-  const { user, profile, token } = useAuth();
+  const { user, profile, token, uploadResume } = useAuth();
   const queryClient = useQueryClient();
+
+  // Check if educator already applied for this opening
+  const { data: myAppsData } = useQuery({
+    queryKey: ['my-applications', user?.id],
+    queryFn: async () => {
+      const res = await fetch(apiUrl('/api/v1/applications/my-applications'), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.json();
+    },
+    enabled: !!token && user?.role === 'TEACHER',
+  });
+
+  const existingApp = (myAppsData?.applications || []).find((a: any) => a.jobId === job.id);
 
   const [coverLetter, setCoverLetter] = useState(
     `Dear Hiring Committee at ${job.institution?.name || 'Institution'}, I am writing to express my enthusiastic interest in the ${job.title} position. With my background in ${job.subject} instruction and student mentorship, I am confident in my ability to contribute meaningfully to your academic objectives.`
@@ -34,6 +50,41 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [matchResult, setMatchResult] = useState<ApplicationMatchResult | null>(null);
+
+  // PDF CV Upload State (1MB limit • Free setup)
+  const [cvChoice, setCvChoice] = useState<'PROFILE' | 'NEW'>(profile?.resumeUrl ? 'PROFILE' : 'NEW');
+  const [customCvUrl, setCustomCvUrl] = useState<string>('');
+  const [customCvName, setCustomCvName] = useState<string>('');
+  const [isUploadingModalCv, setIsUploadingModalCv] = useState(false);
+  const [modalCvNotice, setModalCvNotice] = useState<string | null>(null);
+
+  const handleModalCvChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setModalCvNotice(null);
+    setErrorMsg(null);
+
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setErrorMsg('Only PDF format resumes are accepted (.pdf).');
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setErrorMsg(`File size (${(file.size / (1024 * 1024)).toFixed(2)} MB) exceeds 1MB limit. Please upload a PDF under 1MB.`);
+      return;
+    }
+
+    setIsUploadingModalCv(true);
+    const res = await uploadResume(file);
+    setIsUploadingModalCv(false);
+    if (res.success && res.resumeUrl) {
+      setCustomCvUrl(res.resumeUrl);
+      setCustomCvName(file.name);
+      setCvChoice('NEW');
+      setModalCvNotice(`New PDF CV "${file.name}" attached for this application!`);
+    } else {
+      setErrorMsg(res.message || 'Failed to upload PDF CV.');
+    }
+  };
 
   const handleCustomAnswerChange = (fieldId: string, value: any) => {
     setCustomAnswers(prev => ({ ...prev, [fieldId]: value }));
@@ -45,6 +96,9 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
       setErrorMsg('Please log in as an educator to submit this application.');
       return;
     }
+
+    const chosenResumeUrl = cvChoice === 'NEW' ? customCvUrl : (profile?.resumeUrl || customCvUrl);
+    const chosenResumeFileName = cvChoice === 'NEW' ? customCvName : (profile?.resumeFileName || customCvName || 'Educator_CV.pdf');
 
     setIsSubmitting(true);
     setErrorMsg(null);
@@ -59,7 +113,8 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
         body: JSON.stringify({
           jobId: job.id,
           coverLetter,
-          resumeUrl: profile?.resumeUrl || '',
+          resumeUrl: chosenResumeUrl || '',
+          resumeFileName: chosenResumeFileName,
           customAnswers,
         }),
       });
@@ -190,6 +245,71 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
                 </button>
               </div>
             </div>
+          ) : existingApp ? (
+            /* Already Applied state */
+            <div className="space-y-5 py-4">
+              <div className="text-center space-y-2">
+                <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+                <h4 className="text-xl font-bold text-slate-900">Application Already Submitted</h4>
+                <p className="text-xs text-slate-600 max-w-sm mx-auto">
+                  You have already applied for this opening. You cannot submit multiple applications for the same vacancy.
+                </p>
+              </div>
+
+              {/* Status details card */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-600">Current Application Stage</span>
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    {existingApp.stage || 'APPLIED'}
+                  </span>
+                </div>
+                {existingApp.appliedAt && (
+                  <div className="flex items-center justify-between text-xs border-t border-slate-100 pt-2">
+                    <span className="text-slate-500">Submitted On</span>
+                    <span className="font-semibold text-slate-800">
+                      {new Date(existingApp.appliedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                  </div>
+                )}
+                {existingApp.matchResult?.overallScore && (
+                  <div className="flex items-center justify-between text-xs border-t border-slate-100 pt-2">
+                    <span className="text-slate-500">ATS Match Score</span>
+                    <span className="font-extrabold text-emerald-600">
+                      {existingApp.matchResult.overallScore}% MATCH
+                    </span>
+                  </div>
+                )}
+                {existingApp.resumeFileName && (
+                  <div className="flex items-center justify-between text-xs border-t border-slate-100 pt-2">
+                    <span className="text-slate-500">Attached Resume</span>
+                    <span className="font-semibold text-slate-800 truncate max-w-[200px]">
+                      {existingApp.resumeFileName}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <Link
+                  to="/teacher-dashboard"
+                  onClick={onClose}
+                  className="flex-1 py-2.5 px-4 bg-sky-600 text-white text-xs font-bold rounded-xl text-center hover:bg-sky-700 shadow-sm flex items-center justify-center gap-1.5 transition"
+                >
+                  <span>Track Status in Dashboard</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="py-2.5 px-4 bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-200 transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           ) : (
             /* Application Form */
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -206,19 +326,118 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  {profile?.resumeUrl ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                      <FileText className="w-3 h-3" />
-                      CV Attached
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                      <FileText className="w-3 h-3" />
-                      No CV Attached
-                    </span>
-                  )}
+                <div className="text-right flex flex-col items-end gap-1">
+                  <span className="text-[11px] font-bold text-sky-700 bg-sky-50 px-2.5 py-1 rounded-md border border-sky-200">
+                    SikshaHub Verified Candidate
+                  </span>
                 </div>
+              </div>
+
+              {/* Dedicated CV Upload Section */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-sky-50/50 to-indigo-50/40 border border-sky-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-sky-600" />
+                    <span className="text-xs font-bold text-slate-800">
+                      Curriculum Vitae (PDF Resume)
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    Strictly 1MB Limit • PDF Only
+                  </span>
+                </div>
+
+                {/* Option switch if user already has a profile CV */}
+                {profile?.resumeUrl && (
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setCvChoice('PROFILE')}
+                      className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between ${
+                        cvChoice === 'PROFILE'
+                          ? 'border-sky-500 bg-sky-500/10 text-sky-900 font-bold'
+                          : 'border-slate-200 bg-white text-slate-600 font-medium'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="cvChoice"
+                          checked={cvChoice === 'PROFILE'}
+                          onChange={() => setCvChoice('PROFILE')}
+                          className="text-sky-600"
+                        />
+                        <span className="text-xs truncate">Use Profile CV</span>
+                      </div>
+                      <span className="text-[10px] text-emerald-600 font-bold">Attached</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCvChoice('NEW')}
+                      className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between ${
+                        cvChoice === 'NEW'
+                          ? 'border-sky-500 bg-sky-500/10 text-sky-900 font-bold'
+                          : 'border-slate-200 bg-white text-slate-600 font-medium'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="cvChoice"
+                          checked={cvChoice === 'NEW'}
+                          onChange={() => setCvChoice('NEW')}
+                          className="text-sky-600"
+                        />
+                        <span className="text-xs truncate">Upload New CV</span>
+                      </div>
+                      <span className="text-[10px] text-sky-600 font-bold">New PDF</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Upload box for New CV */}
+                {(cvChoice === 'NEW' || !profile?.resumeUrl) && (
+                  <label className="cursor-pointer block p-4 text-center bg-white rounded-xl border-2 border-dashed border-sky-300 hover:border-sky-500 hover:bg-sky-50/50 transition">
+                    <input
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      onChange={handleModalCvChange}
+                      disabled={isUploadingModalCv}
+                      className="hidden"
+                    />
+                    {customCvUrl ? (
+                      <div className="flex items-center justify-center gap-2 text-emerald-700">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                        <div className="text-left">
+                          <p className="text-xs font-bold text-slate-900">{customCvName || 'New_Candidate_CV.pdf'}</p>
+                          <p className="text-[10px] text-emerald-600 font-semibold">New CV attached for this application (Max 1MB)</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <Upload className="w-6 h-6 text-sky-500 mx-auto mb-1" />
+                        <p className="text-xs font-bold text-slate-700">Click to upload new PDF CV for this role</p>
+                        <p className="text-[10px] text-slate-400">PDF under 1MB • Parsed by SikshaHub ATS</p>
+                      </div>
+                    )}
+                  </label>
+                )}
+
+                {modalCvNotice && (
+                  <div className="text-center">
+                    <span className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 inline-block">
+                      ✓ {modalCvNotice}
+                    </span>
+                  </div>
+                )}
+                {isUploadingModalCv && (
+                  <div className="text-center">
+                    <span className="text-xs text-sky-600 font-semibold animate-pulse">
+                      Uploading and preparing PDF for ATS scan...
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Dynamic Custom Questions created by Employer */}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
   Building2, 
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 
 export const JobPosterAuthCard: React.FC = () => {
+  const navigate = useNavigate();
   const { register, login } = useAuth();
   const [mode, setMode] = useState<'REGISTER' | 'LOGIN'>('REGISTER');
 
@@ -84,33 +86,33 @@ export const JobPosterAuthCard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-5rem)] bg-gradient-to-b from-sky-50/60 via-white to-sky-50/30 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="min-h-[calc(100vh-5rem)] bg-gradient-to-b from-sky-50/60 via-white to-sky-50/30 py-6 sm:py-10 px-3 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8">
         
         {/* Top Header Badge & Title */}
-        <div className="text-center space-y-3 max-w-2xl mx-auto">
+        <div className="text-center space-y-2.5 sm:space-y-3 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200">
             <Building2 className="w-4 h-4" />
             <span>Job Poster & Recruiter Portal</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-serif tracking-tight">
+          <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 font-serif tracking-tight">
             {mode === 'REGISTER' ? 'Sign Up as a Job Poster' : 'Sign In to Recruiter Desk'}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed px-2">
             {mode === 'REGISTER' 
               ? 'Register your school, college, or coaching academy to publish educator vacancies, screen applicants deterministically, and schedule interviews.' 
               : 'Log in to manage your active vacancies, review screened candidates, and schedule faculty demo rounds.'}
           </p>
 
           {/* Mode Switcher Pills */}
-          <div className="inline-flex p-1 bg-sky-100/70 rounded-2xl border border-sky-200">
+          <div className="inline-flex p-1 bg-sky-100/70 rounded-2xl border border-sky-200 max-w-full">
             <button
               type="button"
               onClick={() => {
                 setMode('REGISTER');
                 setError(null);
               }}
-              className={`px-5 py-2 text-xs font-bold rounded-xl transition ${
+              className={`px-3.5 sm:px-5 py-2 text-xs font-bold rounded-xl transition ${
                 mode === 'REGISTER' 
                   ? 'bg-white text-blue-700 shadow-xs' 
                   : 'text-slate-600 hover:text-slate-900'
@@ -124,7 +126,7 @@ export const JobPosterAuthCard: React.FC = () => {
                 setMode('LOGIN');
                 setError(null);
               }}
-              className={`px-5 py-2 text-xs font-bold rounded-xl transition ${
+              className={`px-3.5 sm:px-5 py-2 text-xs font-bold rounded-xl transition ${
                 mode === 'LOGIN' 
                   ? 'bg-white text-blue-700 shadow-xs' 
                   : 'text-slate-600 hover:text-slate-900'
@@ -136,14 +138,34 @@ export const JobPosterAuthCard: React.FC = () => {
         </div>
 
         {/* Main Grid: Form on Left, Employer Benefits on Right */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
           
           {/* Form Card */}
-          <div className="lg:col-span-7 bg-white rounded-3xl p-6 sm:p-8 shadow-xl border border-sky-100 space-y-5">
+          <div className="lg:col-span-7 bg-white rounded-3xl p-4 sm:p-8 shadow-xl border border-sky-100 space-y-5">
             {error && (
-              <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-start gap-2.5">
+              <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-start gap-2.5 animate-in fade-in">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{error}</span>
+                <div className="space-y-1 flex-1">
+                  <p className="font-semibold leading-relaxed">{error}</p>
+                  {(error.includes('Job Seeker') || error.includes('Educator')) && (
+                    <button
+                      type="button"
+                      onClick={() => navigate('/teacher-dashboard')}
+                      className="font-bold underline text-emerald-700 hover:text-emerald-900 flex items-center gap-1 mt-1 text-xs"
+                    >
+                      <span>Switch to Job Seeker (Educator) Login →</span>
+                    </button>
+                  )}
+                  {error.includes('Super Admin') && (
+                    <button
+                      type="button"
+                      onClick={() => navigate('/admin-dashboard')}
+                      className="font-bold underline text-purple-700 hover:text-purple-900 flex items-center gap-1 mt-1 text-xs"
+                    >
+                      <span>Switch to Super Admin Console →</span>
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 

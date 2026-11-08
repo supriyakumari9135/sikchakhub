@@ -29,15 +29,31 @@ import {
 } from 'lucide-react';
 import { JobVacancy } from '../types';
 import { ApplyJobModal } from '../components/ApplyJobModal';
+import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../config/api';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const { user, token } = useAuth();
 
   const [keyword, setKeyword] = useState('');
   const [city, setCity] = useState('');
   const [selectedCityTab, setSelectedCityTab] = useState('All');
   const [selectedJobForApply, setSelectedJobForApply] = useState<JobVacancy | null>(null);
+
+  // Fetch logged-in educator's existing applications
+  const { data: myAppsData } = useQuery({
+    queryKey: ['my-applications', user?.id],
+    queryFn: async () => {
+      const res = await fetch(apiUrl('/api/v1/applications/my-applications'), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.json();
+    },
+    enabled: !!token && user?.role === 'TEACHER',
+  });
+
+  const appliedJobIds = new Set((myAppsData?.applications || []).map((a: any) => a.jobId));
 
   // Fetch featured jobs from API
   const { data: jobsData, isLoading: jobsLoading, error: jobsError } = useQuery({
@@ -453,12 +469,19 @@ export const HomePage: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setSelectedJobForApply(job)}
-                        className="px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white text-xs font-bold rounded-xl hover:from-sky-600 hover:to-blue-700 shadow-xs transition transform active:scale-95"
-                      >
-                        Quick Apply
-                      </button>
+                      {appliedJobIds.has(job.id) ? (
+                        <span className="px-3.5 py-2 bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl flex items-center gap-1 cursor-default shadow-2xs">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Already Applied ✓</span>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setSelectedJobForApply(job)}
+                          className="px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white text-xs font-bold rounded-xl hover:from-sky-600 hover:to-blue-700 shadow-xs transition transform active:scale-95"
+                        >
+                          Quick Apply
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

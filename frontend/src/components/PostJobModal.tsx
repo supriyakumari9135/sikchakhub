@@ -8,7 +8,9 @@ import {
   Briefcase, 
   CheckCircle2, 
   HelpCircle,
-  Sliders
+  Sliders,
+  Upload,
+  FileText
 } from 'lucide-react';
 import { FormFieldDefinition } from '@sikchakhub/shared-types';
 import { apiUrl } from '../config/api';
@@ -50,8 +52,56 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
 
   // Screening Weights
   const [minPassingScore, setMinPassingScore] = useState(50);
+  const [requireResume, setRequireResume] = useState(true);
+  const [syllabusFile, setSyllabusFile] = useState<File | null>(null);
+  const [syllabusUrl, setSyllabusUrl] = useState<string>('');
+  const [isUploadingSyllabus, setIsUploadingSyllabus] = useState(false);
+  const [syllabusNotice, setSyllabusNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const handleSyllabusChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      alert('Only PDF format syllabus or specification documents are allowed (.pdf).');
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      alert(`File size (${(file.size / (1024 * 1024)).toFixed(2)} MB) exceeds 1MB limit. Please upload a PDF under 1MB.`);
+      return;
+    }
+
+    setSyllabusFile(file);
+    setIsUploadingSyllabus(true);
+    try {
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const res = await fetch(apiUrl('/api/v1/auth/upload-resume'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ base64Data, fileName: file.name }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSyllabusUrl(data.resumeUrl);
+        setSyllabusNotice(`Uploaded "${file.name}"!`);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsUploadingSyllabus(false);
+    }
+  };
 
   const addCustomField = () => {
     const newField: FormFieldDefinition = {
@@ -100,6 +150,9 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
           deadline,
           vacanciesCount: Number(vacanciesCount),
           customFields,
+          requireResume,
+          syllabusDocumentUrl: syllabusUrl,
+          syllabusDocumentName: syllabusFile?.name || '',
           screeningRules: {
             minExperienceYears: Number(minExp),
             requiredQualifications: [qualification],
@@ -400,6 +453,65 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
                   </label>
                 </div>
               ))}
+            </div>
+
+            {/* Candidate Resume Upload Policy & Job Document Setup */}
+            <div className="bg-sky-50/60 p-4 rounded-xl border border-sky-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-sky-600" />
+                    <span>Candidate Resume & ATS Scoring Setup</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    SikshaHub ATS automatically scores and ranks applicants from highest to lowest.
+                  </p>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                  ATS Auto-Rank Active
+                </span>
+              </div>
+
+              <label className="flex items-start gap-2 text-xs text-slate-700 font-medium cursor-pointer bg-white p-2.5 rounded-lg border border-slate-200">
+                <input
+                  type="checkbox"
+                  checked={requireResume}
+                  onChange={(e) => setRequireResume(e.target.checked)}
+                  className="mt-0.5 text-sky-600 rounded"
+                />
+                <div>
+                  <span className="font-bold text-slate-900 block">Require Candidate PDF CV Upload (Max 1MB)</span>
+                  <span className="text-[11px] text-slate-500">Mandates candidates to upload their PDF resume. All resumes are auto-parsed and ranked by ATS score for easy recruiter review.</span>
+                </div>
+              </label>
+
+              {/* Attach optional syllabus / job spec PDF */}
+              <div className="pt-1">
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Attach Vacancy Document / Syllabus (Optional PDF - Max 1MB)
+                </label>
+                <label className="cursor-pointer flex items-center justify-between p-2.5 bg-white rounded-lg border border-dashed border-sky-300 hover:border-sky-500 transition">
+                  <div className="flex items-center gap-2">
+                    <Upload className="w-4 h-4 text-sky-600" />
+                    <span className="text-xs text-slate-700">
+                      {syllabusFile ? syllabusFile.name : 'Click to attach role syllabus or job specification document (PDF ≤ 1MB)'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                    {isUploadingSyllabus ? 'Uploading...' : syllabusUrl ? 'Attached ✓' : 'Browse'}
+                  </span>
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    onChange={handleSyllabusChange}
+                    disabled={isUploadingSyllabus}
+                    className="hidden"
+                  />
+                </label>
+                {syllabusNotice && (
+                  <p className="text-[10px] text-emerald-600 font-bold mt-1">✓ {syllabusNotice}</p>
+                )}
+              </div>
             </div>
 
             {/* Actions */}

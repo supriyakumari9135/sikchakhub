@@ -14,11 +14,15 @@ import {
   MapPin, 
   Briefcase, 
   GraduationCap, 
-  IndianRupee,
-  Clock,
-  Save,
-  Award,
-  BookOpen
+  IndianRupee, 
+  Clock, 
+  Save, 
+  Award, 
+  BookOpen,
+  ExternalLink,
+  Eye,
+  UserCheck,
+  Download
 } from 'lucide-react';
 
 interface CandidateMatchDrawerProps {
@@ -39,6 +43,8 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
   const [notes, setNotes] = useState(application.recruiterNotes || '');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [noteSavedMessage, setNoteSavedMessage] = useState(false);
+  const [showInlinePdf, setShowInlinePdf] = useState(false);
+  const [shortlistSuccessNotice, setShortlistSuccessNotice] = useState(false);
 
   // Fetch full live application details from backend
   const { data: fullAppData } = useQuery({
@@ -56,6 +62,10 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
   const teacher = appRecord.teacher || application.teacher;
   const profile = teacher?.profile;
   const matchResult = appRecord.matchResult || application.matchResult;
+
+  const rawResumeUrl = appRecord.resumeUrl || application.resumeUrl || profile?.resumeUrl;
+  const fullResumeUrl = rawResumeUrl ? (rawResumeUrl.startsWith('http') || rawResumeUrl.startsWith('data:') ? rawResumeUrl : apiUrl(rawResumeUrl)) : null;
+  const resumeFileName = appRecord.resumeFileName || profile?.resumeFileName || 'Educator_Resume.pdf';
 
   const handleStageSelect = async (newStage: ApplicationStage) => {
     setStage(newStage);
@@ -159,17 +169,10 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
               </div>
               <div className="flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-sky-600" />
-                {appRecord.resumeUrl || application.resumeUrl ? (
-                  <a
-                    href={appRecord.resumeUrl || application.resumeUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sky-600 font-semibold underline hover:text-sky-700"
-                  >
-                    View CV Resume
-                  </a>
+                {fullResumeUrl ? (
+                  <span className="text-emerald-700 font-bold">PDF CV Attached</span>
                 ) : (
-                  <span className="text-slate-400 font-normal">No resume uploaded</span>
+                  <span className="text-slate-400 font-normal">No CV uploaded</span>
                 )}
               </div>
             </div>
@@ -186,6 +189,89 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
                     {sub}
                   </span>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Dedicated Candidate CV / Resume (PDF) & Direct Shortlist Section */}
+          <div className="p-4 rounded-2xl border border-sky-200 bg-sky-50/50 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-red-100 text-red-700 flex items-center justify-center font-black text-xs shrink-0 border border-red-200">
+                  PDF
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 leading-tight">
+                    {resumeFileName}
+                  </h4>
+                  <span className="text-[10px] text-slate-500 font-medium">
+                    Verified Educator Curriculum Vitae (PDF)
+                  </span>
+                </div>
+              </div>
+
+              {stage === 'SHORTLISTED' ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Candidate Shortlisted</span>
+                </span>
+              ) : (
+                <button
+                  onClick={async () => {
+                    await handleStageSelect('SHORTLISTED');
+                    setShortlistSuccessNotice(true);
+                    setTimeout(() => setShortlistSuccessNotice(false), 3000);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition flex items-center gap-1.5 shrink-0 active:scale-95"
+                >
+                  <UserCheck className="w-3.5 h-3.5" />
+                  <span>Direct Shortlist Candidate</span>
+                </button>
+              )}
+            </div>
+
+            {shortlistSuccessNotice && (
+              <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Candidate shortlisted directly from CV review!</span>
+              </div>
+            )}
+
+            {fullResumeUrl ? (
+              <div className="space-y-2 pt-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <a
+                    href={fullResumeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-sky-700 transition flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Open Full CV in New Tab</span>
+                  </a>
+                  <button
+                    onClick={() => setShowInlinePdf(!showInlinePdf)}
+                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 transition flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-slate-500" />
+                    <span>{showInlinePdf ? 'Hide Inline Preview' : 'Preview CV Inline'}</span>
+                  </button>
+                </div>
+
+                {showInlinePdf && (
+                  <div className="rounded-xl overflow-hidden border border-slate-300 shadow-inner bg-slate-100 mt-2">
+                    <iframe
+                      src={fullResumeUrl}
+                      className="w-full h-96 bg-white"
+                      title="Candidate CV Document"
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs text-slate-500 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                <span>No PDF document was attached by this candidate during submission.</span>
               </div>
             )}
           </div>
@@ -208,6 +294,42 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
               <p className="text-xs text-slate-700 leading-relaxed bg-white/70 p-3 rounded-lg border border-emerald-100">
                 {matchResult.aiAnalysisSummary}
               </p>
+
+              {/* Matched vs Missing Keywords */}
+              {((matchResult.matchedKeywords && matchResult.matchedKeywords.length > 0) || (matchResult.missingKeywords && matchResult.missingKeywords.length > 0)) && (
+                <div className="space-y-2 p-3 bg-white/80 rounded-xl border border-emerald-200/80">
+                  {matchResult.matchedKeywords && matchResult.matchedKeywords.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-emerald-800 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>Matched Keywords ({matchResult.matchedKeywords.length})</span>
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {matchResult.matchedKeywords.map((k: string, i: number) => (
+                          <span key={i} className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            {k}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {matchResult.missingKeywords && matchResult.missingKeywords.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-rose-800 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 text-rose-600" />
+                        <span>Missing Vacancy Keywords ({matchResult.missingKeywords.length})</span>
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {matchResult.missingKeywords.map((k: string, i: number) => (
+                          <span key={i} className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                            {k}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Criteria comparison table */}
               <div className="space-y-1.5 pt-1">
@@ -322,6 +444,20 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {stage !== 'SHORTLISTED' && (
+              <button
+                onClick={async () => {
+                  await handleStageSelect('SHORTLISTED');
+                  setShortlistSuccessNotice(true);
+                  setTimeout(() => setShortlistSuccessNotice(false), 3000);
+                }}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs flex items-center gap-1.5 transition active:scale-95"
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Direct Shortlist</span>
+              </button>
+            )}
+
             <button
               onClick={() => onScheduleInterview(application)}
               className="px-4 py-2 bg-brand-600 text-white text-xs font-semibold rounded-xl hover:bg-brand-700 shadow-sm flex items-center gap-1.5 transition"

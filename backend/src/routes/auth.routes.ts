@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcryptjs from 'bcryptjs';
+import path from 'path';
+import fs from 'fs';
 import { dbStore } from '../db/store';
-import { UserModel, TeacherProfileModel, InstitutionModel } from '../db/mongodb';
-import { authenticateJWT } from '../middleware/authMiddleware';
+import { UserModel, TeacherProfileModel, InstitutionModel, JobApplicationModel } from '../db/mongodb';
+import { authenticateJWT, requireRole } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
 import { RegisterSchema, LoginSchema } from '@sikchakhub/shared-validation';
 
@@ -19,7 +21,7 @@ function generateToken(user: any) {
       fullName: user.fullName,
     },
     JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: '30d' }
   );
 }
 
@@ -213,6 +215,28 @@ router.post('/login', async (req: Request, res: Response) => {
     const passwordMatches = bcryptjs.compareSync(password, storedHash);
     if (!passwordMatches) {
       return res.status(401).json({ success: false, message: 'Invalid email or password credentials.' });
+    }
+
+    // 2.5 Strict Portal Role Separation
+    // Job Poster cannot log into Job Seeker page or Admin page;
+    // Job Seeker cannot log into Job Poster page or Admin page;
+    // Admin credentials required for Super Admin governance.
+    const expectedRole = parseResult.data.expectedRole || parseResult.data.portalRole || parseResult.data.role;
+    if (expectedRole && user.role !== expectedRole) {
+      const portalDisplayNames: Record<string, string> = {
+        TEACHER: 'Job Seeker (Educator)',
+        EMPLOYER: 'Job Poster (School / Coaching Institute)',
+        ADMIN: 'Super Admin Governance',
+      };
+      const actualRoleLabel = portalDisplayNames[user.role] || user.role;
+      const expectedRoleLabel = portalDisplayNames[expectedRole] || expectedRole;
+
+      return res.status(403).json({
+        success: false,
+        message: `Account role mismatch: This account is registered as a ${actualRoleLabel}. You cannot log in through the ${expectedRoleLabel} portal. Please use the ${actualRoleLabel} login page.`,
+        userRole: user.role,
+        expectedRole,
+      });
     }
 
     // 3. Fetch linked profile or institution from MongoDB Atlas
@@ -506,6 +530,253 @@ router.put('/profile', authenticateJWT, async (req: Request, res: Response) => {
     message: 'Profile updated successfully!',
     profile: updatedProfile,
   });
+});
+
+// PUT /api/v1/auth/account
+// Real account details update (name, phone, age, institution details) in MongoDB Atlas
+router.put('/account', authenticateJWT, async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const { fullName, phone, age, organizationName, type, city, state, website, affiliationNumber, description } = req.body;
+
+  try {
+    const userUpdate: any = {};
+    if (fullName) userUpdate.fullName = fullName.trim();
+    if (phone !== undefined) userUpdate.phone = phone.trim();
+    if (age !== undefined) userUpdate.age = Number(age);
+    userUpdate.updatedAt = new Date().toISOString();
+
+    let updatedUser: any = null;
+    try {
+      updatedUser = await UserModel.findOneAndUpdate(
+        { id: userId },
+        { $set: userUpdate },
+        { new: true }
+      ).lean();
+    } catch (e) {}
+
+    const memUser = dbStore.users.find(u => u.id === userId);
+    if (memUser) {
+      if (fullName) memUser.fullName = fullName.trim();
+      if (phone !== undefined) memUser.phone = phone.trim();
+      if (age !== undefined) (memUser as any).age = Number(age);
+      (memUser as any).updatedAt = userUpdate.updatedAt;
+      if (!updatedUser) updatedUser = memUser;
+    }
+
+    let updatedInstitution: any = null;
+    if (req.user!.role === 'EMPLOYER') {
+      const instUpdate: any = {};
+      if (organizationName) instUpdate.name = organizationName.trim();
+      if (type) instUpdate.type = type;
+      if (city) instUpdate.city = city.trim();
+      if (state) instUpdate.state = state.trim();
+      if (website) instUpdate.website = website.trim();
+      if (affiliationNumber) instUpdate.affiliationNumber = affiliationNumber.trim();
+      if (description) instUpdate.description = description.trim();
+      instUpdate.updatedAt = new Date().toISOString();
+
+      try {
+        updatedInstitution = await InstitutionModel.findOneAndUpdate(
+          { ownerId: userId },
+          { $set: instUpdate },
+          { new: true }
+        ).lean();
+      } catch (e) {}
+
+      const memInst = dbStore.institutions.find(i => i.ownerId === userId);
+      if (memInst) {
+        if (organizationName) memInst.name = organizationName.trim();
+        if (type) memInst.type = type;
+        if (city) memInst.city = city.trim();
+        if (state) memInst.state = state.trim();
+        if (website) memInst.website = website.trim();
+        if (affiliationNumber) memInst.affiliationNumber = affiliationNumber.trim();
+        if (description) memInst.description = description.trim();
+        if (!updatedInstitution) updatedInstitution = memInst;
+      }
+    }
+
+    logAuditEvent(req, 'ACCOUNT_UPDATED', 'User', userId, { fullName, phone, age });
+
+    return res.json({
+      success: true,
+      message: 'Account details updated successfully!',
+      user: {
+        id: updatedUser?.id || userId,
+        email: updatedUser?.email || req.user!.email,
+        fullName: updatedUser?.fullName || fullName,
+        role: updatedUser?.role || req.user!.role,
+        avatarUrl: updatedUser?.avatarUrl || '',
+        phone: updatedUser?.phone || phone || '',
+        age: updatedUser?.age || age,
+      },
+      institution: updatedInstitution,
+    });
+  } catch (err: any) {
+    console.error('Account update error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to update account details.' });
+  }
+});
+
+// PUT /api/v1/auth/password
+// Secure password change verifying current password against MongoDB Atlas
+router.put('/password', authenticateJWT, async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ success: false, message: 'Current password and new password are required.' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+  }
+
+  try {
+    let user: any = null;
+    try {
+      user = await UserModel.findOne({ id: userId }).lean();
+    } catch (e) {}
+
+    if (!user) {
+      user = dbStore.getUserById(userId);
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const currentHash = user.passwordHash || (dbStore.getUserById(userId) as any)?.passwordHash;
+    if (!currentHash || !bcryptjs.compareSync(currentPassword, currentHash)) {
+      return res.status(400).json({ success: false, message: 'Current password does not match.' });
+    }
+
+    const newHash = bcryptjs.hashSync(newPassword, 10);
+    try {
+      await UserModel.findOneAndUpdate(
+        { id: userId },
+        { $set: { passwordHash: newHash, updatedAt: new Date().toISOString() } }
+      );
+    } catch (e) {}
+
+    const memUser = dbStore.getUserById(userId) as any;
+    if (memUser) {
+      memUser.passwordHash = newHash;
+      memUser.updatedAt = new Date().toISOString();
+    }
+
+    logAuditEvent(req, 'PASSWORD_CHANGED', 'User', userId);
+
+    return res.json({
+      success: true,
+      message: 'Password changed successfully!',
+    });
+  } catch (err: any) {
+    console.error('Password change error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to update password.' });
+  }
+});
+
+// POST /api/v1/auth/upload-resume
+// Free local storage setup for PDF CV uploads with strict 1MB size limit
+router.post('/upload-resume', authenticateJWT, requireRole(['TEACHER', 'ADMIN']), async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const { base64Data, fileName } = req.body;
+
+  if (!base64Data) {
+    return res.status(400).json({ success: false, message: 'Please select a PDF CV document to upload.' });
+  }
+
+  // 1. Validate PDF file format
+  const isPdfHeader = base64Data.startsWith('data:application/pdf;base64,');
+  const isPdfName = (fileName || '').toLowerCase().endsWith('.pdf');
+  if (!isPdfHeader && !isPdfName) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Only PDF format resumes are accepted (.pdf). Please convert your CV to PDF.' 
+    });
+  }
+
+  try {
+    // 2. Decode and check 1MB size limit (1,048,576 bytes)
+    const base64Content = base64Data.replace(/^data:application\/pdf;base64,/, '');
+    const buffer = Buffer.from(base64Content, 'base64');
+    const sizeBytes = buffer.length;
+    const MAX_SIZE = 1024 * 1024; // 1MB
+
+    if (sizeBytes > MAX_SIZE) {
+      return res.status(400).json({
+        success: false,
+        message: `File size (${(sizeBytes / (1024 * 1024)).toFixed(2)} MB) exceeds the free 1MB size limit. Please upload a PDF under 1MB.`,
+      });
+    }
+
+    // 3. Save to local storage (Free Setup)
+    const uploadsDir = path.join(__dirname, '../../uploads/resumes');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const cleanName = (fileName || 'resume.pdf').replace(/[^a-zA-Z0-9.-]/g, '_');
+    const storedFileName = `cv-${userId}-${Date.now()}-${cleanName}`;
+    const filePath = path.join(uploadsDir, storedFileName);
+    fs.writeFileSync(filePath, buffer);
+
+    const resumeUrl = `/uploads/resumes/${storedFileName}`;
+
+    // 4. Update Teacher Profile in MongoDB Atlas & in-memory store
+    try {
+      await TeacherProfileModel.findOneAndUpdate(
+        { userId },
+        { 
+          $set: { 
+            resumeUrl, 
+            resumeFileName: fileName || 'Educator_Resume.pdf', 
+            profileCompletionScore: 95,
+            updatedAt: new Date() 
+          } 
+        },
+        { upsert: true, new: true }
+      );
+
+      // Also sync resumeUrl to all submitted applications by this educator
+      await JobApplicationModel.updateMany(
+        { teacherId: userId },
+        { $set: { resumeUrl, updatedAt: new Date() } }
+      );
+    } catch (dbErr) {
+      console.warn('MongoDB resume update warning:', dbErr);
+    }
+
+    if (dbStore.profiles[userId]) {
+      dbStore.profiles[userId].resumeUrl = resumeUrl;
+      dbStore.profiles[userId].resumeFileName = fileName || 'Educator_Resume.pdf';
+      dbStore.profiles[userId].profileCompletionScore = 95;
+    }
+
+    dbStore.applications.forEach(a => {
+      if (a.teacherId === userId) {
+        a.resumeUrl = resumeUrl;
+      }
+    });
+
+    logAuditEvent(req, 'RESUME_UPLOADED', 'TeacherProfile', userId, {
+      fileName: fileName || 'Educator_Resume.pdf',
+      fileSizeBytes: sizeBytes,
+      resumeUrl,
+    });
+
+    return res.json({
+      success: true,
+      message: 'PDF CV uploaded and attached successfully (1MB limit verified)!',
+      resumeUrl,
+      resumeFileName: fileName || 'Educator_Resume.pdf',
+      fileSizeBytes: sizeBytes,
+    });
+  } catch (err: any) {
+    console.error('Resume upload error:', err);
+    return res.status(500).json({ success: false, message: 'Server error processing PDF upload.' });
+  }
 });
 
 export default router;

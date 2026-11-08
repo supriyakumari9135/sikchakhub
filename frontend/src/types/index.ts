@@ -155,6 +155,20 @@ export interface ScreeningMatchDetail {
   scoreContribution: number;
   weight: number;
   notes: string;
+  matchedKeywords?: string[];
+  missingKeywords?: string[];
+}
+
+export interface ParsedResumeInfo {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  degree?: string;
+  institutionName?: string;
+  primaryDomain?: string;
+  skills?: string[];
+  experienceYears?: number;
+  projects?: string[];
 }
 
 export interface ApplicationMatchResult {
@@ -163,6 +177,10 @@ export interface ApplicationMatchResult {
   autoFilteredStatus: 'QUALIFIED' | 'UNMATCHED';
   breakdown: ScreeningMatchDetail[];
   aiAnalysisSummary?: string;
+  matchGrade?: 'TOP_TIER' | 'POTENTIAL' | 'DOMAIN_MISMATCH';
+  parsedResume?: ParsedResumeInfo;
+  matchedKeywords?: string[];
+  missingKeywords?: string[];
 }
 
 export interface JobApplication {
@@ -172,6 +190,7 @@ export interface JobApplication {
   teacherId: string;
   teacher?: User & { profile?: TeacherProfile };
   resumeUrl: string;
+  resumeFileName?: string;
   coverLetter?: string;
   stage: ApplicationStage;
   customAnswers: Record<string, any>;

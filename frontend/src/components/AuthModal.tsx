@@ -304,9 +304,38 @@ export const AuthModal: React.FC = () => {
         {/* Modal Form Body */}
         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-start gap-2">
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-start gap-2 animate-in fade-in">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
+              <div className="space-y-1 flex-1">
+                <p className="font-semibold leading-relaxed">{error}</p>
+                {(error.includes('Job Poster') || error.includes('Employer')) && selectedPortal !== 'EMPLOYER' && (
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedPortal('EMPLOYER'); setError(null); }}
+                    className="font-bold underline text-sky-700 hover:text-sky-900 flex items-center gap-1 mt-1 text-xs"
+                  >
+                    <span>Switch to Job Poster Portal tab →</span>
+                  </button>
+                )}
+                {(error.includes('Job Seeker') || error.includes('Educator')) && selectedPortal !== 'TEACHER' && (
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedPortal('TEACHER'); setError(null); }}
+                    className="font-bold underline text-emerald-700 hover:text-emerald-900 flex items-center gap-1 mt-1 text-xs"
+                  >
+                    <span>Switch to Job Seeker Portal tab →</span>
+                  </button>
+                )}
+                {error.includes('Super Admin') && selectedPortal !== 'ADMIN' && (
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedPortal('ADMIN'); setError(null); }}
+                    className="font-bold underline text-purple-700 hover:text-purple-900 flex items-center gap-1 mt-1 text-xs"
+                  >
+                    <span>Switch to Super Admin Console tab →</span>
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
