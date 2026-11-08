@@ -203,12 +203,12 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
 
         {isSuccess ? (
           <div className="p-8 text-center space-y-3">
-            <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+            <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <h4 className="text-xl font-bold text-slate-900">Job Vacancy Published!</h4>
-            <p className="text-xs text-slate-500">
-              Active candidates can now discover and apply. Automatic screening rules are now active.
+            <h4 className="text-xl font-bold text-slate-900">Job Vacancy Submitted!</h4>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">
+              Your vacancy has been submitted for Super Admin review. In accordance with platform governance, it will appear on the public portal once approved by administration.
             </p>
           </div>
         ) : (

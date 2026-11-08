@@ -24,10 +24,10 @@ connectMongoDB().catch(err => {
   console.warn('Initial MongoDB connection warning:', err.message);
 });
 
-// Middleware (10MB body limit to comfortably accommodate 1MB PDFs in base64 payload)
+// Middleware (25MB body limit to comfortably accommodate up to 5MB PDFs in base64 payload)
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use(morgan('dev'));
 
 // Static storage for free local PDF CV/Resume uploads

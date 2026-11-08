@@ -89,9 +89,25 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
       };
     }));
 
-    // Status filter
-    if (status && status !== 'ALL') {
-      results = results.filter(j => j.status === status);
+    // Moderation & Approval Filter:
+    // Only approved vacancies ('ACTIVE') from verified institutions ('VERIFIED') show on the public portal.
+    // Super Admin can view all jobs.
+    // An employer can view all jobs for their own institution.
+    const isSuperAdmin = req.user && req.user.role === 'ADMIN';
+    let isInstitutionOwner = false;
+    if (req.user && institutionId) {
+      try {
+        const inst = await InstitutionModel.findOne({ id: institutionId, ownerId: req.user.id }).lean();
+        if (inst) isInstitutionOwner = true;
+      } catch (e) {}
+    }
+
+    if (!isSuperAdmin && !isInstitutionOwner) {
+      results = results.filter(j => j.status === 'ACTIVE' && j.institution?.verificationStatus === 'VERIFIED');
+    } else {
+      if (status && status !== 'ALL') {
+        results = results.filter(j => j.status === status);
+      }
     }
 
     // Free text search query
@@ -156,6 +172,24 @@ router.get('/:id', optionalJWT, async (req: Request, res: Response) => {
       applicationsCount = dbStore.applications.filter(a => a.jobId === job.id).length;
     }
 
+    const isSuperAdmin = req.user && req.user.role === 'ADMIN';
+    const isInstitutionOwner = req.user && institution && institution.ownerId === req.user.id;
+
+    if (!isSuperAdmin && !isInstitutionOwner) {
+      if (job.status !== 'ACTIVE') {
+        return res.status(403).json({
+          success: false,
+          message: 'This job vacancy is currently awaiting administrative approval and is not yet published.',
+        });
+      }
+      if (institution && institution.verificationStatus !== 'VERIFIED') {
+        return res.status(403).json({
+          success: false,
+          message: 'The hiring institution for this job opening is currently under administrative verification.',
+        });
+      }
+    }
+
     return res.json({
       success: true,
       job: {
@@ -209,6 +243,9 @@ router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req
       dbStore.institutions.push(institution);
     }
 
+    const isSuperAdmin = req.user!.role === 'ADMIN';
+    const initialStatus = isSuperAdmin ? 'ACTIVE' : 'PENDING_APPROVAL';
+
     const newJob: any = {
       id: `job-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       institutionId: institution.id,
@@ -216,7 +253,7 @@ router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req
       requireResume: req.body.requireResume !== undefined ? Boolean(req.body.requireResume) : true,
       syllabusDocumentUrl: req.body.syllabusDocumentUrl || '',
       syllabusDocumentName: req.body.syllabusDocumentName || '',
-      status: 'ACTIVE',
+      status: initialStatus,
       totalApplicants: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -239,11 +276,21 @@ router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req
     }
 
     dbStore.jobs.unshift(newJob);
-    logAuditEvent(req, 'JOB_CREATED', 'JobVacancy', newJob.id, { title: newJob.title });
+    logAuditEvent(
+      req, 
+      isSuperAdmin ? 'JOB_CREATED' : 'JOB_SUBMITTED_FOR_APPROVAL', 
+      'JobVacancy', 
+      newJob.id, 
+      { title: newJob.title, status: initialStatus }
+    );
+
+    const message = isSuperAdmin
+      ? 'Job vacancy published successfully in database!'
+      : 'Job vacancy submitted for review. It will appear on the public portal once approved by Super Admin.';
 
     return res.status(201).json({
       success: true,
-      message: 'Job vacancy published successfully in database!',
+      message,
       job: {
         ...newJob,
         institution,

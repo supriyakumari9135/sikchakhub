@@ -1,8 +1,9 @@
 import { Router, Request, Response } from 'express';
+import { MasterDataModel } from '../db/mongodb';
 
 const router = Router();
 
-const SUBJECTS = [
+const DEFAULT_SUBJECTS = [
   'Physics',
   'Chemistry',
   'Mathematics',
@@ -21,7 +22,7 @@ const SUBJECTS = [
   'Special Education',
 ];
 
-const TEACHING_LEVELS = [
+const DEFAULT_TEACHING_LEVELS = [
   { value: 'PRE_PRIMARY', label: 'Pre-Primary / Nursery / Kindergarten' },
   { value: 'PRT', label: 'PRT - Primary Teacher (Grades 1-5)' },
   { value: 'TGT', label: 'TGT - Trained Graduate Teacher (Grades 6-10)' },
@@ -33,7 +34,7 @@ const TEACHING_LEVELS = [
   { value: 'ADMINISTRATOR', label: 'Academic Coordinator / Administrator' },
 ];
 
-const BOARDS = [
+const DEFAULT_BOARDS = [
   { value: 'CBSE', label: 'CBSE (Central Board of Secondary Education)' },
   { value: 'ICSE', label: 'CISCE / ICSE / ISC' },
   { value: 'CAMBRIDGE', label: 'Cambridge Assessment International (IGCSE / A-Levels)' },
@@ -42,7 +43,7 @@ const BOARDS = [
   { value: 'OTHER', label: 'Coaching / Higher Education / Other' },
 ];
 
-const MAJOR_CITIES = [
+const DEFAULT_CITIES = [
   'New Delhi',
   'Kota',
   'Bengaluru',
@@ -60,7 +61,7 @@ const MAJOR_CITIES = [
   'Indore',
 ];
 
-const QUALIFICATIONS = [
+const DEFAULT_QUALIFICATIONS = [
   'B.Ed (Bachelor of Education)',
   'M.Ed (Master of Education)',
   'D.El.Ed / NTT',
@@ -74,17 +75,44 @@ const QUALIFICATIONS = [
   'CTET / State TET Qualified',
 ];
 
-router.get('/', (req: Request, res: Response) => {
-  return res.json({
-    success: true,
-    data: {
-      subjects: SUBJECTS,
-      teachingLevels: TEACHING_LEVELS,
-      boards: BOARDS,
-      cities: MAJOR_CITIES,
-      qualifications: QUALIFICATIONS,
-    },
-  });
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    const dbItems = await MasterDataModel.find({ isActive: true }).sort({ order: 1 }).lean();
+
+    const dbSubjects = dbItems.filter(i => i.category === 'SUBJECT').map(i => i.label);
+    const dbLevels = dbItems.filter(i => i.category === 'TEACHING_CATEGORY').map(i => ({ value: i.value, label: i.label }));
+    const dbBoards = dbItems.filter(i => i.category === 'BOARD').map(i => ({ value: i.value, label: i.label }));
+    const dbQualifications = dbItems.filter(i => i.category === 'QUALIFICATION').map(i => i.label);
+    const dbCities = dbItems.filter(i => i.category === 'CITY').map(i => i.label);
+
+    const subjects = dbSubjects.length > 0 ? Array.from(new Set([...dbSubjects, ...DEFAULT_SUBJECTS])) : DEFAULT_SUBJECTS;
+    const teachingLevels = dbLevels.length > 0 ? dbLevels : DEFAULT_TEACHING_LEVELS;
+    const boards = dbBoards.length > 0 ? dbBoards : DEFAULT_BOARDS;
+    const qualifications = dbQualifications.length > 0 ? Array.from(new Set([...dbQualifications, ...DEFAULT_QUALIFICATIONS])) : DEFAULT_QUALIFICATIONS;
+    const cities = dbCities.length > 0 ? Array.from(new Set([...dbCities, ...DEFAULT_CITIES])) : DEFAULT_CITIES;
+
+    return res.json({
+      success: true,
+      data: {
+        subjects,
+        teachingLevels,
+        boards,
+        cities,
+        qualifications,
+      },
+    });
+  } catch (err: any) {
+    return res.json({
+      success: true,
+      data: {
+        subjects: DEFAULT_SUBJECTS,
+        teachingLevels: DEFAULT_TEACHING_LEVELS,
+        boards: DEFAULT_BOARDS,
+        cities: DEFAULT_CITIES,
+        qualifications: DEFAULT_QUALIFICATIONS,
+      },
+    });
+  }
 });
 
 export default router;

@@ -1,57 +1,79 @@
 import { Router, Request, Response } from 'express';
+import bcryptjs from 'bcryptjs';
 import { dbStore } from '../db/store';
 import { 
   UserModel, 
+  TeacherProfileModel,
   InstitutionModel, 
   JobVacancyModel, 
   JobApplicationModel, 
   InterviewModel, 
-  AuditLogModel 
+  AuditLogModel,
+  MasterDataModel,
+  PlatformNotificationModel,
+  UserReportModel,
+  PlatformSettingModel
 } from '../db/mongodb';
 import { authenticateJWT, requireRole } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
 
 const router = Router();
 
-// GET /api/v1/admin/kpis - Overall platform metrics directly from MongoDB
+// =========================================================================
+// 1. DASHBOARD OVERVIEW & COMPREHENSIVE KPIS
+// =========================================================================
+
 router.get('/kpis', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
   try {
     let totalTeachers = 0;
-    let totalInstitutions = 0;
+    let totalEmployers = 0;
+    let totalVerifiedInstitutions = 0;
     let pendingInstitutions = 0;
-    let totalVacancies = 0;
-    let activeVacancies = 0;
+    let totalActiveVacancies = 0;
+    let pendingJobApprovals = 0;
     let totalApplications = 0;
+    let shortlistedCandidates = 0;
     let interviewsScheduled = 0;
+    let selectedCandidates = 0;
 
     try {
       totalTeachers = await UserModel.countDocuments({ role: 'TEACHER' });
-      totalInstitutions = await InstitutionModel.countDocuments();
+      totalEmployers = await UserModel.countDocuments({ role: 'EMPLOYER' });
+      totalVerifiedInstitutions = await InstitutionModel.countDocuments({ verificationStatus: 'VERIFIED' });
       pendingInstitutions = await InstitutionModel.countDocuments({ verificationStatus: 'PENDING' });
-      totalVacancies = await JobVacancyModel.countDocuments();
-      activeVacancies = await JobVacancyModel.countDocuments({ status: 'ACTIVE' });
+      totalActiveVacancies = await JobVacancyModel.countDocuments({ status: 'ACTIVE' });
+      pendingJobApprovals = await JobVacancyModel.countDocuments({ status: { $in: ['PENDING_APPROVAL', 'DRAFT'] } });
       totalApplications = await JobApplicationModel.countDocuments();
+      shortlistedCandidates = await JobApplicationModel.countDocuments({ stage: 'SHORTLISTED' });
       interviewsScheduled = await InterviewModel.countDocuments();
+      selectedCandidates = await JobApplicationModel.countDocuments({ stage: 'SELECTED' });
     } catch (e) {
       totalTeachers = dbStore.users.filter(u => u.role === 'TEACHER').length;
-      totalInstitutions = dbStore.institutions.length;
+      totalEmployers = dbStore.users.filter(u => u.role === 'EMPLOYER').length;
+      totalVerifiedInstitutions = dbStore.institutions.filter(i => i.verificationStatus === 'VERIFIED').length;
       pendingInstitutions = dbStore.institutions.filter(i => i.verificationStatus === 'PENDING').length;
-      totalVacancies = dbStore.jobs.length;
-      activeVacancies = dbStore.jobs.filter(j => j.status === 'ACTIVE').length;
+      totalActiveVacancies = dbStore.jobs.filter(j => j.status === 'ACTIVE').length;
+      pendingJobApprovals = dbStore.jobs.filter(j => j.status === 'PENDING_APPROVAL' || j.status === 'DRAFT').length;
+      pendingJobApprovals = dbStore.jobs.filter(j => j.status === 'DRAFT').length;
       totalApplications = dbStore.applications.length;
+      shortlistedCandidates = dbStore.applications.filter(a => a.stage === 'SHORTLISTED').length;
       interviewsScheduled = dbStore.interviews.length;
+      selectedCandidates = dbStore.applications.filter(a => a.stage === 'SELECTED').length;
     }
 
     return res.json({
       success: true,
       kpis: {
         totalTeachers,
-        totalInstitutions,
+        totalEmployers,
+        totalVerifiedInstitutions,
         pendingInstitutions,
-        totalVacancies,
-        activeVacancies,
+        totalActiveVacancies,
+        pendingJobApprovals,
         totalApplications,
+        shortlistedCandidates,
         interviewsScheduled,
+        selectedCandidates,
       },
     });
   } catch (err: any) {
@@ -59,43 +81,545 @@ router.get('/kpis', authenticateJWT, requireRole(['ADMIN']), async (req: Request
   }
 });
 
-// GET /api/v1/admin/pending-institutions - Verification queue directly from MongoDB
-router.get('/pending-institutions', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+// GET /api/v1/admin/analytics - Comprehensive growth & distribution statistics
+router.get('/analytics', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
   try {
-    let pending: any[] = [];
+    let jobs: any[] = [];
+    let applications: any[] = [];
+    let teachers: any[] = [];
+    let institutions: any[] = [];
+
     try {
-      pending = await InstitutionModel.find({ verificationStatus: 'PENDING' }).sort({ createdAt: -1 }).lean();
+      jobs = await JobVacancyModel.find().lean();
+      applications = await JobApplicationModel.find().lean();
+      teachers = await UserModel.find({ role: 'TEACHER' }).lean();
+      institutions = await InstitutionModel.find().lean();
     } catch (e) {
-      pending = dbStore.institutions.filter(i => i.verificationStatus === 'PENDING');
+      jobs = dbStore.jobs;
+      applications = dbStore.applications;
+      teachers = dbStore.users.filter(u => u.role === 'TEACHER');
+      institutions = dbStore.institutions;
     }
-    return res.json({ success: true, pending });
+
+    // 1. Applications Stage Distribution Funnel
+    const stageCounts: Record<string, number> = {
+      APPLIED: 0,
+      SCREENING: 0,
+      SHORTLISTED: 0,
+      INTERVIEW_SCHEDULED: 0,
+      SELECTED: 0,
+      REJECTED: 0,
+    };
+    applications.forEach(a => {
+      if (stageCounts[a.stage] !== undefined) {
+        stageCounts[a.stage]++;
+      } else {
+        stageCounts[a.stage] = 1;
+      }
+    });
+
+    // 2. Jobs by Teaching Level
+    const levelCounts: Record<string, number> = {};
+    jobs.forEach(j => {
+      levelCounts[j.teachingLevel] = (levelCounts[j.teachingLevel] || 0) + 1;
+    });
+
+    // 3. Applications by Subject
+    const subjectCounts: Record<string, number> = {};
+    applications.forEach(a => {
+      const job = jobs.find(j => j.id === a.jobId) || dbStore.getJobById(a.jobId);
+      const sub = job?.subject || 'Other Subject';
+      subjectCounts[sub] = (subjectCounts[sub] || 0) + 1;
+    });
+
+    // 4. Recruitment by State / Major Cities
+    const cityCounts: Record<string, number> = {};
+    jobs.forEach(j => {
+      const c = j.city || 'Other';
+      cityCounts[c] = (cityCounts[c] || 0) + 1;
+    });
+
+    // 5. Institution Vacancy Statistics
+    const instCounts: Record<string, number> = {};
+    jobs.forEach(j => {
+      const inst = institutions.find(i => i.id === j.institutionId);
+      const name = inst?.name || 'Partner Academy';
+      instCounts[name] = (instCounts[name] || 0) + 1;
+    });
+
+    return res.json({
+      success: true,
+      analytics: {
+        stageFunnel: Object.entries(stageCounts).map(([stage, count]) => ({ stage, count })),
+        jobsByLevel: Object.entries(levelCounts).map(([name, count]) => ({ name, count })),
+        applicationsBySubject: Object.entries(subjectCounts).map(([name, count]) => ({ name, count })),
+        topHiringCities: Object.entries(cityCounts).map(([name, count]) => ({ name, count })),
+        institutionVacancies: Object.entries(instCounts).map(([name, count]) => ({ name, count })),
+        totalVacancies: jobs.length,
+        totalTeachers: teachers.length,
+      },
+    });
   } catch (err: any) {
-    return res.status(500).json({ success: false, message: 'Failed to retrieve pending institutions' });
+    return res.status(500).json({ success: false, message: 'Failed to retrieve analytics' });
   }
 });
 
-// POST /api/v1/admin/verify-institution - Approve / Reject institution in MongoDB
+// GET /api/v1/admin/recent-activities - Live chronological activity stream
+router.get('/recent-activities', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    let logs: any[] = [];
+    try {
+      logs = await AuditLogModel.find().sort({ createdAt: -1 }).limit(25).lean();
+      
+      // If no explicit audit logs are recorded yet, synthesize live stream from real MongoDB events
+      if (logs.length === 0) {
+        const [recentApps, recentJobs, recentInsts, recentTeachers] = await Promise.all([
+          JobApplicationModel.find().sort({ createdAt: -1 }).limit(10).lean(),
+          JobVacancyModel.find().sort({ createdAt: -1 }).limit(10).lean(),
+          InstitutionModel.find().sort({ createdAt: -1 }).limit(10).lean(),
+          UserModel.find({ role: 'TEACHER' }).sort({ createdAt: -1 }).limit(10).lean(),
+        ]);
+
+        const syntheticActivities: any[] = [];
+        await Promise.all(recentApps.map(async (app: any) => {
+          let candidateName = app.candidateName;
+          let jobTitle = app.jobTitle;
+          if (!candidateName) {
+            const user: any = await UserModel.findOne({ id: app.teacherId }).lean();
+            candidateName = user?.fullName || 'Educator';
+          }
+          if (!jobTitle) {
+            const job: any = await JobVacancyModel.findOne({ id: app.jobId }).lean();
+            jobTitle = job?.title || 'teaching vacancy';
+          }
+          syntheticActivities.push({
+            id: `act-${app.id}`,
+            action: 'APPLICATION_SUBMITTED',
+            userEmail: app.candidateEmail || 'Candidate',
+            resourceType: 'APPLICATION',
+            resourceId: app.id,
+            details: `${candidateName} submitted application for "${jobTitle}" (${app.stage})`,
+            createdAt: app.createdAt || app.appliedAt || new Date().toISOString(),
+          });
+        }));
+
+        recentJobs.forEach((job: any) => {
+          syntheticActivities.push({
+            id: `act-${job.id}`,
+            action: 'VACANCY_PUBLISHED',
+            userEmail: 'School Recruiter',
+            resourceType: 'JOB',
+            resourceId: job.id,
+            details: `Vacancy "${job.title}" published for ${job.subject} (${job.teachingLevel})`,
+            createdAt: job.createdAt || new Date().toISOString(),
+          });
+        });
+
+        recentInsts.forEach((inst: any) => {
+          syntheticActivities.push({
+            id: `act-${inst.id}`,
+            action: 'INSTITUTION_REGISTERED',
+            userEmail: inst.name,
+            resourceType: 'INSTITUTION',
+            resourceId: inst.id,
+            details: `Educational institution "${inst.name}" onboarded in ${inst.city || 'India'} (${inst.verificationStatus})`,
+            createdAt: inst.createdAt || new Date().toISOString(),
+          });
+        });
+
+        recentTeachers.forEach((teacher: any) => {
+          syntheticActivities.push({
+            id: `act-${teacher.id}`,
+            action: 'TEACHER_REGISTERED',
+            userEmail: teacher.email,
+            resourceType: 'TEACHER',
+            resourceId: teacher.id,
+            details: `Teacher ${teacher.fullName} registered on SikshaHub network`,
+            createdAt: teacher.createdAt || new Date().toISOString(),
+          });
+        });
+
+        syntheticActivities.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        logs = syntheticActivities.slice(0, 25);
+      }
+    } catch (e) {
+      logs = dbStore.auditLogs.slice(0, 25);
+    }
+
+    return res.json({
+      success: true,
+      activities: logs.map(l => ({
+        id: l.id,
+        action: l.action,
+        userEmail: l.userEmail || 'System Operation',
+        resourceType: l.resourceType || 'General',
+        resourceId: l.resourceId,
+        details: l.details,
+        createdAt: l.createdAt,
+      })),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to retrieve recent activities' });
+  }
+});
+
+// =========================================================================
+// 2. TEACHER / JOB SEEKER MANAGEMENT
+// =========================================================================
+
+// GET /api/v1/admin/teachers - List educators with search & filters
+router.get('/teachers', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { q, subject, qualification, status, page = 1, limit = 50 } = req.query;
+
+  try {
+    let teachers: any[] = [];
+    try {
+      const filter: any = { role: 'TEACHER' };
+      if (status && status !== 'ALL') {
+        filter.status = status;
+      }
+      if (q && typeof q === 'string') {
+        filter.$or = [
+          { fullName: { $regex: q, $options: 'i' } },
+          { email: { $regex: q, $options: 'i' } },
+          { phone: { $regex: q, $options: 'i' } },
+        ];
+      }
+      teachers = await UserModel.find(filter).sort({ createdAt: -1 }).lean();
+    } catch (e) {
+      teachers = dbStore.users.filter(u => u.role === 'TEACHER');
+    }
+
+    // Populate profile and applications count for each teacher
+    const populated = await Promise.all(teachers.map(async (t) => {
+      let profile: any = null;
+      let appCount = 0;
+      try {
+        profile = await TeacherProfileModel.findOne({ userId: t.id }).lean();
+        appCount = await JobApplicationModel.countDocuments({ teacherId: t.id });
+      } catch (err) {
+        profile = dbStore.getProfileByUserId(t.id);
+        appCount = dbStore.getApplicationsByTeacherId(t.id).length;
+      }
+
+      return {
+        id: t.id,
+        fullName: t.fullName,
+        email: t.email,
+        phone: t.phone || profile?.phone || 'Not provided',
+        age: t.age || profile?.age,
+        avatarUrl: t.avatarUrl,
+        status: t.status || 'ACTIVE',
+        isVerified: t.isVerified ?? true,
+        createdAt: t.createdAt,
+        profile: profile ? {
+          highestQualification: profile.highestQualification,
+          subjects: profile.subjects || [],
+          experienceYears: profile.experienceYears ?? 0,
+          currentCity: profile.currentCity,
+          headline: profile.headline,
+          resumeUrl: profile.resumeUrl,
+          resumeFileName: profile.resumeFileName,
+          profileCompletionScore: profile.profileCompletionScore ?? 75,
+        } : null,
+        totalApplications: appCount,
+      };
+    }));
+
+    // In-memory filter on populated fields if requested
+    let result = populated;
+    if (subject && subject !== 'ALL') {
+      result = result.filter(t => t.profile?.subjects?.some((s: string) => s.toLowerCase() === String(subject).toLowerCase()));
+    }
+    if (qualification && qualification !== 'ALL') {
+      result = result.filter(t => t.profile?.highestQualification?.toLowerCase().includes(String(qualification).toLowerCase()));
+    }
+
+    return res.json({
+      success: true,
+      total: result.length,
+      teachers: result,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to retrieve teachers list' });
+  }
+});
+
+// GET /api/v1/admin/teachers/:id - Complete teacher dossier & application history
+router.get('/teachers/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const user: any = await UserModel.findOne({ id: req.params.id, role: 'TEACHER' }).lean();
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Teacher record not found' });
+    }
+
+    const profile: any = await TeacherProfileModel.findOne({ userId: user.id }).lean();
+    const applications = await JobApplicationModel.find({ teacherId: user.id }).sort({ appliedAt: -1 }).lean();
+
+    const enrichedApps = await Promise.all(applications.map(async (app) => {
+      const job: any = await JobVacancyModel.findOne({ id: app.jobId }).lean();
+      const institution: any = job ? await InstitutionModel.findOne({ id: job.institutionId }).lean() : null;
+      return {
+        ...app,
+        jobTitle: job?.title || 'Teaching Vacancy',
+        institutionName: institution?.name || 'Educational Institution',
+        city: job?.city,
+      };
+    }));
+
+    return res.json({
+      success: true,
+      teacher: {
+        ...user,
+        profile,
+        applications: enrichedApps,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to load teacher dossier' });
+  }
+});
+
+// PATCH /api/v1/admin/teachers/:id - Edit teacher administrative details
+router.patch('/teachers/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { fullName, phone, age, status, isVerified, headline, highestQualification, currentCity, experienceYears } = req.body;
+
+  try {
+    const updatedUser = await UserModel.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: { fullName, phone, age, status, isVerified } },
+      { new: true }
+    ).lean();
+
+    if (headline !== undefined || highestQualification !== undefined || currentCity !== undefined || experienceYears !== undefined) {
+      await TeacherProfileModel.findOneAndUpdate(
+        { userId: req.params.id },
+        { $set: { headline, highestQualification, currentCity, experienceYears: Number(experienceYears) || 0 } }
+      );
+    }
+
+    logAuditEvent(req, 'TEACHER_ADMIN_UPDATED', 'User', req.params.id, { fullName, status });
+
+    return res.json({
+      success: true,
+      message: 'Teacher profile administratively updated.',
+      user: updatedUser,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to update teacher profile' });
+  }
+});
+
+// PATCH /api/v1/admin/teachers/:id/status - Activate / Suspend / Reactivate account
+router.patch('/teachers/:id/status', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { status, reason } = req.body; // status: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED'
+
+  try {
+    const user: any = await UserModel.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: { status, updatedAt: new Date() } },
+      { new: true }
+    ).lean();
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Teacher record not found.' });
+    }
+
+    logAuditEvent(req, `TEACHER_STATUS_${status}`, 'User', user.id, {
+      previousStatus: user.status,
+      newStatus: status,
+      reason: reason || 'Administrative action',
+    });
+
+    return res.json({
+      success: true,
+      message: `Teacher account is now ${status}.`,
+      user,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to update teacher status' });
+  }
+});
+
+// DELETE /api/v1/admin/teachers/:id - Controlled deletion / safe archival
+router.delete('/teachers/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const teacher: any = await UserModel.findOne({ id: req.params.id }).lean();
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: 'Teacher record not found.' });
+    }
+
+    // Safe archival: Mark as DEACTIVATED to preserve historical recruitment integrity
+    await UserModel.findOneAndUpdate({ id: req.params.id }, { $set: { status: 'DEACTIVATED' } });
+
+    logAuditEvent(req, 'TEACHER_ARCHIVED', 'User', req.params.id, {
+      email: teacher.email,
+      name: teacher.fullName,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Teacher record securely archived and deactivated from platform.',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to delete/archive teacher' });
+  }
+});
+
+// =========================================================================
+// 3. EMPLOYER / INSTITUTION MANAGEMENT
+// =========================================================================
+
+// GET /api/v1/admin/employers - List all employers & institutions
+router.get('/employers', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { q, type, verificationStatus, state } = req.query;
+
+  try {
+    let institutions: any[] = [];
+    try {
+      const filter: any = {};
+      if (verificationStatus && verificationStatus !== 'ALL') {
+        filter.verificationStatus = verificationStatus;
+      }
+      if (type && type !== 'ALL') {
+        filter.type = type;
+      }
+      if (q && typeof q === 'string') {
+        filter.$or = [
+          { name: { $regex: q, $options: 'i' } },
+          { city: { $regex: q, $options: 'i' } },
+          { state: { $regex: q, $options: 'i' } },
+        ];
+      }
+      institutions = await InstitutionModel.find(filter).sort({ createdAt: -1 }).lean();
+    } catch (e) {
+      institutions = dbStore.institutions;
+    }
+
+    // Populate owner details and total vacancies count
+    const populated = await Promise.all(institutions.map(async (inst) => {
+      let owner: any = null;
+      let jobsCount = 0;
+      let appsCount = 0;
+
+      try {
+        owner = await UserModel.findOne({ id: inst.ownerId }).lean();
+        jobsCount = await JobVacancyModel.countDocuments({ institutionId: inst.id });
+        const jobIds = (await JobVacancyModel.find({ institutionId: inst.id }, 'id').lean()).map(j => j.id);
+        appsCount = await JobApplicationModel.countDocuments({ jobId: { $in: jobIds } });
+      } catch (err) {
+        owner = dbStore.getUserById(inst.ownerId);
+        jobsCount = dbStore.jobs.filter(j => j.institutionId === inst.id).length;
+      }
+
+      return {
+        ...inst,
+        ownerName: owner?.fullName || 'Institutional Representative',
+        ownerEmail: owner?.email || 'email not listed',
+        ownerPhone: owner?.phone || 'phone not listed',
+        ownerStatus: owner?.status || 'ACTIVE',
+        totalJobs: jobsCount,
+        totalApplicationsReceived: appsCount,
+      };
+    }));
+
+    return res.json({
+      success: true,
+      total: populated.length,
+      employers: populated,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to retrieve employers' });
+  }
+});
+
+// GET /api/v1/admin/employers/:id - Full institution dossier & vacancy list
+router.get('/employers/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const inst: any = await InstitutionModel.findOne({ id: req.params.id }).lean();
+    if (!inst) {
+      return res.status(404).json({ success: false, message: 'Institution record not found' });
+    }
+
+    const owner = await UserModel.findOne({ id: inst.ownerId }).lean();
+    const jobs = await JobVacancyModel.find({ institutionId: inst.id }).sort({ createdAt: -1 }).lean();
+
+    return res.json({
+      success: true,
+      institution: {
+        ...inst,
+        owner,
+        jobs,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to retrieve institution dossier' });
+  }
+});
+
+// PATCH /api/v1/admin/employers/:id - Update institution details
+router.patch('/employers/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { name, type, website, description, affiliationNumber, address, city, state, pincode } = req.body;
+
+  try {
+    const updated = await InstitutionModel.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: { name, type, website, description, affiliationNumber, address, city, state, pincode, updatedAt: new Date() } },
+      { new: true }
+    ).lean();
+
+    logAuditEvent(req, 'INSTITUTION_ADMIN_UPDATED', 'Institution', req.params.id, { name, city, state });
+
+    return res.json({
+      success: true,
+      message: 'Institution profile updated successfully.',
+      institution: updated,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to update institution' });
+  }
+});
+
+// PATCH /api/v1/admin/employers/:id/status - Suspend / Reactivate institution
+router.patch('/employers/:id/status', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { verificationStatus, reason } = req.body; // 'VERIFIED' | 'PENDING' | 'REJECTED' | 'SUSPENDED'
+
+  try {
+    const inst: any = await InstitutionModel.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: { verificationStatus, verificationNotes: reason || '', updatedAt: new Date() } },
+      { new: true }
+    ).lean();
+
+    if (!inst) {
+      return res.status(404).json({ success: false, message: 'Institution record not found.' });
+    }
+
+    logAuditEvent(req, `INSTITUTION_STATUS_${verificationStatus}`, 'Institution', inst.id, {
+      status: verificationStatus,
+      reason,
+    });
+
+    return res.json({
+      success: true,
+      message: `Institution status updated to ${verificationStatus}.`,
+      institution: inst,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to update status' });
+  }
+});
+
+// POST /api/v1/admin/verify-institution - Approve / Reject institution
 router.post('/verify-institution', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
   const { institutionId, status, notes } = req.body; // status: 'VERIFIED' | 'REJECTED'
 
   try {
-    let inst: any = null;
-    try {
-      inst = await InstitutionModel.findOneAndUpdate(
-        { id: institutionId },
-        { $set: { verificationStatus: status, verificationNotes: notes || '', updatedAt: new Date() } },
-        { new: true }
-      ).lean();
-    } catch (e) {}
-
-    if (!inst) {
-      inst = dbStore.institutions.find(i => i.id === institutionId);
-      if (inst) {
-        inst.verificationStatus = status;
-        if (notes) inst.verificationNotes = notes;
-        inst.updatedAt = new Date().toISOString();
-      }
-    }
+    const inst: any = await InstitutionModel.findOneAndUpdate(
+      { id: institutionId },
+      { $set: { verificationStatus: status, verificationNotes: notes || '', updatedAt: new Date() } },
+      { new: true }
+    ).lean();
 
     if (!inst) {
       return res.status(404).json({ success: false, message: 'Institution record not found.' });
@@ -109,24 +633,669 @@ router.post('/verify-institution', authenticateJWT, requireRole(['ADMIN']), asyn
 
     return res.json({
       success: true,
-      message: `Institution status updated to ${status}.`,
+      message: `Institution verification status updated to ${status}.`,
       institution: inst,
     });
   } catch (err: any) {
-    return res.status(500).json({ success: false, message: 'Failed to update institution verification status' });
+    return res.status(500).json({ success: false, message: 'Failed to verify institution' });
   }
 });
 
-// GET /api/v1/admin/audit-logs - Administrative audit trail
+// DELETE /api/v1/admin/employers/:id - Controlled deletion / suspension
+router.delete('/employers/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const inst = await InstitutionModel.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: { verificationStatus: 'SUSPENDED' } },
+      { new: true }
+    );
+
+    logAuditEvent(req, 'INSTITUTION_SUSPENDED', 'Institution', req.params.id, { name: inst?.name });
+
+    return res.json({
+      success: true,
+      message: 'Institution suspended and withdrawn from public recruitment listings.',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to suspend institution' });
+  }
+});
+
+// =========================================================================
+// 4. JOB POSTING MANAGEMENT
+// =========================================================================
+
+// GET /api/v1/admin/jobs - List all vacancies across institutions
+router.get('/jobs', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { q, subject, teachingLevel, city, status } = req.query;
+
+  try {
+    let jobs: any[] = [];
+    try {
+      const filter: any = {};
+      if (status && status !== 'ALL') {
+        filter.status = status;
+      }
+      if (subject && subject !== 'ALL') {
+        filter.subject = subject;
+      }
+      if (teachingLevel && teachingLevel !== 'ALL') {
+        filter.teachingLevel = teachingLevel;
+      }
+      if (q && typeof q === 'string') {
+        filter.$or = [
+          { title: { $regex: q, $options: 'i' } },
+          { subject: { $regex: q, $options: 'i' } },
+          { city: { $regex: q, $options: 'i' } },
+        ];
+      }
+      jobs = await JobVacancyModel.find(filter).sort({ createdAt: -1 }).lean();
+    } catch (e) {
+      jobs = dbStore.jobs;
+    }
+
+    const populated = await Promise.all(jobs.map(async (job) => {
+      let institution: any = null;
+      let totalApplicants = job.totalApplicants || 0;
+      try {
+        institution = await InstitutionModel.findOne({ id: job.institutionId }).lean();
+        if (!totalApplicants) {
+          totalApplicants = await JobApplicationModel.countDocuments({ jobId: job.id });
+        }
+      } catch (e) {
+        institution = dbStore.getInstitutionById(job.institutionId);
+      }
+
+      return {
+        ...job,
+        institutionName: institution?.name || 'Educational Institution',
+        institutionLogo: institution?.logoUrl || '/logo.jpeg',
+        totalApplicants,
+      };
+    }));
+
+    return res.json({
+      success: true,
+      total: populated.length,
+      jobs: populated,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to retrieve jobs' });
+  }
+});
+
+// PATCH /api/v1/admin/jobs/:id - Edit job administrative details
+router.patch('/jobs/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { title, subject, teachingLevel, minSalaryLPA, maxSalaryLPA, deadline, vacanciesCount, status } = req.body;
+
+  try {
+    const updated = await JobVacancyModel.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: { title, subject, teachingLevel, minSalaryLPA, maxSalaryLPA, deadline, vacanciesCount, status, updatedAt: new Date() } },
+      { new: true }
+    ).lean();
+
+    logAuditEvent(req, 'JOB_ADMIN_MODERATED', 'JobVacancy', req.params.id, { title, status });
+
+    return res.json({
+      success: true,
+      message: 'Job posting moderated and saved.',
+      job: updated,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to update job' });
+  }
+});
+
+// PATCH /api/v1/admin/jobs/:id/status - Toggle status (ACTIVE / PAUSED / CLOSED / REJECTED)
+router.patch('/jobs/:id/status', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { status, reason } = req.body;
+
+  try {
+    const updated = await JobVacancyModel.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: { status, updatedAt: new Date() } },
+      { new: true }
+    ).lean();
+
+    logAuditEvent(req, `JOB_STATUS_${status}`, 'JobVacancy', req.params.id, { status, reason });
+
+    return res.json({
+      success: true,
+      message: `Vacancy status changed to ${status}.`,
+      job: updated,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to change job status' });
+  }
+});
+
+// DELETE /api/v1/admin/jobs/:id - Remove policy-violating vacancy
+router.delete('/jobs/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    await JobVacancyModel.findOneAndUpdate({ id: req.params.id }, { $set: { status: 'CLOSED' } });
+    logAuditEvent(req, 'JOB_REMOVED', 'JobVacancy', req.params.id, { reason: 'Policy violation' });
+
+    return res.json({
+      success: true,
+      message: 'Vacancy closed and removed from active public listings.',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to remove job' });
+  }
+});
+
+// =========================================================================
+// 5. APPLICATION MANAGEMENT & CANDIDATE DOSSIERS
+// =========================================================================
+
+// GET /api/v1/admin/applications - Monitor all platform job applications
+router.get('/applications', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { q, stage, jobId } = req.query;
+
+  try {
+    let apps: any[] = [];
+    try {
+      const filter: any = {};
+      if (stage && stage !== 'ALL') {
+        filter.stage = stage;
+      }
+      if (jobId && jobId !== 'ALL') {
+        filter.jobId = jobId;
+      }
+      apps = await JobApplicationModel.find(filter).sort({ appliedAt: -1 }).lean();
+    } catch (e) {
+      apps = dbStore.applications;
+    }
+
+    const populated = await Promise.all(apps.map(async (app) => {
+      let teacher: any = null;
+      let job: any = null;
+      let institution: any = null;
+
+      try {
+        teacher = await UserModel.findOne({ id: app.teacherId }).lean();
+        job = await JobVacancyModel.findOne({ id: app.jobId }).lean();
+        if (job) {
+          institution = await InstitutionModel.findOne({ id: job.institutionId }).lean();
+        }
+      } catch (e) {}
+
+      return {
+        id: app.id,
+        candidateName: teacher?.fullName || 'Educator Applicant',
+        candidateEmail: teacher?.email,
+        candidatePhone: teacher?.phone,
+        jobTitle: job?.title || 'Teaching Vacancy',
+        institutionName: institution?.name || 'Educational Institution',
+        subject: job?.subject || 'Teaching',
+        stage: app.stage,
+        score: app.matchResult?.overallScore || 75,
+        appliedAt: app.appliedAt,
+        resumeUrl: app.resumeUrl,
+        resumeFileName: app.resumeFileName || 'Resume.pdf',
+      };
+    }));
+
+    return res.json({
+      success: true,
+      total: populated.length,
+      applications: populated,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to load applications' });
+  }
+});
+
+// PATCH /api/v1/admin/applications/:id/stage - Exceptional stage correction with reason
+router.patch('/applications/:id/stage', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { stage, reason } = req.body;
+
+  if (!reason) {
+    return res.status(400).json({ success: false, message: 'Administrative reason is required for exceptional stage corrections.' });
+  }
+
+  try {
+    const updated = await JobApplicationModel.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: { stage, updatedAt: new Date() } },
+      { new: true }
+    ).lean();
+
+    logAuditEvent(req, 'APPLICATION_STAGE_CORRECTED', 'JobApplication', req.params.id, {
+      newStage: stage,
+      reason,
+    });
+
+    return res.json({
+      success: true,
+      message: `Application stage administratively updated to ${stage}.`,
+      application: updated,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to update application stage' });
+  }
+});
+
+// =========================================================================
+// 6. CV & DOCUMENT MANAGEMENT
+// =========================================================================
+
+// GET /api/v1/admin/documents - List verified candidate CV files
+router.get('/documents', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const apps = await JobApplicationModel.find({ resumeUrl: { $exists: true, $ne: '' } }).sort({ appliedAt: -1 }).lean();
+    const profiles = await TeacherProfileModel.find({ resumeUrl: { $exists: true, $ne: '' } }).sort({ updatedAt: -1 }).lean();
+
+    const appDocs = await Promise.all(apps.map(async (app) => {
+      const teacher: any = await UserModel.findOne({ id: app.teacherId }).lean();
+      const job: any = await JobVacancyModel.findOne({ id: app.jobId }).lean();
+
+      return {
+        id: app.id,
+        applicationId: app.id,
+        candidateName: teacher?.fullName || 'Educator Applicant',
+        candidateEmail: teacher?.email,
+        fileName: app.resumeFileName || 'Educator_Resume.pdf',
+        fileUrl: app.resumeUrl,
+        jobTitle: job?.title || 'General Vacancy',
+        uploadedAt: app.appliedAt,
+        atsScore: app.matchResult?.overallScore || 70,
+        parsedDegree: app.matchResult?.parsedResume?.degree || 'Verified Degree',
+      };
+    }));
+
+    // Also include teachers who uploaded a CV to their profile but may not have applied yet
+    const existingUrls = new Set(appDocs.map(d => d.fileUrl));
+    const profileDocs: any[] = [];
+
+    for (const prof of profiles) {
+      if (prof.resumeUrl && !existingUrls.has(prof.resumeUrl)) {
+        existingUrls.add(prof.resumeUrl);
+        const teacher: any = await UserModel.findOne({ id: prof.userId }).lean();
+        profileDocs.push({
+          id: `cv-prof-${prof.id || prof.userId}`,
+          applicationId: null,
+          candidateName: teacher?.fullName || 'Educator Profile',
+          candidateEmail: teacher?.email,
+          fileName: prof.resumeFileName || 'Educator_CV.pdf',
+          fileUrl: prof.resumeUrl,
+          jobTitle: prof.headline || 'Profile CV',
+          uploadedAt: prof.updatedAt || new Date(),
+          atsScore: prof.profileCompletionScore || 85,
+          parsedDegree: prof.highestQualification || 'Verified Degree',
+        });
+      }
+    }
+
+    const allDocs = [...appDocs, ...profileDocs];
+
+    return res.json({
+      success: true,
+      total: allDocs.length,
+      documents: allDocs,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to load documents' });
+  }
+});
+
+// =========================================================================
+// 7. CATEGORY AND MASTER DATA MANAGEMENT
+// =========================================================================
+
+// GET /api/v1/admin/master-data - Fetch platform categories
+router.get('/master-data', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { category } = req.query;
+
+  try {
+    const filter: any = {};
+    if (category) {
+      filter.category = category;
+    }
+    const items = await MasterDataModel.find(filter).sort({ category: 1, order: 1 }).lean();
+
+    return res.json({
+      success: true,
+      items,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to retrieve master data' });
+  }
+});
+
+// POST /api/v1/admin/master-data - Add new master category entry
+router.post('/master-data', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { category, label, value, order } = req.body;
+
+  if (!category || !label || !value) {
+    return res.status(400).json({ success: false, message: 'Category, label, and value are required.' });
+  }
+
+  try {
+    const newItem = {
+      id: `md-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      category,
+      label,
+      value,
+      isActive: true,
+      order: Number(order) || 0,
+    };
+
+    await MasterDataModel.create(newItem);
+    logAuditEvent(req, 'MASTER_DATA_CREATED', 'MasterData', newItem.id, { category, label, value });
+
+    return res.status(201).json({
+      success: true,
+      message: `New ${category} "${label}" added to platform.`,
+      item: newItem,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to create master data item' });
+  }
+});
+
+// PATCH /api/v1/admin/master-data/:id - Edit item / toggle active
+router.patch('/master-data/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { label, value, isActive, order } = req.body;
+
+  try {
+    const updated = await MasterDataModel.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: { label, value, isActive, order } },
+      { new: true }
+    ).lean();
+
+    logAuditEvent(req, 'MASTER_DATA_UPDATED', 'MasterData', req.params.id, { label, isActive });
+
+    return res.json({
+      success: true,
+      message: 'Master data option updated.',
+      item: updated,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to update master data' });
+  }
+});
+
+// DELETE /api/v1/admin/master-data/:id - Safe deletion (toggle deactivation)
+router.delete('/master-data/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    await MasterDataModel.findOneAndUpdate({ id: req.params.id }, { $set: { isActive: false } });
+    logAuditEvent(req, 'MASTER_DATA_DEACTIVATED', 'MasterData', req.params.id, {});
+
+    return res.json({
+      success: true,
+      message: 'Master data option deactivated to preserve historical consistency.',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to deactivate master data' });
+  }
+});
+
+// =========================================================================
+// 8. USER REPORTS & CONTENT MODERATION
+// =========================================================================
+
+// GET /api/v1/admin/reports - Queue of reported content
+router.get('/reports', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const reports = await UserReportModel.find().sort({ createdAt: -1 }).lean();
+    return res.json({
+      success: true,
+      total: reports.length,
+      reports,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to retrieve reports' });
+  }
+});
+
+// POST /api/v1/admin/reports - File a moderation report
+router.post('/reports', authenticateJWT, async (req: Request, res: Response) => {
+  const { targetType, targetId, targetTitle, reason, details } = req.body;
+
+  try {
+    const report = {
+      id: `rep-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      reporterEmail: req.user?.email || 'anonymous@platform',
+      targetType,
+      targetId,
+      targetTitle: targetTitle || targetId,
+      reason,
+      details,
+      status: 'PENDING',
+    };
+
+    await UserReportModel.create(report);
+    logAuditEvent(req, 'CONTENT_REPORTED', 'UserReport', report.id, { targetType, targetId, reason });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Report submitted for administrator review.',
+      report,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to file report' });
+  }
+});
+
+// PATCH /api/v1/admin/reports/:id - Resolve or dismiss report
+router.patch('/reports/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { status, resolutionNotes } = req.body; // 'UNDER_REVIEW' | 'RESOLVED' | 'DISMISSED'
+
+  try {
+    const updated = await UserReportModel.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: { status, resolutionNotes, resolvedBy: req.user?.email } },
+      { new: true }
+    ).lean();
+
+    logAuditEvent(req, `REPORT_${status}`, 'UserReport', req.params.id, { status, resolutionNotes });
+
+    return res.json({
+      success: true,
+      message: `Report marked as ${status}.`,
+      report: updated,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to update report' });
+  }
+});
+
+// =========================================================================
+// 9. PLATFORM NOTIFICATIONS MANAGEMENT
+// =========================================================================
+
+// GET /api/v1/admin/notifications - Broadcast history
+router.get('/notifications', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const notifications = await PlatformNotificationModel.find().sort({ createdAt: -1 }).lean();
+    return res.json({
+      success: true,
+      notifications,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to load notifications' });
+  }
+});
+
+// POST /api/v1/admin/notifications - Send platform announcement
+router.post('/notifications', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { title, message, targetAudience = 'ALL', type = 'ANNOUNCEMENT', priority = 'MEDIUM' } = req.body;
+
+  if (!title || !message) {
+    return res.status(400).json({ success: false, message: 'Title and message are required.' });
+  }
+
+  try {
+    const newNotif = {
+      id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      title,
+      message,
+      targetAudience,
+      type,
+      priority,
+      sentBy: req.user?.fullName || req.user?.email || 'Super Admin',
+      status: 'SENT',
+    };
+
+    await PlatformNotificationModel.create(newNotif);
+    logAuditEvent(req, 'BROADCAST_NOTIFICATION_SENT', 'PlatformNotification', newNotif.id, { title, targetAudience });
+
+    return res.status(201).json({
+      success: true,
+      message: `Platform announcement broadcast to ${targetAudience}.`,
+      notification: newNotif,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to broadcast notification' });
+  }
+});
+
+// =========================================================================
+// 10. ADMIN USERS & PERMISSION MANAGEMENT
+// =========================================================================
+
+// GET /api/v1/admin/staff - List administrative staff members
+router.get('/staff', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const admins = await UserModel.find({ role: 'ADMIN' }).select('-passwordHash').sort({ createdAt: -1 }).lean();
+    return res.json({
+      success: true,
+      staff: admins,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to retrieve admin staff' });
+  }
+});
+
+// POST /api/v1/admin/staff - Add new administrator staff member
+router.post('/staff', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { fullName, email, password, adminRole = 'ADMIN', adminPermissions = ['VIEW', 'EDIT'] } = req.body;
+
+  if (!fullName || !email || !password) {
+    return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
+  }
+
+  try {
+    const existing = await UserModel.findOne({ email: email.trim().toLowerCase() });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'An account with this email address already exists.' });
+    }
+
+    const passwordHash = bcryptjs.hashSync(password, 10);
+    const newStaff = {
+      id: `admin-${Date.now()}`,
+      email: email.trim().toLowerCase(),
+      passwordHash,
+      fullName,
+      role: 'ADMIN',
+      adminRole,
+      adminPermissions,
+      phone: req.body.phone || '',
+      isVerified: true,
+      status: 'ACTIVE',
+    };
+
+    await UserModel.create(newStaff);
+    logAuditEvent(req, 'ADMIN_STAFF_CREATED', 'User', newStaff.id, { email, adminRole });
+
+    return res.status(201).json({
+      success: true,
+      message: `Administrator "${fullName}" provisioned with ${adminRole} privileges.`,
+      staff: {
+        id: newStaff.id,
+        email: newStaff.email,
+        fullName: newStaff.fullName,
+        role: newStaff.role,
+        adminRole: newStaff.adminRole,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to create admin staff' });
+  }
+});
+
+// PATCH /api/v1/admin/staff/:id - Update admin permissions or status
+router.patch('/staff/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { adminRole, adminPermissions, status } = req.body;
+
+  try {
+    const updated = await UserModel.findOneAndUpdate(
+      { id: req.params.id, role: 'ADMIN' },
+      { $set: { adminRole, adminPermissions, status, updatedAt: new Date() } },
+      { new: true }
+    ).select('-passwordHash').lean();
+
+    logAuditEvent(req, 'ADMIN_PERMISSIONS_UPDATED', 'User', req.params.id, { adminRole, status });
+
+    return res.json({
+      success: true,
+      message: 'Administrator staff permissions updated.',
+      staff: updated,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to update admin permissions' });
+  }
+});
+
+// =========================================================================
+// 11. PLATFORM SETTINGS
+// =========================================================================
+
+// GET /api/v1/admin/settings - Read global platform configuration
+router.get('/settings', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const settings = await PlatformSettingModel.find().lean();
+    const settingsMap: Record<string, any> = {};
+    settings.forEach(s => {
+      settingsMap[s.key] = s.value;
+    });
+
+    return res.json({
+      success: true,
+      settings: settingsMap,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to retrieve platform settings' });
+  }
+});
+
+// PUT /api/v1/admin/settings - Save global platform configuration
+router.put('/settings', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const updates = req.body; // Key-value map
+
+  try {
+    for (const [key, value] of Object.entries(updates)) {
+      await PlatformSettingModel.findOneAndUpdate(
+        { key },
+        { $set: { value, updatedBy: req.user?.email } },
+        { upsert: true, new: true }
+      );
+    }
+
+    logAuditEvent(req, 'PLATFORM_SETTINGS_SAVED', 'PlatformSetting', 'global', updates);
+
+    return res.json({
+      success: true,
+      message: 'Platform configuration updated successfully.',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to save settings' });
+  }
+});
+
+// =========================================================================
+// 12. AUDIT LOGS
+// =========================================================================
+
 router.get('/audit-logs', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
   try {
     let logs: any[] = [];
     try {
       logs = await AuditLogModel.find().sort({ createdAt: -1 }).limit(100).lean();
     } catch (e) {
-      logs = dbStore.auditLogs;
-    }
-    if (logs.length === 0 && dbStore.auditLogs.length > 0) {
       logs = dbStore.auditLogs;
     }
 
@@ -140,51 +1309,65 @@ router.get('/audit-logs', authenticateJWT, requireRole(['ADMIN']), async (req: R
   }
 });
 
-// GET /api/v1/admin/analytics - Aggregated charts & trends from real database
-router.get('/analytics', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
-  try {
-    let jobs: any[] = [];
-    let applications: any[] = [];
+// =========================================================================
+// 13. DATA EXPORTS (CSV / REPORTS)
+// =========================================================================
 
-    try {
-      jobs = await JobVacancyModel.find().lean();
-      applications = await JobApplicationModel.find().lean();
-    } catch (e) {
-      jobs = dbStore.jobs;
-      applications = dbStore.applications;
+router.get('/export/:type', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { type } = req.params;
+
+  try {
+    let csvData = '';
+    const now = new Date().toISOString();
+
+    if (type === 'teachers') {
+      const teachers = await UserModel.find({ role: 'TEACHER' }).lean();
+      csvData = 'ID,Full Name,Email,Phone,Status,Registration Date\n' +
+        teachers.map(t => `"${t.id}","${t.fullName}","${t.email}","${t.phone || ''}","${t.status || 'ACTIVE'}","${t.createdAt}"`).join('\n');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=teachers_report_${Date.now()}.csv`);
+      return res.send(csvData);
     }
 
-    // Aggregate jobs by teaching level
-    const levelCounts: Record<string, number> = {};
-    jobs.forEach(j => {
-      levelCounts[j.teachingLevel] = (levelCounts[j.teachingLevel] || 0) + 1;
-    });
+    if (type === 'employers') {
+      const institutions = await InstitutionModel.find().lean();
+      csvData = 'ID,Institution Name,Type,City,State,Verification Status,Affiliation\n' +
+        institutions.map(i => `"${i.id}","${i.name}","${i.type}","${i.city}","${i.state}","${i.verificationStatus}","${i.affiliationNumber || ''}"`).join('\n');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=institutions_report_${Date.now()}.csv`);
+      return res.send(csvData);
+    }
 
-    // Aggregate applications by subject
-    const subjectCounts: Record<string, number> = {};
-    applications.forEach(a => {
-      const job = jobs.find(j => j.id === a.jobId) || dbStore.getJobById(a.jobId);
-      if (job) {
-        subjectCounts[job.subject] = (subjectCounts[job.subject] || 0) + 1;
-      }
-    });
+    if (type === 'jobs') {
+      const jobs = await JobVacancyModel.find().lean();
+      csvData = 'ID,Title,Subject,Level,City,Min Salary,Max Salary,Status,Total Applicants\n' +
+        jobs.map(j => `"${j.id}","${j.title}","${j.subject}","${j.teachingLevel}","${j.city}","${j.minSalaryLPA}","${j.maxSalaryLPA}","${j.status}","${j.totalApplicants || 0}"`).join('\n');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=jobs_report_${Date.now()}.csv`);
+      return res.send(csvData);
+    }
 
-    // Top hiring cities
-    const cityCounts: Record<string, number> = {};
-    jobs.forEach(j => {
-      cityCounts[j.city] = (cityCounts[j.city] || 0) + 1;
-    });
+    if (type === 'applications') {
+      const apps = await JobApplicationModel.find().lean();
+      csvData = 'ID,Job ID,Teacher ID,Stage,ATS Score,Applied Date\n' +
+        apps.map((a: any) => `"${a.id}","${a.jobId}","${a.teacherId}","${a.stage}","${a.matchResult?.overallScore || 0}","${a.appliedAt}"`).join('\n');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=applications_report_${Date.now()}.csv`);
+      return res.send(csvData);
+    }
 
-    return res.json({
-      success: true,
-      analytics: {
-        jobsByLevel: Object.entries(levelCounts).map(([name, count]) => ({ name, count })),
-        applicationsBySubject: Object.entries(subjectCounts).map(([name, count]) => ({ name, count })),
-        topHiringCities: Object.entries(cityCounts).map(([name, count]) => ({ name, count })),
-      },
-    });
+    if (type === 'audit-logs' || type === 'audit') {
+      const logs = await AuditLogModel.find().lean();
+      csvData = 'ID,Action,User Email,Resource Type,Resource ID,Details,Timestamp\n' +
+        logs.map((l: any) => `"${l.id}","${l.action}","${l.userEmail || ''}","${l.resourceType || ''}","${l.resourceId || ''}","${(l.details || '').replace(/"/g, '""')}","${l.createdAt}"`).join('\n');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=audit_logs_report_${Date.now()}.csv`);
+      return res.send(csvData);
+    }
+
+    return res.status(400).json({ success: false, message: 'Invalid export type requested' });
   } catch (err: any) {
-    return res.status(500).json({ success: false, message: 'Failed to retrieve analytics' });
+    return res.status(500).json({ success: false, message: 'Export generation failed' });
   }
 });
 

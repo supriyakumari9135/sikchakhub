@@ -2,7 +2,7 @@ export type UserRole = 'TEACHER' | 'EMPLOYER' | 'ADMIN';
 
 export type InstitutionStatus = 'PENDING' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
 
-export type JobStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'CLOSED';
+export type JobStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'ACTIVE' | 'PAUSED' | 'CLOSED' | 'REJECTED';
 
 export type EmploymentType = 'FULL_TIME' | 'PART_TIME' | 'VISITING' | 'CONTRACT' | 'REMOTE';
 
@@ -47,21 +47,28 @@ export interface TeacherProfile {
   headline?: string;
   bio?: string;
   age?: number;
+  gender?: string;
   experienceYears: number;
   highestQualification: string;
+  degree?: string;
   teachingLevels: TeachingLevel[];
+  classesTaught?: string[];
   subjects: string[];
+  previousSchool?: string;
   boards: BoardType[];
   currentCity: string;
   preferredCities: string[];
   isWillingToRelocate: boolean;
   currentSalaryLPA?: number;
   expectedSalaryLPA?: number;
+  expectedSalary?: string;
   noticePeriodDays: number;
+  joiningAvailability?: string;
   resumeUrl?: string;
   resumeFileName?: string;
   skills: string[];
   certifications: string[];
+  languages?: string[];
   profileCompletionScore: number;
   streakDays: number;
 }

@@ -150,11 +150,24 @@ router.post('/', authenticateJWT, async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Job opening not found.' });
     }
 
-    // 2. Prevent applications on closed or expired vacancies
-    if (job.status === 'CLOSED' || job.status === 'PAUSED' || job.status === 'DRAFT') {
+    // 2. Prevent applications on unapproved, paused, or closed vacancies
+    if (job.status !== 'ACTIVE') {
       return res.status(400).json({ 
         success: false, 
-        message: 'This job vacancy is no longer accepting new applications.' 
+        message: 'This job vacancy is currently awaiting administrative approval and is not accepting applications.' 
+      });
+    }
+
+    let institution: any = null;
+    try {
+      institution = await InstitutionModel.findOne({ id: job.institutionId }).lean();
+    } catch (e) {}
+    if (!institution) institution = dbStore.getInstitutionById(job.institutionId);
+
+    if (institution && institution.verificationStatus !== 'VERIFIED') {
+      return res.status(400).json({
+        success: false,
+        message: 'The hiring institution for this job opening is currently under administrative verification.',
       });
     }
 

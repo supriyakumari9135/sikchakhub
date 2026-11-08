@@ -137,11 +137,19 @@ export const EmployerDashboard: React.FC = () => {
 
   // Fetch employer jobs
   const { data: jobsData, refetch: refetchJobs } = useQuery({
-    queryKey: ['employer-jobs'],
+    queryKey: ['employer-jobs', institution?.id],
     queryFn: async () => {
-      const res = await fetch(apiUrl('/api/v1/jobs'));
+      const queryParams = new URLSearchParams();
+      if (institution?.id) queryParams.set('institutionId', institution.id);
+      queryParams.set('status', 'ALL');
+      const res = await fetch(apiUrl(`/api/v1/jobs?${queryParams.toString()}`), {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       return res.json();
     },
+    enabled: !!token,
   });
 
   const jobs: JobVacancy[] = jobsData?.jobs || [];
@@ -433,10 +441,17 @@ export const EmployerDashboard: React.FC = () => {
                 <h3 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
                   {institution?.name || 'SikshaHub Recruiter'}
                 </h3>
-                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <Check className="w-2 h-2 text-emerald-600" />
-                  <span>Verified Organization</span>
-                </span>
+                {institution?.verificationStatus === 'VERIFIED' ? (
+                  <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <Check className="w-2 h-2 text-emerald-600" />
+                    <span>Verified Organization</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-50 text-amber-700 border border-amber-300">
+                    <Clock className="w-2 h-2 text-amber-600" />
+                    <span>Verification Pending</span>
+                  </span>
+                )}
               </div>
             </div>
 
@@ -507,10 +522,17 @@ export const EmployerDashboard: React.FC = () => {
                   {institution?.affiliationNumber || 'CBSE'} | {institution?.city || 'India'}
                 </p>
                 <div className="mt-1">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <Check className="w-2.5 h-2.5 text-emerald-600" />
-                    <span>Verified Organization</span>
-                  </span>
+                  {institution?.verificationStatus === 'VERIFIED' ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <Check className="w-2.5 h-2.5 text-emerald-600" />
+                      <span>Verified Organization</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-300">
+                      <Clock className="w-2.5 h-2.5 text-amber-600" />
+                      <span>Verification Pending</span>
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -661,10 +683,17 @@ export const EmployerDashboard: React.FC = () => {
                   <h1 className="text-xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                     Recruiter Dashboard
                   </h1>
-                  <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-600" />
-                    <span>Verified Organization</span>
-                  </span>
+                  {institution?.verificationStatus === 'VERIFIED' ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-600" />
+                      <span>Verified Organization</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300">
+                      <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-600" />
+                      <span>Verification Pending Approval</span>
+                    </span>
+                  )}
                 </div>
                 <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-1">
                   Manage vacancies, screen applicants and schedule interviews all in one place.
@@ -680,6 +709,26 @@ export const EmployerDashboard: React.FC = () => {
                 <span>Post New Vacancy Opening</span>
               </button>
             </div>
+
+            {/* Institution Pending Verification Alert */}
+            {institution?.verificationStatus === 'PENDING' && (
+              <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-200/90 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0 mt-0.5">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-900 font-serif">Account Verification in Progress</h4>
+                    <p className="text-xs text-amber-700 mt-0.5 max-w-2xl leading-relaxed">
+                      Your educational institution (<strong>{institution?.name}</strong>) is awaiting verification by the Super Admin. While under review, your institution and vacancies will not appear publicly on the portal. You can post and prepare vacancies now; they will go live once verified.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-amber-200/80 text-amber-900 border border-amber-300 shrink-0">
+                  Pending Admin Approval
+                </span>
+              </div>
+            )}
 
             {/* 3. 4 TOP STAT CARDS (Responsive: 2-column on mobile, 4-column on desktop) */}
             {(activeSidebarNav === 'Overview' || activeSidebarNav === 'Applicants') && (
@@ -976,9 +1025,13 @@ export const EmployerDashboard: React.FC = () => {
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
                               j.status === 'ACTIVE' 
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                : j.status === 'PENDING_APPROVAL'
+                                ? 'bg-amber-50 text-amber-800 border border-amber-300'
+                                : j.status === 'REJECTED'
+                                ? 'bg-red-50 text-red-700 border border-red-200'
                                 : 'bg-slate-100 text-slate-600 border border-slate-200'
                             }`}>
-                              {j.status}
+                              {j.status === 'PENDING_APPROVAL' ? 'Pending Admin Approval' : j.status}
                             </span>
                           </div>
 
@@ -1054,9 +1107,13 @@ export const EmployerDashboard: React.FC = () => {
                                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
                                   j.status === 'ACTIVE' 
                                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                    : j.status === 'PENDING_APPROVAL'
+                                    ? 'bg-amber-50 text-amber-800 border border-amber-300'
+                                    : j.status === 'REJECTED'
+                                    ? 'bg-red-50 text-red-700 border border-red-200'
                                     : 'bg-slate-100 text-slate-600 border border-slate-200'
                                 }`}>
-                                  {j.status}
+                                  {j.status === 'PENDING_APPROVAL' ? 'Pending Admin Approval' : j.status}
                                 </span>
                               </td>
                               <td className="py-3.5 px-3 text-right space-x-2">

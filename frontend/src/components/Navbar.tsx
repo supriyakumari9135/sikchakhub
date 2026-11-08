@@ -103,6 +103,12 @@ export const Navbar: React.FC = () => {
     const isEmployer = user.role === 'EMPLOYER';
     const isAdmin = user.role === 'ADMIN';
 
+    // If logged in as ADMIN, completely suppress the upper Navbar
+    // Super Admin has dedicated, full-screen edge-to-edge governance layout
+    if (isAdmin) {
+      return null;
+    }
+
     return (
       <header className="sticky top-0 z-50 bg-white border-b border-slate-200/90 shadow-2xs">
         {/* Accent Top Line based on role */}
@@ -673,27 +679,27 @@ export const Navbar: React.FC = () => {
 
             {/* Right Action Menu: + Post a Job + Sign In / Up */}
             <div className="flex items-center gap-3 sm:gap-4">
-              <button
-                onClick={() => openAuthModal('LOGIN', 'EMPLOYER')}
+              <Link
+                to="/login?role=EMPLOYER"
                 className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-sky-600 hover:text-sky-700 bg-white hover:bg-sky-50 border border-sky-500 transition-all shadow-2xs group"
               >
                 <span>+ Post a Job</span>
-              </button>
+              </Link>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => openAuthModal('LOGIN')}
+                <Link
+                  to="/login"
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm text-slate-700 hover:text-sky-700 hover:bg-sky-50 transition"
                 >
                   <UserCircle className="w-4 h-4" />
                   <span>Sign In</span>
-                </button>
-                <button
-                  onClick={() => openAuthModal('REGISTER', 'TEACHER')}
+                </Link>
+                <Link
+                  to="/signup"
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-xs transition active:scale-95"
                 >
                   <span>Sign Up</span>
-                </button>
+                </Link>
               </div>
 
               {/* Mobile Hamburger Button */}
@@ -727,17 +733,15 @@ export const Navbar: React.FC = () => {
           </div>
 
           <div className="pt-1">
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                openAuthModal('LOGIN');
-              }}
+            <Link
+              to="/login"
+              onClick={() => setMobileMenuOpen(false)}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-black text-sm text-white bg-sky-600 hover:bg-sky-700 shadow-md transition"
             >
               <UserCircle className="w-5 h-5" />
               <span>Login / Sign Up</span>
               <ArrowRight className="w-4 h-4 ml-1" />
-            </button>
+            </Link>
           </div>
 
           <div className="space-y-2 pt-1">

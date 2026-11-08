@@ -66,6 +66,7 @@ router.post('/register', async (req: Request, res: Response) => {
       role: role as any,
       phone: phone || req.body.phone || '',
       age: parsedAge,
+      gender: req.body.gender || '',
       avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
       isVerified: true,
     };
@@ -87,33 +88,135 @@ router.post('/register', async (req: Request, res: Response) => {
 
     // 4. Create real role-specific entity in MongoDB Atlas
     if (role === 'TEACHER') {
+      // 4A. Enforce compulsory CV/Resume PDF upload (maximum 5 MB)
+      const resumeBase64 = req.body.resumeBase64 || req.body.cvBase64;
+      const resumeFileName = req.body.resumeFileName || req.body.cvFileName || 'Educator_Resume.pdf';
+      const existingResumeUrl = req.body.resumeUrl;
+
+      if (!resumeBase64 && !existingResumeUrl) {
+        return res.status(400).json({
+          success: false,
+          message: 'CV/Resume upload in PDF format (maximum 5 MB) is compulsory to complete Job Seeker registration.',
+        });
+      }
+
+      let finalResumeUrl = existingResumeUrl || '';
+      let finalResumeFileName = resumeFileName;
+
+      if (resumeBase64) {
+        // Decode base64
+        const base64Content = resumeBase64.replace(/^data:application\/pdf;base64,/, '');
+        const buffer = Buffer.from(base64Content, 'base64');
+        const sizeBytes = buffer.length;
+        const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+
+        if (sizeBytes > MAX_SIZE) {
+          return res.status(400).json({
+            success: false,
+            message: `Uploaded CV file size (${(sizeBytes / (1024 * 1024)).toFixed(2)} MB) exceeds the 5 MB limit. Please upload a PDF under 5 MB.`,
+          });
+        }
+
+        // Validate PDF magic bytes
+        const magic = buffer.slice(0, 4).toString('ascii');
+        if (!magic.startsWith('%PDF')) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid file format. Only authentic PDF documents (.pdf) are accepted.',
+          });
+        }
+
+        // Save to secure local storage
+        const uploadsDir = path.join(__dirname, '../../uploads/resumes');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+
+        const cleanName = (resumeFileName || 'resume.pdf').replace(/[^a-zA-Z0-9.-]/g, '_');
+        const storedFileName = `cv-${userId}-${Date.now()}-${cleanName}`;
+        const filePath = path.join(uploadsDir, storedFileName);
+        fs.writeFileSync(filePath, buffer);
+
+        finalResumeUrl = `/uploads/resumes/${storedFileName}`;
+        finalResumeFileName = resumeFileName;
+      }
+
+      // 4B. Extract all teacher profile fields
       const expYears = req.body.experienceYears != null ? Number(req.body.experienceYears) : (req.body.experience != null ? Number(req.body.experience) : 0);
-      const sub = req.body.subject || (Array.isArray(req.body.subjects) && req.body.subjects.length > 0 ? req.body.subjects[0] : 'General Teaching');
-      const qual = req.body.highestQualification || req.body.qualification || 'B.Ed / Post Graduate';
+      const sub = req.body.subject || (Array.isArray(req.body.subjects) && req.body.subjects.length > 0 ? req.body.subjects[0] : 'Physics');
+      const allSubjects = Array.isArray(req.body.subjects) && req.body.subjects.length > 0 
+        ? req.body.subjects 
+        : (req.body.secondarySubject ? [sub, req.body.secondarySubject] : [sub]);
+      
+      const qual = req.body.highestQualification || req.body.qualification || 'Post Graduate';
+      const degree = req.body.degree || req.body.specialization || '';
       const lvl = req.body.teachingLevel || (Array.isArray(req.body.teachingLevels) && req.body.teachingLevels.length > 0 ? req.body.teachingLevels[0] : 'PGT');
+      const allTeachingLevels = Array.isArray(req.body.teachingLevels) && req.body.teachingLevels.length > 0 ? req.body.teachingLevels : [lvl];
+      
+      const classesTaught = Array.isArray(req.body.classesTaught) && req.body.classesTaught.length > 0 
+        ? req.body.classesTaught 
+        : (req.body.classes ? [req.body.classes] : ['Classes 9-10', 'Classes 11-12']);
+
+      const previousSchool = req.body.previousSchool || req.body.currentSchool || '';
+      const boards = Array.isArray(req.body.boards) && req.body.boards.length > 0 
+        ? req.body.boards 
+        : (req.body.board ? [req.body.board] : ['CBSE']);
+
+      const certifications = Array.isArray(req.body.certifications) 
+        ? req.body.certifications 
+        : (req.body.certification ? [req.body.certification] : []);
+
+      const skills = Array.isArray(req.body.skills) && req.body.skills.length > 0 
+        ? req.body.skills 
+        : ['Classroom Management', 'Lesson Planning', 'Smart Board / ICT', sub];
+
+      const languages = Array.isArray(req.body.languages) && req.body.languages.length > 0 
+        ? req.body.languages 
+        : (req.body.language ? [req.body.language] : ['English', 'Hindi']);
+
       const cityLoc = req.body.city || req.body.currentCity || 'Delhi NCR';
+      const preferredCities = Array.isArray(req.body.preferredCities) && req.body.preferredCities.length > 0 
+        ? req.body.preferredCities 
+        : [cityLoc];
+
+      const isWillingToRelocate = req.body.isWillingToRelocate === true || req.body.isWillingToRelocate === 'true';
+      const expectedSalary = req.body.expectedSalary || (req.body.expectedSalaryLPA ? `₹${req.body.expectedSalaryLPA} LPA` : '₹6-9 LPA');
+      const expectedSalaryLPA = req.body.expectedSalaryLPA ? Number(req.body.expectedSalaryLPA) : 6;
+      const joiningAvailability = req.body.joiningAvailability || 'Immediate';
+      const noticePeriodDays = req.body.noticePeriodDays != null 
+        ? Number(req.body.noticePeriodDays) 
+        : (joiningAvailability === 'Immediate' ? 0 : 30);
 
       profileDoc = {
         id: `profile-${Date.now()}`,
         userId,
-        headline: req.body.headline || `${sub} Educator`,
-        bio: req.body.bio || '',
+        headline: req.body.headline || `${sub} (${lvl}) Educator`,
+        bio: req.body.bio || `${sub} Educator with ${expYears} years experience teaching ${boards.join(', ')} curriculum.`,
         age: parsedAge,
+        gender: req.body.gender || '',
         experienceYears: isNaN(expYears) ? 0 : expYears,
         highestQualification: qual,
-        teachingLevels: [lvl, 'TGT'],
-        subjects: [sub],
-        boards: req.body.board ? [req.body.board] : ['CBSE'],
+        degree,
+        teachingLevels: allTeachingLevels,
+        classesTaught,
+        subjects: allSubjects,
+        previousSchool,
+        boards,
         currentCity: cityLoc,
-        preferredCities: [cityLoc],
-        isWillingToRelocate: false,
-        noticePeriodDays: 30,
-        skills: ['Classroom Management', 'Lesson Planning', sub],
-        certifications: [],
-        profileCompletionScore: 75,
+        preferredCities,
+        isWillingToRelocate,
+        currentSalaryLPA: req.body.currentSalaryLPA ? Number(req.body.currentSalaryLPA) : undefined,
+        expectedSalaryLPA,
+        expectedSalary,
+        noticePeriodDays,
+        joiningAvailability,
+        skills,
+        certifications,
+        languages,
+        profileCompletionScore: 100,
         streakDays: 1,
-        resumeUrl: '',
-        resumeFileName: '',
+        resumeUrl: finalResumeUrl,
+        resumeFileName: finalResumeFileName,
       };
 
       try {
@@ -365,8 +468,8 @@ router.post('/google', async (req: Request, res: Response) => {
           logoUrl: '/logo.jpeg',
           website: 'https://sikchakhub.ai',
           description: 'Verified educational organization on SikshaHub.',
-          affiliationNumber: 'CBSE-VERIFIED',
-          verificationStatus: 'VERIFIED',
+          affiliationNumber: 'REG-PENDING',
+          verificationStatus: 'PENDING',
           address: 'Institutional Hub',
           city: 'Delhi NCR',
           state: 'Delhi',
@@ -698,16 +801,16 @@ router.post('/upload-resume', authenticateJWT, requireRole(['TEACHER', 'ADMIN'])
   }
 
   try {
-    // 2. Decode and check 1MB size limit (1,048,576 bytes)
+    // 2. Decode and check 5MB size limit (5,242,880 bytes)
     const base64Content = base64Data.replace(/^data:application\/pdf;base64,/, '');
     const buffer = Buffer.from(base64Content, 'base64');
     const sizeBytes = buffer.length;
-    const MAX_SIZE = 1024 * 1024; // 1MB
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
     if (sizeBytes > MAX_SIZE) {
       return res.status(400).json({
         success: false,
-        message: `File size (${(sizeBytes / (1024 * 1024)).toFixed(2)} MB) exceeds the free 1MB size limit. Please upload a PDF under 1MB.`,
+        message: `File size (${(sizeBytes / (1024 * 1024)).toFixed(2)} MB) exceeds the 5MB size limit. Please upload a PDF under 5MB.`,
       });
     }
 

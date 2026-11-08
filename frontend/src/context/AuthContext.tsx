@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, TeacherProfile, Institution, UserRole } from '@sikchakhub/shared-types';
 import { apiUrl } from '../config/api';
 
@@ -38,6 +39,7 @@ const getStoredJson = <T,>(key: string): T | null => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const navigate = useNavigate();
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('siksha_token'));
   const [user, setUser] = useState<User | null>(() => getStoredJson<User>('siksha_user'));
   const [profile, setProfile] = useState<TeacherProfile | null>(() => getStoredJson<TeacherProfile>('siksha_profile'));
@@ -91,7 +93,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const openAuthModal = (defaultTab: 'LOGIN' | 'REGISTER' = 'LOGIN', defaultRole: PortalRole = 'TEACHER') => {
     setAuthModalTab(defaultTab);
     setAuthModalRole(defaultRole);
-    setIsAuthModalOpen(true);
+    setIsAuthModalOpen(false);
+    navigate(`/${defaultTab === 'REGISTER' ? 'signup' : 'login'}?role=${defaultRole}`);
   };
 
   const closeAuthModal = () => {

@@ -8,8 +8,12 @@ const UserSchema = new mongoose.Schema({
   passwordHash: { type: String },
   fullName: { type: String, required: true },
   role: { type: String, enum: ['TEACHER', 'EMPLOYER', 'ADMIN'], default: 'TEACHER' },
+  status: { type: String, enum: ['ACTIVE', 'SUSPENDED', 'DEACTIVATED'], default: 'ACTIVE' },
+  adminRole: { type: String, enum: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'SUPPORT', 'ANALYST'], default: 'SUPER_ADMIN' },
+  adminPermissions: [{ type: String }],
   phone: { type: String },
   age: { type: Number },
+  gender: { type: String },
   avatarUrl: { type: String },
   isVerified: { type: Boolean, default: true },
 }, { timestamps: true });
@@ -21,21 +25,28 @@ const TeacherProfileSchema = new mongoose.Schema({
   headline: { type: String },
   bio: { type: String },
   age: { type: Number },
+  gender: { type: String },
   experienceYears: { type: Number, default: 0 },
   highestQualification: { type: String },
+  degree: { type: String },
   teachingLevels: [{ type: String }],
+  classesTaught: [{ type: String }],
   subjects: [{ type: String }],
+  previousSchool: { type: String },
   boards: [{ type: String }],
   currentCity: { type: String },
   preferredCities: [{ type: String }],
   isWillingToRelocate: { type: Boolean, default: false },
   currentSalaryLPA: { type: Number },
   expectedSalaryLPA: { type: Number },
+  expectedSalary: { type: String },
   noticePeriodDays: { type: Number, default: 30 },
+  joiningAvailability: { type: String, default: 'Immediate' },
   resumeUrl: { type: String },
   resumeFileName: { type: String },
   skills: [{ type: String }],
   certifications: [{ type: String }],
+  languages: [{ type: String }],
   profileCompletionScore: { type: Number, default: 60 },
   streakDays: { type: Number, default: 1 },
 }, { timestamps: true });
@@ -82,7 +93,7 @@ const JobVacancySchema = new mongoose.Schema({
   state: { type: String, required: true },
   vacanciesCount: { type: Number, default: 1 },
   deadline: { type: String, required: true },
-  status: { type: String, enum: ['DRAFT', 'ACTIVE', 'PAUSED', 'CLOSED'], default: 'ACTIVE' },
+  status: { type: String, enum: ['DRAFT', 'PENDING_APPROVAL', 'ACTIVE', 'PAUSED', 'CLOSED', 'REJECTED'], default: 'PENDING_APPROVAL' },
   customFields: { type: mongoose.Schema.Types.Mixed, default: [] },
   screeningRules: { type: mongoose.Schema.Types.Mixed, default: {} },
   requireResume: { type: Boolean, default: true },
@@ -140,6 +151,57 @@ const AuditLogSchema = new mongoose.Schema({
   details: { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true });
 
+// Master Data Schema
+const MasterDataSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  category: { 
+    type: String, 
+    enum: ['SUBJECT', 'TEACHING_CATEGORY', 'QUALIFICATION', 'BOARD', 'EMPLOYMENT_TYPE', 'EXPERIENCE_RANGE', 'STATE', 'CITY'],
+    required: true 
+  },
+  label: { type: String, required: true },
+  value: { type: String, required: true },
+  isActive: { type: Boolean, default: true },
+  order: { type: Number, default: 0 },
+  metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+}, { timestamps: true });
+
+// Platform Notification Schema
+const PlatformNotificationSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  title: { type: String, required: true },
+  message: { type: String, required: true },
+  targetAudience: { type: String, enum: ['ALL', 'TEACHERS', 'EMPLOYERS', 'ADMINS'], default: 'ALL' },
+  type: { type: String, enum: ['ANNOUNCEMENT', 'MAINTENANCE', 'RECRUITMENT', 'SECURITY'], default: 'ANNOUNCEMENT' },
+  priority: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'], default: 'MEDIUM' },
+  sentBy: { type: String, default: 'Super Admin' },
+  status: { type: String, enum: ['SENT', 'SCHEDULED', 'DRAFT'], default: 'SENT' },
+}, { timestamps: true });
+
+// User Reports & Moderation Schema
+const UserReportSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  reporterEmail: { type: String, required: true },
+  targetType: { type: String, enum: ['JOB', 'INSTITUTION', 'TEACHER', 'APPLICATION'], required: true },
+  targetId: { type: String, required: true },
+  targetTitle: { type: String, required: true },
+  reason: { type: String, required: true },
+  details: { type: String },
+  status: { type: String, enum: ['PENDING', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED'], default: 'PENDING' },
+  resolutionNotes: { type: String },
+  resolvedBy: { type: String },
+}, { timestamps: true });
+
+// Platform Settings Schema
+const PlatformSettingSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  key: { type: String, required: true, unique: true },
+  value: { type: mongoose.Schema.Types.Mixed, required: true },
+  description: { type: String },
+  category: { type: String, default: 'GENERAL' },
+  updatedBy: { type: String },
+}, { timestamps: true });
+
 export const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
 export const TeacherProfileModel = mongoose.models.TeacherProfile || mongoose.model('TeacherProfile', TeacherProfileSchema);
 export const InstitutionModel = mongoose.models.Institution || mongoose.model('Institution', InstitutionSchema);
@@ -147,6 +209,10 @@ export const JobVacancyModel = mongoose.models.JobVacancy || mongoose.model('Job
 export const JobApplicationModel = mongoose.models.JobApplication || mongoose.model('JobApplication', JobApplicationSchema);
 export const InterviewModel = mongoose.models.Interview || mongoose.model('Interview', InterviewSchema);
 export const AuditLogModel = mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);
+export const MasterDataModel = mongoose.models.MasterData || mongoose.model('MasterData', MasterDataSchema);
+export const PlatformNotificationModel = mongoose.models.PlatformNotification || mongoose.model('PlatformNotification', PlatformNotificationSchema);
+export const UserReportModel = mongoose.models.UserReport || mongoose.model('UserReport', UserReportSchema);
+export const PlatformSettingModel = mongoose.models.PlatformSetting || mongoose.model('PlatformSetting', PlatformSettingSchema);
 
 export async function seedDefaultAdminIfNeeded() {
   try {
@@ -160,6 +226,8 @@ export async function seedDefaultAdminIfNeeded() {
         passwordHash,
         fullName: 'SikshaHub Super Admin',
         role: 'ADMIN',
+        adminRole: 'SUPER_ADMIN',
+        adminPermissions: ['ALL'],
         phone: '9783143866',
         age: 32,
         avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=SikshaHubAdmin',
@@ -167,6 +235,74 @@ export async function seedDefaultAdminIfNeeded() {
       };
       await UserModel.create(adminDoc);
       console.log('✅ Default Super Admin seeded in MongoDB: sikshahub@gmail.com / admin@12345');
+    }
+
+    // Seed Master Data if empty
+    const masterDataCount = await MasterDataModel.countDocuments();
+    if (masterDataCount === 0) {
+      const initialItems = [
+        // Subjects
+        { category: 'SUBJECT', label: 'Mathematics', value: 'Mathematics', order: 1 },
+        { category: 'SUBJECT', label: 'Physics', value: 'Physics', order: 2 },
+        { category: 'SUBJECT', label: 'Chemistry', value: 'Chemistry', order: 3 },
+        { category: 'SUBJECT', label: 'Biology', value: 'Biology', order: 4 },
+        { category: 'SUBJECT', label: 'English', value: 'English', order: 5 },
+        { category: 'SUBJECT', label: 'Hindi', value: 'Hindi', order: 6 },
+        { category: 'SUBJECT', label: 'Computer Science & AI', value: 'Computer Science', order: 7 },
+        { category: 'SUBJECT', label: 'Social Science / History', value: 'Social Science', order: 8 },
+        { category: 'SUBJECT', label: 'Economics', value: 'Economics', order: 9 },
+        { category: 'SUBJECT', label: 'Commerce & Accountancy', value: 'Commerce & Accountancy', order: 10 },
+        { category: 'SUBJECT', label: 'Special Education', value: 'Special Education', order: 11 },
+
+        // Teaching Categories
+        { category: 'TEACHING_CATEGORY', label: 'PRT - Primary Teacher (Grades 1-5)', value: 'PRT', order: 1 },
+        { category: 'TEACHING_CATEGORY', label: 'TGT - Trained Graduate Teacher (Grades 6-10)', value: 'TGT', order: 2 },
+        { category: 'TEACHING_CATEGORY', label: 'PGT - Post Graduate Teacher (Grades 11-12)', value: 'PGT', order: 3 },
+        { category: 'TEACHING_CATEGORY', label: 'IIT-JEE Coaching Faculty', value: 'COACHING_JEE', order: 4 },
+        { category: 'TEACHING_CATEGORY', label: 'NEET Medical Faculty', value: 'COACHING_NEET', order: 5 },
+        { category: 'TEACHING_CATEGORY', label: 'Principal / Vice Principal', value: 'PRINCIPAL', order: 6 },
+        { category: 'TEACHING_CATEGORY', label: 'College / University Professor', value: 'COLLEGE_PROFESSOR', order: 7 },
+        { category: 'TEACHING_CATEGORY', label: 'Academic Coordinator', value: 'ADMINISTRATOR', order: 8 },
+
+        // Qualifications
+        { category: 'QUALIFICATION', label: 'B.Ed / Post Graduate', value: 'B.Ed / Post Graduate', order: 1 },
+        { category: 'QUALIFICATION', label: 'B.Tech / M.Tech in CS/Engineering', value: 'B.Tech / M.Tech', order: 2 },
+        { category: 'QUALIFICATION', label: 'M.Sc / B.Sc in Pure Sciences', value: 'M.Sc / B.Sc', order: 3 },
+        { category: 'QUALIFICATION', label: 'Ph.D / Doctorate', value: 'Ph.D', order: 4 },
+        { category: 'QUALIFICATION', label: 'M.Ed (Master of Education)', value: 'M.Ed', order: 5 },
+        { category: 'QUALIFICATION', label: 'Diploma in Elementary Education (D.El.Ed)', value: 'D.El.Ed', order: 6 },
+
+        // Boards
+        { category: 'BOARD', label: 'CBSE (Central Board of Secondary Education)', value: 'CBSE', order: 1 },
+        { category: 'BOARD', label: 'CISCE / ICSE / ISC', value: 'ICSE', order: 2 },
+        { category: 'BOARD', label: 'Cambridge Assessment International (IGCSE)', value: 'CAMBRIDGE', order: 3 },
+        { category: 'BOARD', label: 'IB (International Baccalaureate)', value: 'IB', order: 4 },
+        { category: 'BOARD', label: 'State Educational Board', value: 'STATE_BOARD', order: 5 },
+        { category: 'BOARD', label: 'Coaching / Higher Education / Other', value: 'OTHER', order: 6 },
+      ];
+
+      const docs = initialItems.map((item, idx) => ({
+        id: `md-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
+        ...item,
+        isActive: true,
+      }));
+      await MasterDataModel.insertMany(docs);
+      console.log('✅ Initial platform Master Data seeded in MongoDB.');
+    }
+
+    // Seed Platform Settings if empty
+    const settingsCount = await PlatformSettingModel.countDocuments();
+    if (settingsCount === 0) {
+      const initialSettings = [
+        { id: 'set-1', key: 'siteName', value: 'SikshaHub.AI', description: 'Platform brand name', category: 'BRANDING' },
+        { id: 'set-2', key: 'supportEmail', value: 'support@sikchakhub.ai', description: 'Primary support and inquiry email', category: 'CONTACT' },
+        { id: 'set-3', key: 'supportPhone', value: '+91 9783143866', description: 'Helpline mobile number', category: 'CONTACT' },
+        { id: 'set-4', key: 'maxCvUploadSizeMB', value: 1, description: 'Maximum allowed candidate PDF CV size in Megabytes', category: 'UPLOADS' },
+        { id: 'set-5', key: 'maintenanceMode', value: false, description: 'Toggle platform maintenance mode', category: 'SYSTEM' },
+        { id: 'set-6', key: 'autoApproveJobs', value: true, description: 'Automatically publish vacancies without moderation queue', category: 'MODERATION' },
+      ];
+      await PlatformSettingModel.insertMany(initialSettings);
+      console.log('✅ Initial Platform Settings seeded in MongoDB.');
     }
   } catch (err: any) {
     console.warn('Admin seed notice:', err.message);

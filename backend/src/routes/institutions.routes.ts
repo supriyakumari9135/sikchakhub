@@ -66,6 +66,16 @@ router.get('/:id', optionalJWT, async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Institution not found.' });
     }
 
+    const isSuperAdmin = req.user && req.user.role === 'ADMIN';
+    const isOwner = req.user && inst.ownerId === req.user.id;
+
+    if (!isSuperAdmin && !isOwner && inst.verificationStatus !== 'VERIFIED') {
+      return res.status(403).json({
+        success: false,
+        message: 'This institution is currently awaiting administrative approval and is not publicly listed.',
+      });
+    }
+
     let jobs: any[] = [];
     try {
       jobs = await JobVacancyModel.find({ institutionId: inst.id, status: 'ACTIVE' }).lean();
