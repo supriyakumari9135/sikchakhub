@@ -569,13 +569,13 @@ export const Navbar: React.FC = () => {
             <nav className="hidden lg:flex items-center justify-center gap-1 xl:gap-1.5 shrink-0">
               <Link
                 to="/jobs"
-                className={`cursor-pointer h-9.5 2xl:h-10 inline-flex items-center gap-1.5 px-2.5 2xl:px-3 rounded-xl text-xs 2xl:text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 whitespace-nowrap shrink-0 ${
+                className={`cursor-pointer h-9.5 2xl:h-10 inline-flex items-center gap-1.5 px-3.5 2xl:px-4 rounded-full text-xs 2xl:text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 whitespace-nowrap shrink-0 ${
                   location.pathname === '/jobs' && !location.search
-                    ? 'text-sky-700 bg-sky-50 font-bold shadow-2xs border border-sky-100'
+                    ? 'text-sky-700 bg-sky-50 font-bold shadow-2xs border border-sky-300'
                     : 'text-slate-600 hover:text-sky-600 hover:bg-sky-50/60'
                 }`}
               >
-                <Briefcase className="w-4 h-4 text-slate-400 group-hover:text-sky-600 transition-colors" />
+                <Briefcase className="w-4 h-4 text-sky-600 transition-colors" />
                 <span>Find Jobs</span>
               </Link>
 
@@ -615,7 +615,7 @@ export const Navbar: React.FC = () => {
               {/* + Post a Job CTA (Visible on sm: and up) */}
               <Link
                 to="/login?role=EMPLOYER"
-                className="cursor-pointer h-9.5 2xl:h-10 hidden sm:inline-flex items-center gap-1.5 px-3 2xl:px-4 rounded-xl font-bold text-xs 2xl:text-sm text-sky-600 hover:text-sky-700 bg-white hover:bg-sky-50/80 border border-sky-400 hover:border-sky-500 transition-all duration-200 shadow-2xs hover:shadow-md hover:shadow-sky-100 hover:-translate-y-0.5 group active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-sky-500"
+                className="cursor-pointer h-9.5 2xl:h-10 hidden sm:inline-flex items-center gap-1.5 px-3.5 2xl:px-4 rounded-full font-bold text-xs 2xl:text-sm text-sky-600 hover:text-sky-700 bg-white hover:bg-sky-50/80 border border-sky-400 hover:border-sky-500 transition-all duration-200 shadow-2xs hover:shadow-md hover:shadow-sky-100 hover:-translate-y-0.5 group active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-sky-500"
               >
                 <Plus className="w-4 h-4 text-sky-500 group-hover:rotate-90 transition-transform duration-200" />
                 <span>Post a Job</span>
@@ -624,7 +624,7 @@ export const Navbar: React.FC = () => {
               {/* HR Login CTA (Visible on xl screens; also in mobile menu & sign-in page) */}
               <Link
                 to="/hr-login"
-                className="cursor-pointer h-9.5 2xl:h-10 hidden xl:inline-flex items-center gap-1.5 px-2.5 2xl:px-3 rounded-xl font-bold text-xs text-amber-700 hover:text-amber-800 bg-amber-50/80 hover:bg-amber-100/90 border border-amber-300 hover:border-amber-400 transition-all duration-200 shadow-2xs hover:shadow-md hover:shadow-amber-100 hover:-translate-y-0.5 active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-amber-500"
+                className="cursor-pointer h-9.5 2xl:h-10 hidden xl:inline-flex items-center gap-1.5 px-3 2xl:px-3.5 rounded-full font-bold text-xs text-amber-700 hover:text-amber-800 bg-amber-50/80 hover:bg-amber-100/90 border border-amber-300 hover:border-amber-400 transition-all duration-200 shadow-2xs hover:shadow-md hover:shadow-amber-100 hover:-translate-y-0.5 active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-amber-500"
                 title="HR Recruiter Portal - Screening & Shortlisting"
               >
                 <UserCheck className="w-3.5 h-3.5 text-amber-600" />
@@ -643,7 +643,7 @@ export const Navbar: React.FC = () => {
               {/* Sign Up (Visible on sm: and up; in mobile drawer for small mobile) */}
               <Link
                 to="/signup"
-                className="cursor-pointer h-9.5 2xl:h-10 hidden sm:inline-flex items-center justify-center px-3.5 2xl:px-4 rounded-xl font-bold text-xs 2xl:text-sm text-white bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-xs hover:shadow-md hover:shadow-sky-500/25 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-sky-500"
+                className="cursor-pointer h-9.5 2xl:h-10 hidden sm:inline-flex items-center justify-center px-4.5 2xl:px-5 rounded-full font-bold text-xs 2xl:text-sm text-white bg-gradient-to-r from-orange-500 via-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 shadow-xs hover:shadow-md hover:shadow-orange-500/25 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-orange-500"
               >
                 <span>Sign Up</span>
               </Link>
