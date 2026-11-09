@@ -184,7 +184,7 @@ export const HomePage: React.FC = () => {
               onSubmit={handleSearch}
               className="bg-white p-2 sm:p-2.5 rounded-2xl sm:rounded-3xl shadow-xl shadow-sky-100/80 border border-sky-200/90 hover:border-sky-300 hover:shadow-2xl hover:shadow-sky-100 transition-all duration-300 flex flex-col md:flex-row items-center gap-2 group/search"
             >
-              <div className="flex-1 flex items-center gap-3 px-3 py-2 w-full min-w-0 border-b md:border-b-0 md:border-r border-sky-100 rounded-xl transition-all duration-200 hover:bg-sky-50/40 focus-within:bg-sky-50/40">
+              <div className="w-full md:w-auto md:flex-1 flex items-center gap-3 px-3 py-2 min-w-0 border-b md:border-b-0 md:border-r border-sky-100 rounded-xl transition-all duration-200 hover:bg-sky-50/40 focus-within:bg-sky-50/40">
                 <Search className="w-5 h-5 text-sky-600 shrink-0 transition-transform duration-200 group-focus-within/search:scale-110" />
                 <input
                   type="text"
@@ -195,7 +195,7 @@ export const HomePage: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center gap-3 px-3 py-2 w-full md:w-64 min-w-0 border-b md:border-b-0 border-sky-100 rounded-xl transition-all duration-200 hover:bg-sky-50/40 focus-within:bg-sky-50/40">
+              <div className="w-full md:w-64 md:shrink-0 flex items-center gap-3 px-3 py-2 min-w-0 border-b md:border-b-0 border-sky-100 rounded-xl transition-all duration-200 hover:bg-sky-50/40 focus-within:bg-sky-50/40">
                 <MapPin className="w-5 h-5 text-blue-500 shrink-0 transition-transform duration-200 group-focus-within/search:scale-110" />
                 <input
                   type="text"
