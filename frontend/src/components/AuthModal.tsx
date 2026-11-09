@@ -17,7 +17,8 @@ import {
   BookOpen,
   Calendar,
   Briefcase,
-  Award
+  Award,
+  UserCheck
 } from 'lucide-react';
 
 export const AuthModal: React.FC = () => {
@@ -70,7 +71,7 @@ export const AuthModal: React.FC = () => {
       navigate('/teacher-dashboard');
     } else if (role === 'EMPLOYER') {
       navigate('/employer-dashboard');
-    } else if (role === 'ADMIN') {
+    } else if (role === 'ADMIN' || (role as string) === 'HR') {
       navigate('/admin-dashboard');
     }
   };
@@ -175,7 +176,7 @@ export const AuthModal: React.FC = () => {
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
             Select Your Access Portal:
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             
             {/* Job Seeker Option */}
             <button
@@ -227,6 +228,32 @@ export const AuthModal: React.FC = () => {
               </div>
             </button>
 
+            {/* HR Login Option */}
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPortal('HR');
+                setActiveTab('LOGIN');
+                setError(null);
+              }}
+              className={`p-2.5 rounded-2xl border text-left transition flex flex-col justify-between ${
+                selectedPortal === 'HR'
+                  ? 'border-amber-500 bg-amber-50 text-amber-950 shadow-xs ring-1 ring-amber-400'
+                  : 'border-sky-100 bg-white hover:bg-sky-50/50 text-slate-600'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <UserCheck className={`w-4 h-4 ${selectedPortal === 'HR' ? 'text-amber-600' : 'text-slate-400'}`} />
+                {selectedPortal === 'HR' && (
+                  <span className="w-2 h-2 rounded-full bg-amber-600" />
+                )}
+              </div>
+              <div className="mt-2">
+                <p className="text-xs font-bold leading-tight">HR Login</p>
+                <span className="text-[10px] text-slate-500 block">Shortlisting</span>
+              </div>
+            </button>
+
             {/* Admin Login Option */}
             <button
               type="button"
@@ -237,19 +264,19 @@ export const AuthModal: React.FC = () => {
               }}
               className={`p-2.5 rounded-2xl border text-left transition flex flex-col justify-between ${
                 selectedPortal === 'ADMIN'
-                  ? 'border-sky-700 bg-slate-900 text-white shadow-xs ring-1 ring-sky-600'
+                  ? 'border-purple-600 bg-purple-50 text-purple-950 shadow-xs ring-1 ring-purple-400'
                   : 'border-sky-100 bg-white hover:bg-sky-50/50 text-slate-600'
               }`}
             >
               <div className="flex items-center justify-between">
-                <ShieldAlert className={`w-4 h-4 ${selectedPortal === 'ADMIN' ? 'text-sky-400' : 'text-slate-400'}`} />
+                <ShieldAlert className={`w-4 h-4 ${selectedPortal === 'ADMIN' ? 'text-purple-600' : 'text-slate-400'}`} />
                 {selectedPortal === 'ADMIN' && (
-                  <span className="w-2 h-2 rounded-full bg-sky-400" />
+                  <span className="w-2 h-2 rounded-full bg-purple-500" />
                 )}
               </div>
               <div className="mt-2">
                 <p className="text-xs font-bold leading-tight">Admin Login</p>
-                <span className={`text-[10px] block ${selectedPortal === 'ADMIN' ? 'text-sky-200' : 'text-slate-500'}`}>
+                <span className={`text-[10px] block ${selectedPortal === 'ADMIN' ? 'text-purple-700 font-medium' : 'text-slate-500'}`}>
                   Governance Desk
                 </span>
               </div>
@@ -258,7 +285,7 @@ export const AuthModal: React.FC = () => {
         </div>
 
         {/* 2. Sign In vs Sign Up Tabs */}
-        {selectedPortal !== 'ADMIN' ? (
+        {selectedPortal !== 'ADMIN' && selectedPortal !== 'HR' ? (
           <div className="flex border-b border-sky-100 px-6 bg-sky-50/40">
             <button
               type="button"
@@ -289,13 +316,23 @@ export const AuthModal: React.FC = () => {
               Sign Up ({selectedPortal === 'TEACHER' ? 'Job Seeker' : 'Job Poster'})
             </button>
           </div>
+        ) : selectedPortal === 'HR' ? (
+          <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-200 flex items-center justify-between text-xs text-amber-900">
+            <span className="font-bold flex items-center gap-1.5 text-amber-900">
+              <UserCheck className="w-4 h-4 text-amber-600" />
+              <span>HR Recruiter Clearance Portal</span>
+            </span>
+            <span className="text-[10px] bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-full border border-amber-300">
+              PROVISIONED
+            </span>
+          </div>
         ) : (
-          <div className="px-6 py-2 bg-sky-50/60 border-b border-sky-100 flex items-center justify-between text-xs text-slate-700">
-            <span className="font-bold flex items-center gap-1.5 text-sky-800">
-              <ShieldAlert className="w-3.5 h-3.5 text-sky-600" />
+          <div className="px-6 py-2.5 bg-purple-50 border-b border-purple-200 flex items-center justify-between text-xs text-purple-900">
+            <span className="font-bold flex items-center gap-1.5 text-purple-900">
+              <ShieldAlert className="w-4 h-4 text-purple-600" />
               <span>Super Admin Governance Access</span>
             </span>
-            <span className="text-[10px] bg-sky-100 text-sky-700 font-extrabold px-2 py-0.5 rounded-full border border-sky-200">
+            <span className="text-[10px] bg-purple-100 text-purple-700 font-extrabold px-2 py-0.5 rounded-full border border-purple-300">
               RESTRICTED
             </span>
           </div>
@@ -395,11 +432,11 @@ export const AuthModal: React.FC = () => {
                 disabled={loading}
                 className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-md shadow-sky-500/20 flex items-center justify-center gap-2 transition disabled:opacity-50 mt-1"
               >
-                {loading ? 'Authenticating...' : `Sign In as ${selectedPortal === 'TEACHER' ? 'Job Seeker' : selectedPortal === 'EMPLOYER' ? 'Job Poster' : 'Super Admin'}`}
+                {loading ? 'Authenticating...' : `Sign In as ${selectedPortal === 'TEACHER' ? 'Job Seeker' : selectedPortal === 'EMPLOYER' ? 'Job Poster' : selectedPortal === 'HR' ? 'HR Recruiter' : 'Super Admin'}`}
                 <ArrowRight className="w-4 h-4" />
               </button>
 
-              {selectedPortal !== 'ADMIN' && (
+              {selectedPortal !== 'ADMIN' && selectedPortal !== 'HR' && (
                 <div className="pt-2 text-center border-t border-slate-100">
                   <p className="text-xs text-slate-500">
                     Don't have an account?{' '}
@@ -420,7 +457,7 @@ export const AuthModal: React.FC = () => {
           )}
 
           {/* Form for Sign Up (Registration for Job Seeker / Job Poster) */}
-          {activeTab === 'REGISTER' && selectedPortal !== 'ADMIN' && (
+          {activeTab === 'REGISTER' && selectedPortal !== 'ADMIN' && selectedPortal !== 'HR' && (
             <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
               
               {/* Institution / Organization Name (For Job Poster) */}

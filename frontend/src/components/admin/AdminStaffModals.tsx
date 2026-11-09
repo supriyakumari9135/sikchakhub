@@ -150,3 +150,170 @@ export const AddStaffModal: React.FC<AddStaffModalProps> = ({
   );
 };
 
+interface AddHrModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onAddHr: (data: { fullName: string; email: string; phone: string; password: string }) => Promise<void>;
+}
+
+export const AddHrModal: React.FC<AddHrModalProps> = ({
+  isOpen,
+  onClose,
+  onAddHr,
+}) => {
+  if (!isOpen) return null;
+
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+    let res = 'Hr@';
+    for (let i = 0; i < 7; i++) {
+      res += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setPassword(res);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onAddHr({
+        fullName: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        password,
+      });
+      onClose();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to create HR recruiter account');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div 
+        className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-sky-50/50">
+          <div className="flex items-center gap-2 text-sky-800">
+            <UserPlus className="w-5 h-5 text-sky-600" />
+            <h3 className="font-bold text-sm">Provision HR Recruiter Account</h3>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-600">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {error && (
+            <div className="p-3 text-xs bg-red-50 text-red-700 border border-red-200 rounded-xl">
+              {error}
+            </div>
+          )}
+
+          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800 space-y-1">
+            <p className="font-bold flex items-center gap-1.5 text-amber-900">
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+              <span>Strict Read-Only & Screening Clearance</span>
+            </p>
+            <p>
+              HR accounts can only log in with credentials created by Super Admin. HR can view platform data and CVs, screen candidates, create vacancy shortlist groups, and export candidates. All modifying admin actions are strictly locked.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">HR Recruiter Full Name *</label>
+            <input
+              type="text"
+              required
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="e.g. Priya Sharma"
+              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Official HR Email *</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="hr.priya@sikchakhub.ai"
+              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Contact Mobile Number</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="9876543210"
+              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 outline-none"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Access Password *</label>
+              <button
+                type="button"
+                onClick={generatePassword}
+                className="text-[10px] font-bold text-sky-600 hover:text-sky-700 hover:underline"
+              >
+                Auto-generate
+              </button>
+            </div>
+            <input
+              type="text"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Min. 6 characters"
+              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-sky-500 outline-none font-mono"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">Provide these credentials to the HR recruiter for login.</p>
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-5 py-2 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition flex items-center gap-1.5"
+            >
+              {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>Register HR Recruiter</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+

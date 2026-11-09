@@ -44,7 +44,7 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
   const existingApp = (myAppsData?.applications || []).find((a: any) => a.jobId === job.id);
 
   const [coverLetter, setCoverLetter] = useState(
-    `Dear Hiring Committee at ${job.institution?.name || 'Institution'}, I am writing to express my enthusiastic interest in the ${job.title} position. With my background in ${job.subject} instruction and student mentorship, I am confident in my ability to contribute meaningfully to your academic objectives.`
+    `Dear Hiring Committee at SikshaHub, I am writing to express my enthusiastic interest in the ${job.title} position. With my background in ${job.subject} instruction and student mentorship, I am confident in my ability to contribute meaningfully to your academic objectives.`
   );
   const [customAnswers, setCustomAnswers] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -151,7 +151,7 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
                 Structured Recruitment Form
               </span>
               <h3 className="text-lg font-bold text-slate-900 mt-1 font-serif line-clamp-1">{job.title}</h3>
-              <p className="text-xs text-slate-500">{job.institution?.name} • {job.city}, {job.state}</p>
+              <p className="text-xs text-slate-500">SikshaHub • {job.city}, {job.state}</p>
             </div>
           </div>
           <button

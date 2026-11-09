@@ -12,7 +12,11 @@ import {
   AlertCircle, 
   Briefcase, 
   Edit2, 
-  Loader2 
+  Loader2,
+  FileText,
+  Eye,
+  School,
+  FileBadge
 } from 'lucide-react';
 
 interface EmployerDossierModalProps {
@@ -96,7 +100,17 @@ export const EmployerDossierModal: React.FC<EmployerDossierModalProps> = ({
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-600">
                 <FileCheck2 className="w-3.5 h-3.5 text-brand-600 shrink-0" />
-                <span>Affiliation: <strong>{employer.affiliationNumber || 'Pending verification'}</strong></span>
+                <span>Board: <strong>{employer.board || 'CBSE / Recognized'}</strong></span>
+              </div>
+              {employer.udiseCode && (
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <School className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <span>UDISE+: <strong>{employer.udiseCode}</strong></span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <FileBadge className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span>Reg. / Affiliation: <strong>{employer.registrationNumber || employer.affiliationNumber || 'Pending verification'}</strong></span>
               </div>
               {employer.website && (
                 <div className="flex items-center gap-2 text-xs text-slate-600">
@@ -112,17 +126,59 @@ export const EmployerDossierModal: React.FC<EmployerDossierModalProps> = ({
               <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Authorized Recruiter</h4>
               <div className="flex items-center gap-2 text-xs text-slate-600">
                 <Building2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                <span className="font-semibold text-slate-900">{employer.ownerName || employer.owner?.fullName || 'Representative'}</span>
+                <span className="font-semibold text-slate-900">{employer.contactPerson || employer.ownerName || employer.owner?.fullName || 'Representative'}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-600">
                 <Mail className="w-3.5 h-3.5 text-brand-600 shrink-0" />
-                <span>{employer.ownerEmail || employer.owner?.email || 'Email not listed'}</span>
+                <span>{employer.email || employer.ownerEmail || employer.owner?.email || 'Email not listed'}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-600">
                 <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>{employer.ownerPhone || employer.owner?.phone || 'Phone not listed'}</span>
+                <span>{employer.phone || employer.ownerPhone || employer.owner?.phone || 'Phone not listed'}</span>
+              </div>
+              <div className="text-[11px] text-slate-500 pt-1">
+                Terms of Service: <span className="font-semibold text-emerald-700">Accepted & Validated</span>
               </div>
             </div>
+          </div>
+
+          {/* Verification Document / Certificate Section */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Accreditation & Registration Certificate
+            </h4>
+            {employer.certificateUrl ? (
+              <div className="p-3 bg-sky-50 rounded-xl border border-sky-200 flex items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white border border-sky-200 flex items-center justify-center text-sky-600 shrink-0">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 truncate">
+                      {employer.certificateFileName || 'Institution_Registration_Certificate.pdf'}
+                    </p>
+                    <p className="text-[11px] text-sky-700 font-medium">
+                      Official document uploaded by institution for Super Admin validation
+                    </p>
+                  </div>
+                </div>
+
+                <a
+                  href={employer.certificateUrl.startsWith('http') ? employer.certificateUrl : `${window.location.origin}${employer.certificateUrl}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition flex items-center gap-1.5 shadow-xs shrink-0"
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>View Document</span>
+                </a>
+              </div>
+            ) : (
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>No registration certificate uploaded yet. Vacancy publishing is limited to Draft until accreditation is verified.</span>
+              </div>
+            )}
           </div>
 
           {/* Description */}

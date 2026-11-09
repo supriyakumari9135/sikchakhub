@@ -91,9 +91,11 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
 
     // Moderation & Approval Filter:
     // Only approved vacancies ('ACTIVE') from verified institutions ('VERIFIED') show on the public portal.
-    // Super Admin can view all jobs.
+    // Super Admin and HR can view all jobs.
     // An employer can view all jobs for their own institution.
     const isSuperAdmin = req.user && req.user.role === 'ADMIN';
+    const isHr = req.user && (req.user.role === 'HR' || req.user.adminRole === 'HR');
+    const isPrivileged = isSuperAdmin || isHr;
     let isInstitutionOwner = false;
     if (req.user && institutionId) {
       try {
@@ -102,7 +104,7 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
       } catch (e) {}
     }
 
-    if (!isSuperAdmin && !isInstitutionOwner) {
+    if (!isPrivileged && !isInstitutionOwner) {
       results = results.filter(j => j.status === 'ACTIVE' && j.institution?.verificationStatus === 'VERIFIED');
     } else {
       if (status && status !== 'ALL') {
@@ -118,7 +120,8 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
           j.title.toLowerCase().includes(query) ||
           j.subject.toLowerCase().includes(query) ||
           (j.description && j.description.toLowerCase().includes(query)) ||
-          (j.institution?.name && j.institution.name.toLowerCase().includes(query)) ||
+          'sikshahub'.includes(query) ||
+          (isPrivileged && j.institution?.name && j.institution.name.toLowerCase().includes(query)) ||
           j.city.toLowerCase().includes(query)
       );
     }
@@ -128,13 +131,38 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
     const total = results.length;
     const paginated = results.slice((pageNum - 1) * pageSize, pageNum * pageSize);
 
+    // Public Display Masking:
+    // Every job vacancy displayed publicly shows "SikshaHub" as the company/employer name.
+    // Real institution names are preserved in database and shown only to Super Admin, HR, and the posting institution owner.
+    const sanitizedJobs = paginated.map(j => {
+      const isOwnerOfThisJob = req.user && j.institution && j.institution.ownerId === req.user.id;
+      if (isPrivileged || isOwnerOfThisJob) {
+        return j;
+      }
+      return {
+        ...j,
+        institution: j.institution ? {
+          ...j.institution,
+          name: 'SikshaHub',
+          logoUrl: '/logo.jpeg',
+          description: 'Verified educational opening coordinated via SikshaHub teacher recruitment network.',
+        } : {
+          name: 'SikshaHub',
+          logoUrl: '/logo.jpeg',
+          verificationStatus: 'VERIFIED',
+          description: 'Verified educational opening coordinated via SikshaHub teacher recruitment network.',
+        },
+        institutionName: 'SikshaHub',
+      };
+    });
+
     return res.json({
       success: true,
       total,
       page: pageNum,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
-      jobs: paginated,
+      jobs: sanitizedJobs,
     });
   } catch (error: any) {
     console.error('Jobs fetch error:', error);
@@ -173,9 +201,11 @@ router.get('/:id', optionalJWT, async (req: Request, res: Response) => {
     }
 
     const isSuperAdmin = req.user && req.user.role === 'ADMIN';
+    const isHr = req.user && (req.user.role === 'HR' || req.user.adminRole === 'HR');
+    const isPrivileged = isSuperAdmin || isHr;
     const isInstitutionOwner = req.user && institution && institution.ownerId === req.user.id;
 
-    if (!isSuperAdmin && !isInstitutionOwner) {
+    if (!isPrivileged && !isInstitutionOwner) {
       if (job.status !== 'ACTIVE') {
         return res.status(403).json({
           success: false,
@@ -190,11 +220,28 @@ router.get('/:id', optionalJWT, async (req: Request, res: Response) => {
       }
     }
 
+    // Public Display Masking for Single Job Details:
+    // If not viewed by Super Admin, HR, or the institution owner, employer name is displayed as "SikshaHub".
+    const displayedInstitution = (isPrivileged || isInstitutionOwner)
+      ? institution
+      : (institution ? {
+          ...institution,
+          name: 'SikshaHub',
+          logoUrl: '/logo.jpeg',
+          description: 'Verified educational opportunity coordinated through SikshaHub recruitment network.',
+        } : {
+          name: 'SikshaHub',
+          logoUrl: '/logo.jpeg',
+          verificationStatus: 'VERIFIED',
+          description: 'Verified educational opportunity coordinated through SikshaHub recruitment network.',
+        });
+
     return res.json({
       success: true,
       job: {
         ...job,
-        institution,
+        institution: displayedInstitution,
+        institutionName: (isPrivileged || isInstitutionOwner) ? (institution?.name || 'SikshaHub') : 'SikshaHub',
         totalApplicants: applicationsCount,
       },
     });
@@ -244,7 +291,30 @@ router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req
     }
 
     const isSuperAdmin = req.user!.role === 'ADMIN';
-    const initialStatus = isSuperAdmin ? 'ACTIVE' : 'PENDING_APPROVAL';
+    let initialStatus: any = 'DRAFT';
+    let message = '';
+
+    if (isSuperAdmin) {
+      initialStatus = 'ACTIVE';
+      message = 'Job vacancy published successfully in database!';
+    } else {
+      const hasVerificationDoc = Boolean(institution.certificateUrl);
+      const isVerified = institution.verificationStatus === 'VERIFIED';
+
+      if (req.body.status === 'DRAFT') {
+        initialStatus = 'DRAFT';
+        message = 'Job vacancy saved as draft in database.';
+      } else if (!hasVerificationDoc) {
+        initialStatus = 'DRAFT';
+        message = 'Institutional registration/verification certificate is mandatory before vacancies can be published live. Saved as Draft until verified.';
+      } else if (!isVerified) {
+        initialStatus = 'PENDING_APPROVAL';
+        message = 'Job vacancy submitted for review. It will appear on the public portal once approved by Super Admin.';
+      } else {
+        initialStatus = 'PENDING_APPROVAL';
+        message = 'Job vacancy submitted for review. It will appear on the public portal once approved by Super Admin.';
+      }
+    }
 
     const newJob: any = {
       id: `job-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -278,15 +348,11 @@ router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req
     dbStore.jobs.unshift(newJob);
     logAuditEvent(
       req, 
-      isSuperAdmin ? 'JOB_CREATED' : 'JOB_SUBMITTED_FOR_APPROVAL', 
+      isSuperAdmin ? 'JOB_CREATED' : (initialStatus === 'DRAFT' ? 'JOB_SAVED_DRAFT' : 'JOB_SUBMITTED_FOR_APPROVAL'), 
       'JobVacancy', 
       newJob.id, 
       { title: newJob.title, status: initialStatus }
     );
-
-    const message = isSuperAdmin
-      ? 'Job vacancy published successfully in database!'
-      : 'Job vacancy submitted for review. It will appear on the public portal once approved by Super Admin.';
 
     return res.status(201).json({
       success: true,
@@ -345,6 +411,27 @@ router.patch('/:id/status', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']),
   const { status } = req.body;
 
   try {
+    if (status === 'ACTIVE' && req.user!.role !== 'ADMIN') {
+      let inst: any = null;
+      try {
+        inst = await InstitutionModel.findOne({ ownerId: req.user!.id }).lean();
+      } catch (e) {}
+      if (!inst) inst = dbStore.institutions.find(i => i.ownerId === req.user!.id);
+
+      if (inst && !inst.certificateUrl) {
+        return res.status(403).json({
+          success: false,
+          message: 'Registration/Affiliation verification document is mandatory before publishing live vacancies.',
+        });
+      }
+      if (inst && inst.verificationStatus !== 'VERIFIED') {
+        return res.status(403).json({
+          success: false,
+          message: 'Institution verification by Super Admin is required before publishing vacancies live.',
+        });
+      }
+    }
+
     let updatedJob: any = null;
     try {
       updatedJob = await JobVacancyModel.findOneAndUpdate(

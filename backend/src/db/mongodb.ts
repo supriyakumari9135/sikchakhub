@@ -7,9 +7,9 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   passwordHash: { type: String },
   fullName: { type: String, required: true },
-  role: { type: String, enum: ['TEACHER', 'EMPLOYER', 'ADMIN'], default: 'TEACHER' },
+  role: { type: String, enum: ['TEACHER', 'EMPLOYER', 'ADMIN', 'HR'], default: 'TEACHER' },
   status: { type: String, enum: ['ACTIVE', 'SUSPENDED', 'DEACTIVATED'], default: 'ACTIVE' },
-  adminRole: { type: String, enum: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'SUPPORT', 'ANALYST'], default: 'SUPER_ADMIN' },
+  adminRole: { type: String, enum: ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'SUPPORT', 'ANALYST', 'HR'], default: 'SUPER_ADMIN' },
   adminPermissions: [{ type: String }],
   phone: { type: String },
   age: { type: Number },
@@ -61,6 +61,15 @@ const InstitutionSchema = new mongoose.Schema({
   website: { type: String },
   description: { type: String },
   affiliationNumber: { type: String },
+  contactPerson: { type: String },
+  phone: { type: String },
+  email: { type: String },
+  board: { type: String },
+  udiseCode: { type: String },
+  registrationNumber: { type: String },
+  certificateUrl: { type: String },
+  certificateFileName: { type: String },
+  termsAccepted: { type: Boolean, default: true },
   verificationStatus: { type: String, enum: ['PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED'], default: 'PENDING' },
   verificationNotes: { type: String },
   address: { type: String },
@@ -166,16 +175,57 @@ const MasterDataSchema = new mongoose.Schema({
   metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true });
 
-// Platform Notification Schema
+// Platform Notification Schema (Upgraded for Location-Based & Smart Push System)
 const PlatformNotificationSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   title: { type: String, required: true },
   message: { type: String, required: true },
-  targetAudience: { type: String, enum: ['ALL', 'TEACHERS', 'EMPLOYERS', 'ADMINS'], default: 'ALL' },
-  type: { type: String, enum: ['ANNOUNCEMENT', 'MAINTENANCE', 'RECRUITMENT', 'SECURITY'], default: 'ANNOUNCEMENT' },
+  actionUrl: { type: String },
+  targetAudience: { type: String, enum: ['ALL', 'TEACHERS', 'EMPLOYERS', 'ADMINS'], default: 'TEACHERS' },
+  type: { type: String, enum: ['ANNOUNCEMENT', 'MAINTENANCE', 'RECRUITMENT', 'SECURITY', 'SMART_PUSH'], default: 'SMART_PUSH' },
   priority: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'], default: 'MEDIUM' },
+  filters: {
+    state: { type: String },
+    city: { type: String },
+    minSalaryLPA: { type: Number },
+    maxSalaryLPA: { type: Number },
+    teachingLevels: [{ type: String }],
+    subjects: [{ type: String }],
+    minExperienceYears: { type: Number },
+    maxExperienceYears: { type: Number },
+    isFresherOnly: { type: Boolean, default: false },
+  },
+  totalMatchedAudience: { type: Number, default: 0 },
+  successDeliveries: { type: Number, default: 0 },
+  failedDeliveries: { type: Number, default: 0 },
+  fcmSent: { type: Boolean, default: false },
+  deliveryDetails: { type: mongoose.Schema.Types.Mixed, default: {} },
   sentBy: { type: String, default: 'Super Admin' },
-  status: { type: String, enum: ['SENT', 'SCHEDULED', 'DRAFT'], default: 'SENT' },
+  status: { type: String, enum: ['SENT', 'DELIVERED', 'PARTIAL', 'FAILED', 'SCHEDULED', 'DRAFT'], default: 'DELIVERED' },
+}, { timestamps: true });
+
+// Device FCM Token Schema (Store device FCM tokens, platform, active status)
+const DeviceTokenSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  userId: { type: String, required: true, index: true },
+  userRole: { type: String, enum: ['TEACHER', 'EMPLOYER', 'ADMIN'], default: 'TEACHER' },
+  token: { type: String, required: true, unique: true },
+  platform: { type: String, enum: ['WEB', 'ANDROID', 'IOS'], default: 'WEB' },
+  userAgent: { type: String },
+  isActive: { type: Boolean, default: true },
+  lastSeenAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
+// User Inbox Notification Schema (In-app delivery for teachers/job seekers)
+const UserInboxNotificationSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  userId: { type: String, required: true, index: true },
+  broadcastId: { type: String, index: true },
+  title: { type: String, required: true },
+  message: { type: String, required: true },
+  actionUrl: { type: String },
+  isRead: { type: Boolean, default: false },
+  readAt: { type: Date },
 }, { timestamps: true });
 
 // User Reports & Moderation Schema
@@ -202,6 +252,25 @@ const PlatformSettingSchema = new mongoose.Schema({
   updatedBy: { type: String },
 }, { timestamps: true });
 
+// HR Candidate Shortlist Group Schema
+const CandidateGroupSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  name: { type: String, required: true }, // e.g., "PGT Physics – Delhi Vacancy"
+  description: { type: String },
+  targetVacancyId: { type: String },
+  targetVacancyTitle: { type: String },
+  targetSubject: { type: String },
+  targetLevel: { type: String },
+  targetLocation: { type: String },
+  candidateIds: [{ type: String }], // userIds of shortlisted teachers
+  notes: { type: String },
+  status: { type: String, enum: ['ACTIVE', 'ARCHIVED', 'COMPLETED'], default: 'ACTIVE' },
+  createdBy: { type: String, required: true }, // userId of HR or Admin
+  createdByName: { type: String, required: true },
+  createdByRole: { type: String, enum: ['ADMIN', 'HR'], default: 'HR' },
+  tags: [{ type: String }],
+}, { timestamps: true });
+
 export const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
 export const TeacherProfileModel = mongoose.models.TeacherProfile || mongoose.model('TeacherProfile', TeacherProfileSchema);
 export const InstitutionModel = mongoose.models.Institution || mongoose.model('Institution', InstitutionSchema);
@@ -211,8 +280,11 @@ export const InterviewModel = mongoose.models.Interview || mongoose.model('Inter
 export const AuditLogModel = mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);
 export const MasterDataModel = mongoose.models.MasterData || mongoose.model('MasterData', MasterDataSchema);
 export const PlatformNotificationModel = mongoose.models.PlatformNotification || mongoose.model('PlatformNotification', PlatformNotificationSchema);
+export const DeviceTokenModel = mongoose.models.DeviceToken || mongoose.model('DeviceToken', DeviceTokenSchema);
+export const UserInboxNotificationModel = mongoose.models.UserInboxNotification || mongoose.model('UserInboxNotification', UserInboxNotificationSchema);
 export const UserReportModel = mongoose.models.UserReport || mongoose.model('UserReport', UserReportSchema);
 export const PlatformSettingModel = mongoose.models.PlatformSetting || mongoose.model('PlatformSetting', PlatformSettingSchema);
+export const CandidateGroupModel = mongoose.models.CandidateGroup || mongoose.model('CandidateGroup', CandidateGroupSchema);
 
 export async function seedDefaultAdminIfNeeded() {
   try {

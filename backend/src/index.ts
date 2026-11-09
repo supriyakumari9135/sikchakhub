@@ -12,6 +12,7 @@ import interviewRoutes from './routes/interviews.routes';
 import institutionRoutes from './routes/institutions.routes';
 import adminRoutes from './routes/admin.routes';
 import masterDataRoutes from './routes/masterData.routes';
+import notificationRoutes from './routes/notifications.routes';
 import { connectMongoDB } from './db/mongodb';
 
 dotenv.config();
@@ -30,10 +31,18 @@ app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use(morgan('dev'));
 
-// Static storage for free local PDF CV/Resume uploads
-const uploadsDir = path.join(__dirname, '../uploads/resumes');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// Static storage for free local PDF CV/Resume & verification document uploads
+const resumesDir = path.join(__dirname, '../uploads/resumes');
+if (!fs.existsSync(resumesDir)) {
+  fs.mkdirSync(resumesDir, { recursive: true });
+}
+const certificatesDir = path.join(__dirname, '../uploads/certificates');
+if (!fs.existsSync(certificatesDir)) {
+  fs.mkdirSync(certificatesDir, { recursive: true });
+}
+const logosDir = path.join(__dirname, '../uploads/logos');
+if (!fs.existsSync(logosDir)) {
+  fs.mkdirSync(logosDir, { recursive: true });
 }
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
@@ -56,6 +65,7 @@ app.use('/api/v1/interviews', interviewRoutes);
 app.use('/api/v1/institutions', institutionRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/master-data', masterDataRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 // 404 handler
 app.use((req, res) => {

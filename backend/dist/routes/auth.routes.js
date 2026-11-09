@@ -20,6 +20,7 @@ function generateToken(user) {
         id: user.id,
         email: user.email,
         role: user.role,
+        adminRole: user.adminRole,
         fullName: user.fullName,
     }, JWT_SECRET, { expiresIn: '30d' });
 }
@@ -48,19 +49,58 @@ router.post('/register', async (req, res) => {
         if (existingUser) {
             return res.status(400).json({ success: false, message: 'An account with this email already exists.' });
         }
+        // Administrative accounts cannot be registered via public registration
+        if (role === 'ADMIN' || role === 'HR') {
+            return res.status(403).json({
+                success: false,
+                message: 'Public registration for administrative accounts is restricted. Please sign in or contact Super Admin.',
+            });
+        }
+        // Role-specific validation before user creation
+        if (role === 'EMPLOYER') {
+            if (req.body.confirmPassword && req.body.confirmPassword !== password) {
+                return res.status(400).json({ success: false, message: 'Passwords do not match. Please verify your password confirmation.' });
+            }
+            if (req.body.termsAccepted === false || req.body.termsAccepted === 'false') {
+                return res.status(400).json({ success: false, message: 'Terms and Conditions acceptance is mandatory.' });
+            }
+            const orgName = req.body.organizationName || req.body.name;
+            if (!orgName || !orgName.trim()) {
+                return res.status(400).json({ success: false, message: 'Institution Name is compulsory.' });
+            }
+            const contactPerson = req.body.contactPerson || fullName;
+            if (!contactPerson || !contactPerson.trim()) {
+                return res.status(400).json({ success: false, message: 'Contact Person / Principal Name is compulsory.' });
+            }
+            const officialPhone = phone || req.body.phone;
+            if (!officialPhone || !officialPhone.trim()) {
+                return res.status(400).json({ success: false, message: 'Official Mobile Number is compulsory.' });
+            }
+            if (!req.body.state?.trim()) {
+                return res.status(400).json({ success: false, message: 'State is compulsory.' });
+            }
+            if (!req.body.city?.trim()) {
+                return res.status(400).json({ success: false, message: 'City is compulsory.' });
+            }
+            const addr = req.body.address || req.body.fullAddress;
+            if (!addr || !addr.trim()) {
+                return res.status(400).json({ success: false, message: 'Full Address is compulsory.' });
+            }
+        }
         // 2. Hash password with bcryptjs salt 10
         const passwordHash = bcryptjs_1.default.hashSync(password, 10);
         const userId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        const userFullName = role === 'EMPLOYER' ? (req.body.contactPerson || fullName) : fullName;
         const newUserDoc = {
             id: userId,
             email: normalizedEmail,
             passwordHash,
-            fullName,
+            fullName: userFullName,
             role: role,
             phone: phone || req.body.phone || '',
             age: parsedAge,
             gender: req.body.gender || '',
-            avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
+            avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(userFullName)}`,
             isVerified: true,
         };
         // 3. Persist User in MongoDB Atlas
@@ -200,24 +240,96 @@ router.post('/register', async (req, res) => {
             store_1.dbStore.profiles[userId] = profileDoc;
         }
         else if (role === 'EMPLOYER') {
-            const orgName = req.body.organizationName || `${fullName} Organization`;
+            const orgName = req.body.organizationName || req.body.name || `${userFullName} Institution`;
             const instType = req.body.institutionType || req.body.type || 'SCHOOL';
-            const cityLoc = req.body.city || 'Delhi NCR';
+            const contactPersonName = req.body.contactPerson || userFullName;
+            const officialPhone = phone || req.body.phone || '';
             const stateLoc = req.body.state || 'Delhi';
+            const cityLoc = req.body.city || 'Delhi NCR';
+            const addressLoc = req.body.address || req.body.fullAddress || cityLoc;
+            const pincodeLoc = req.body.pincode || '110001';
+            const board = req.body.board || (instType === 'COLLEGE' ? 'UGC / AICTE' : 'CBSE');
+            const udiseCode = req.body.udiseCode || '';
+            const registrationNumber = req.body.registrationNumber || req.body.affiliationNumber || '';
+            const website = req.body.website || '';
+            const termsAccepted = req.body.termsAccepted !== false && req.body.termsAccepted !== 'false';
+            // 4C. Secure storage for uploaded verification certificate (PDF/Image, max 5 MB)
+            const certBase64 = req.body.certificateBase64 || req.body.documentBase64;
+            const certFileName = req.body.certificateFileName || req.body.documentFileName || 'Registration_Certificate.pdf';
+            let finalCertificateUrl = req.body.certificateUrl || '';
+            let finalCertificateFileName = certFileName;
+            if (certBase64) {
+                try {
+                    const base64Content = certBase64.replace(/^data:[a-zA-Z0-9/+-]+;base64,/, '');
+                    const buffer = Buffer.from(base64Content, 'base64');
+                    const sizeBytes = buffer.length;
+                    const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+                    if (sizeBytes > MAX_SIZE) {
+                        return res.status(400).json({
+                            success: false,
+                            message: `Uploaded verification certificate (${(sizeBytes / (1024 * 1024)).toFixed(2)} MB) exceeds the 5 MB limit. Please upload a file under 5 MB.`,
+                        });
+                    }
+                    const certsDir = path_1.default.join(__dirname, '../../uploads/certificates');
+                    if (!fs_1.default.existsSync(certsDir)) {
+                        fs_1.default.mkdirSync(certsDir, { recursive: true });
+                    }
+                    const cleanName = certFileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+                    const storedFileName = `cert-${userId}-${Date.now()}-${cleanName}`;
+                    const filePath = path_1.default.join(certsDir, storedFileName);
+                    fs_1.default.writeFileSync(filePath, buffer);
+                    finalCertificateUrl = `/uploads/certificates/${storedFileName}`;
+                    finalCertificateFileName = certFileName;
+                }
+                catch (certErr) {
+                    console.warn('Error saving certificate file:', certErr);
+                }
+            }
+            // 4D. Secure storage for uploaded institution logo
+            const logoBase64 = req.body.logoBase64;
+            let finalLogoUrl = req.body.logoUrl || '/logo.jpeg';
+            if (logoBase64) {
+                try {
+                    const base64Content = logoBase64.replace(/^data:[a-zA-Z0-9/+-]+;base64,/, '');
+                    const buffer = Buffer.from(base64Content, 'base64');
+                    const logosDir = path_1.default.join(__dirname, '../../uploads/logos');
+                    if (!fs_1.default.existsSync(logosDir)) {
+                        fs_1.default.mkdirSync(logosDir, { recursive: true });
+                    }
+                    const cleanLogoName = (req.body.logoFileName || 'logo.png').replace(/[^a-zA-Z0-9.-]/g, '_');
+                    const storedLogoName = `logo-${userId}-${Date.now()}-${cleanLogoName}`;
+                    const filePath = path_1.default.join(logosDir, storedLogoName);
+                    fs_1.default.writeFileSync(filePath, buffer);
+                    finalLogoUrl = `/uploads/logos/${storedLogoName}`;
+                }
+                catch (logoErr) {
+                    console.warn('Error saving logo image:', logoErr);
+                }
+            }
             institutionDoc = {
                 id: `inst-${Date.now()}`,
                 ownerId: userId,
                 name: orgName,
                 type: instType,
-                logoUrl: '/logo.jpeg',
-                website: req.body.website || 'https://sikchakhub.ai',
+                logoUrl: finalLogoUrl,
+                website,
                 description: req.body.description || `Verified educational institution: ${orgName}.`,
-                affiliationNumber: req.body.affiliationNumber || 'CBSE-REG',
+                affiliationNumber: registrationNumber || req.body.affiliationNumber || 'PENDING',
+                registrationNumber: registrationNumber || req.body.affiliationNumber || '',
+                contactPerson: contactPersonName,
+                phone: officialPhone,
+                email: normalizedEmail,
+                board,
+                udiseCode,
+                certificateUrl: finalCertificateUrl,
+                certificateFileName: finalCertificateFileName,
+                termsAccepted,
                 verificationStatus: 'PENDING',
-                address: req.body.address || cityLoc,
+                address: addressLoc,
                 city: cityLoc,
                 state: stateLoc,
-                pincode: req.body.pincode || '110001',
+                pincode: pincodeLoc,
+                establishedYear: req.body.establishedYear ? Number(req.body.establishedYear) : undefined,
             };
             try {
                 await mongodb_1.InstitutionModel.create(institutionDoc);
@@ -285,17 +397,31 @@ router.post('/login', async (req, res) => {
         if (!passwordMatches) {
             return res.status(401).json({ success: false, message: 'Invalid email or password credentials.' });
         }
+        // 2.3 Account Active Status Check
+        if (user.status === 'DEACTIVATED' || user.status === 'SUSPENDED') {
+            return res.status(403).json({
+                success: false,
+                message: 'Your account has been deactivated or suspended by the Super Administrator. Please contact management.',
+            });
+        }
         // 2.5 Strict Portal Role Separation
         // Job Poster cannot log into Job Seeker page or Admin page;
         // Job Seeker cannot log into Job Poster page or Admin page;
-        // Admin credentials required for Super Admin governance.
+        // Admin & HR credentials permitted for Super Admin & HR Screening governance.
         const expectedRole = parseResult.data.expectedRole || parseResult.data.portalRole || parseResult.data.role;
-        if (expectedRole && user.role !== expectedRole) {
-            const portalDisplayNames = {
-                TEACHER: 'Job Seeker (Educator)',
-                EMPLOYER: 'Job Poster (School / Coaching Institute)',
-                ADMIN: 'Super Admin Governance',
-            };
+        const portalDisplayNames = {
+            TEACHER: 'Job Seeker (Educator)',
+            EMPLOYER: 'Job Poster (School / Coaching Institute)',
+            ADMIN: 'Super Admin Governance',
+            HR: 'HR Recruiter Governance',
+        };
+        const expRoleStr = expectedRole || '';
+        const userRoleStr = user.role || '';
+        const isRoleAllowed = !expectedRole ||
+            userRoleStr === expRoleStr ||
+            (expRoleStr === 'ADMIN' && userRoleStr === 'HR') ||
+            (expRoleStr === 'HR' && userRoleStr === 'ADMIN');
+        if (!isRoleAllowed) {
             const actualRoleLabel = portalDisplayNames[user.role] || user.role;
             const expectedRoleLabel = portalDisplayNames[expectedRole] || expectedRole;
             return res.status(403).json({
@@ -335,6 +461,7 @@ router.post('/login', async (req, res) => {
                 email: user.email,
                 fullName: user.fullName,
                 role: user.role,
+                adminRole: user.adminRole,
                 avatarUrl: user.avatarUrl,
                 phone: user.phone,
                 age: user.age,
@@ -473,6 +600,7 @@ router.post('/google', async (req, res) => {
                 email: user.email,
                 fullName: user.fullName,
                 role: user.role,
+                adminRole: user.adminRole,
                 avatarUrl: user.avatarUrl,
                 phone: user.phone,
                 age: user.age,
@@ -528,6 +656,7 @@ router.get('/me', authMiddleware_1.authenticateJWT, async (req, res) => {
                 email: user.email,
                 fullName: user.fullName,
                 role: user.role,
+                adminRole: user.adminRole,
                 avatarUrl: user.avatarUrl,
                 phone: user.phone,
                 age: user.age,

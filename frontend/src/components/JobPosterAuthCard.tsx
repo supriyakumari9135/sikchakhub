@@ -159,10 +159,10 @@ export const JobPosterAuthCard: React.FC = () => {
                   {error.includes('Super Admin') && (
                     <button
                       type="button"
-                      onClick={() => navigate('/admin-dashboard')}
+                      onClick={() => navigate('/login?role=ADMIN')}
                       className="font-bold underline text-purple-700 hover:text-purple-900 flex items-center gap-1 mt-1 text-xs"
                     >
-                      <span>Switch to Super Admin Console →</span>
+                      <span>Switch to Super Admin Login →</span>
                     </button>
                   )}
                 </div>

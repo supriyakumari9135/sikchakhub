@@ -12,9 +12,9 @@ export const RegisterSchema = z.object({
 export const LoginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
-  expectedRole: z.enum(['TEACHER', 'EMPLOYER', 'ADMIN']).optional(),
-  portalRole: z.enum(['TEACHER', 'EMPLOYER', 'ADMIN']).optional(),
-  role: z.enum(['TEACHER', 'EMPLOYER', 'ADMIN']).optional(),
+  expectedRole: z.enum(['TEACHER', 'EMPLOYER', 'ADMIN', 'HR']).optional(),
+  portalRole: z.enum(['TEACHER', 'EMPLOYER', 'ADMIN', 'HR']).optional(),
+  role: z.enum(['TEACHER', 'EMPLOYER', 'ADMIN', 'HR']).optional(),
 });
 
 export const OTPLoginSchema = z.object({

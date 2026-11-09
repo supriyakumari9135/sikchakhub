@@ -673,6 +673,58 @@ export const QuickCvReviewModal: React.FC<QuickCvReviewModalProps> = ({
                     {candidateExperience}
                   </span>
                 </div>
+
+                {/* Previous School */}
+                {Boolean((profile as any)?.previousSchool) && (
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                    <span className="text-[10px] text-slate-400 font-medium block flex items-center gap-1">
+                      <BookOpen className="w-3 h-3 text-slate-400" />
+                      <span>Previous School</span>
+                    </span>
+                    <span className="font-bold text-slate-800 truncate block mt-0.5" title={(profile as any)?.previousSchool}>
+                      {(profile as any)?.previousSchool}
+                    </span>
+                  </div>
+                )}
+
+                {/* Board Experience */}
+                {Boolean((profile as any)?.boards?.length) && (
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                    <span className="text-[10px] text-slate-400 font-medium block flex items-center gap-1">
+                      <Award className="w-3 h-3 text-slate-400" />
+                      <span>Board Experience</span>
+                    </span>
+                    <span className="font-bold text-slate-800 truncate block mt-0.5">
+                      {(profile as any).boards.join(', ')}
+                    </span>
+                  </div>
+                )}
+
+                {/* Certifications (B.Ed, CTET, STET) */}
+                {Boolean((profile as any)?.certifications?.length) && (
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                    <span className="text-[10px] text-slate-400 font-medium block flex items-center gap-1">
+                      <GraduationCap className="w-3 h-3 text-slate-400" />
+                      <span>Certifications</span>
+                    </span>
+                    <span className="font-bold text-slate-800 truncate block mt-0.5">
+                      {(profile as any).certifications.join(', ')}
+                    </span>
+                  </div>
+                )}
+
+                {/* Joining Availability & Expected */}
+                {Boolean((profile as any)?.joiningAvailability || (profile as any)?.expectedSalary) && (
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                    <span className="text-[10px] text-slate-400 font-medium block flex items-center gap-1">
+                      <Briefcase className="w-3 h-3 text-slate-400" />
+                      <span>Availability & Salary</span>
+                    </span>
+                    <span className="font-bold text-slate-800 truncate block mt-0.5">
+                      {[(profile as any)?.joiningAvailability, (profile as any)?.expectedSalary].filter(Boolean).join(' • ')}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Skills from CV */}

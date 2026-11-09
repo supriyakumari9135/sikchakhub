@@ -13,9 +13,9 @@ exports.RegisterSchema = zod_1.z.object({
 exports.LoginSchema = zod_1.z.object({
     email: zod_1.z.string().email('Please enter a valid email address'),
     password: zod_1.z.string().min(1, 'Password is required'),
-    expectedRole: zod_1.z.enum(['TEACHER', 'EMPLOYER', 'ADMIN']).optional(),
-    portalRole: zod_1.z.enum(['TEACHER', 'EMPLOYER', 'ADMIN']).optional(),
-    role: zod_1.z.enum(['TEACHER', 'EMPLOYER', 'ADMIN']).optional(),
+    expectedRole: zod_1.z.enum(['TEACHER', 'EMPLOYER', 'ADMIN', 'HR']).optional(),
+    portalRole: zod_1.z.enum(['TEACHER', 'EMPLOYER', 'ADMIN', 'HR']).optional(),
+    role: zod_1.z.enum(['TEACHER', 'EMPLOYER', 'ADMIN', 'HR']).optional(),
 });
 exports.OTPLoginSchema = zod_1.z.object({
     phone: zod_1.z.string().min(10, 'Phone number must be at least 10 digits'),

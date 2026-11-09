@@ -16,6 +16,7 @@ const interviews_routes_1 = __importDefault(require("./routes/interviews.routes"
 const institutions_routes_1 = __importDefault(require("./routes/institutions.routes"));
 const admin_routes_1 = __importDefault(require("./routes/admin.routes"));
 const masterData_routes_1 = __importDefault(require("./routes/masterData.routes"));
+const notifications_routes_1 = __importDefault(require("./routes/notifications.routes"));
 const mongodb_1 = require("./db/mongodb");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -29,10 +30,18 @@ app.use((0, cors_1.default)());
 app.use(express_1.default.json({ limit: '25mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '25mb' }));
 app.use((0, morgan_1.default)('dev'));
-// Static storage for free local PDF CV/Resume uploads
-const uploadsDir = path_1.default.join(__dirname, '../uploads/resumes');
-if (!fs_1.default.existsSync(uploadsDir)) {
-    fs_1.default.mkdirSync(uploadsDir, { recursive: true });
+// Static storage for free local PDF CV/Resume & verification document uploads
+const resumesDir = path_1.default.join(__dirname, '../uploads/resumes');
+if (!fs_1.default.existsSync(resumesDir)) {
+    fs_1.default.mkdirSync(resumesDir, { recursive: true });
+}
+const certificatesDir = path_1.default.join(__dirname, '../uploads/certificates');
+if (!fs_1.default.existsSync(certificatesDir)) {
+    fs_1.default.mkdirSync(certificatesDir, { recursive: true });
+}
+const logosDir = path_1.default.join(__dirname, '../uploads/logos');
+if (!fs_1.default.existsSync(logosDir)) {
+    fs_1.default.mkdirSync(logosDir, { recursive: true });
 }
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads')));
 // Health check
@@ -53,6 +62,7 @@ app.use('/api/v1/interviews', interviews_routes_1.default);
 app.use('/api/v1/institutions', institutions_routes_1.default);
 app.use('/api/v1/admin', admin_routes_1.default);
 app.use('/api/v1/master-data', masterData_routes_1.default);
+app.use('/api/v1/notifications', notifications_routes_1.default);
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found on SikshaHub API.` });

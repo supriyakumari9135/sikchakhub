@@ -309,7 +309,19 @@ router.get('/my-applications', authenticateJWT, async (req: Request, res: Respon
 
       return {
         ...app,
-        job: job ? { ...job, institution } : undefined,
+        institutionName: 'SikshaHub',
+        job: job ? {
+          ...job,
+          institution: institution ? {
+            ...institution,
+            name: 'SikshaHub',
+            logoUrl: '/logo.jpeg',
+          } : {
+            name: 'SikshaHub',
+            logoUrl: '/logo.jpeg',
+          },
+          institutionName: 'SikshaHub',
+        } : undefined,
       };
     }));
 
@@ -429,17 +441,29 @@ router.get('/job/:jobId', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), a
       candidates = candidates.filter(c => (c.matchResult?.overallScore || 0) >= Number(minScore));
     }
 
-    // Filtering by search query
+    // Filtering by search query (including new teacher details)
     if (q && typeof q === 'string') {
       const query = q.toLowerCase();
       candidates = candidates.filter(
-        c =>
-          c.teacher?.fullName?.toLowerCase().includes(query) ||
-          c.teacher?.email?.toLowerCase().includes(query) ||
-          c.teacher?.profile?.subjects?.some((s: string) => s.toLowerCase().includes(query)) ||
-          c.teacher?.profile?.currentCity?.toLowerCase().includes(query) ||
-          c.job?.title?.toLowerCase().includes(query) ||
-          c.job?.subject?.toLowerCase().includes(query)
+        c => {
+          const prof = c.teacher?.profile as any;
+          return (
+            c.teacher?.fullName?.toLowerCase().includes(query) ||
+            c.teacher?.email?.toLowerCase().includes(query) ||
+            prof?.subjects?.some((s: string) => s.toLowerCase().includes(query)) ||
+            prof?.currentCity?.toLowerCase().includes(query) ||
+            c.job?.title?.toLowerCase().includes(query) ||
+            c.job?.subject?.toLowerCase().includes(query) ||
+            prof?.previousSchool?.toLowerCase().includes(query) ||
+            prof?.boards?.some((b: string) => b.toLowerCase().includes(query)) ||
+            prof?.skills?.some((sk: string) => sk.toLowerCase().includes(query)) ||
+            prof?.teachingLevels?.some((lvl: string) => lvl.toLowerCase().includes(query)) ||
+            prof?.certifications?.some((ct: string) => ct.toLowerCase().includes(query)) ||
+            prof?.highestQualification?.toLowerCase().includes(query) ||
+            prof?.degree?.toLowerCase().includes(query) ||
+            prof?.languages?.some((lng: string) => lng.toLowerCase().includes(query))
+          );
+        }
       );
     }
 

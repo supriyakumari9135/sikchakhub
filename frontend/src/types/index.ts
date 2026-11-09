@@ -1,4 +1,4 @@
-export type UserRole = 'TEACHER' | 'EMPLOYER' | 'ADMIN';
+export type UserRole = 'TEACHER' | 'EMPLOYER' | 'ADMIN' | 'HR';
 
 export type InstitutionStatus = 'PENDING' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
 
@@ -34,6 +34,7 @@ export interface User {
   phone?: string;
   age?: number;
   role: UserRole;
+  adminRole?: string;
   fullName: string;
   avatarUrl?: string;
   createdAt: string;
@@ -82,6 +83,15 @@ export interface Institution {
   website?: string;
   description?: string;
   affiliationNumber?: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  board?: string;
+  udiseCode?: string;
+  registrationNumber?: string;
+  certificateUrl?: string;
+  certificateFileName?: string;
+  termsAccepted?: boolean;
   verificationStatus: InstitutionStatus;
   verificationNotes?: string;
   address: string;
@@ -251,4 +261,25 @@ export interface AuditLog {
   userAgent?: string;
   details?: Record<string, any>;
   createdAt: string;
+}
+
+export interface CandidateGroup {
+  id: string;
+  name: string;
+  description?: string;
+  targetVacancyId?: string;
+  targetVacancyTitle?: string;
+  targetSubject?: string;
+  targetLevel?: string;
+  targetLocation?: string;
+  candidateIds: string[];
+  candidates?: any[];
+  notes?: string;
+  status: 'ACTIVE' | 'ARCHIVED' | 'COMPLETED';
+  createdBy: string;
+  createdByName: string;
+  createdByRole: 'ADMIN' | 'HR';
+  tags?: string[];
+  createdAt: string;
+  updatedAt: string;
 }

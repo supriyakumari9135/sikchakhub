@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, TeacherProfile, Institution, UserRole } from '@sikchakhub/shared-types';
 import { apiUrl } from '../config/api';
 
-export type PortalRole = 'TEACHER' | 'EMPLOYER' | 'ADMIN';
+export type PortalRole = 'TEACHER' | 'EMPLOYER' | 'ADMIN' | 'HR';
 
 interface AuthContextType {
   user: User | null;
@@ -156,11 +156,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // Strict role verification: Prevent Job Poster from logging in on Job Seeker/Admin page, etc.
-      if (expectedRole && data.user?.role && data.user.role !== expectedRole) {
+      const isRoleAllowed = !expectedRole || 
+        data.user?.role === expectedRole || 
+        (expectedRole === 'ADMIN' && data.user?.role === 'HR') || 
+        (expectedRole === 'HR' && data.user?.role === 'ADMIN');
+
+      if (!isRoleAllowed && data.user?.role) {
         const portalNames: Record<string, string> = {
           TEACHER: 'Job Seeker (Educator)',
           EMPLOYER: 'Job Poster (School / Coaching Institute)',
           ADMIN: 'Super Admin Governance',
+          HR: 'HR Recruiter Governance',
         };
         const actualName = portalNames[data.user.role] || data.user.role;
         const expectedName = portalNames[expectedRole] || expectedRole;
@@ -190,7 +196,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       const data = await res.json();
       if (data.success && data.token && data.user) {
-        saveSession(data.token, data.user, data.profile, null);
+        saveSession(data.token, data.user, data.profile, data.institution || null);
         return { success: true };
       }
       return { success: false, message: data.message || 'Registration failed' };
@@ -231,6 +237,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     clearSession();
+    navigate('/');
   };
 
   const updateProfile = async (profileData: Partial<TeacherProfile>) => {

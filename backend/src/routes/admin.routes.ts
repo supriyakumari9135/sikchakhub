@@ -11,11 +11,14 @@ import {
   AuditLogModel,
   MasterDataModel,
   PlatformNotificationModel,
+  DeviceTokenModel,
   UserReportModel,
-  PlatformSettingModel
+  PlatformSettingModel,
+  CandidateGroupModel
 } from '../db/mongodb';
 import { authenticateJWT, requireRole } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
+import { fcmService } from '../services/fcmService';
 
 const router = Router();
 
@@ -23,7 +26,7 @@ const router = Router();
 // 1. DASHBOARD OVERVIEW & COMPREHENSIVE KPIS
 // =========================================================================
 
-router.get('/kpis', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+router.get('/kpis', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
   try {
     let totalTeachers = 0;
     let totalEmployers = 0;
@@ -82,7 +85,7 @@ router.get('/kpis', authenticateJWT, requireRole(['ADMIN']), async (req: Request
 });
 
 // GET /api/v1/admin/analytics - Comprehensive growth & distribution statistics
-router.get('/analytics', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+router.get('/analytics', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
   try {
     let jobs: any[] = [];
     let applications: any[] = [];
@@ -165,7 +168,7 @@ router.get('/analytics', authenticateJWT, requireRole(['ADMIN']), async (req: Re
 });
 
 // GET /api/v1/admin/recent-activities - Live chronological activity stream
-router.get('/recent-activities', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+router.get('/recent-activities', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
   try {
     let logs: any[] = [];
     try {
@@ -268,7 +271,7 @@ router.get('/recent-activities', authenticateJWT, requireRole(['ADMIN']), async 
 // =========================================================================
 
 // GET /api/v1/admin/teachers - List educators with search & filters
-router.get('/teachers', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+router.get('/teachers', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
   const { q, subject, qualification, status, page = 1, limit = 50 } = req.query;
 
   try {
@@ -346,7 +349,7 @@ router.get('/teachers', authenticateJWT, requireRole(['ADMIN']), async (req: Req
 });
 
 // GET /api/v1/admin/teachers/:id - Complete teacher dossier & application history
-router.get('/teachers/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+router.get('/teachers/:id', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
   try {
     const user: any = await UserModel.findOne({ id: req.params.id, role: 'TEACHER' }).lean();
     if (!user) {
@@ -471,7 +474,7 @@ router.delete('/teachers/:id', authenticateJWT, requireRole(['ADMIN']), async (r
 // =========================================================================
 
 // GET /api/v1/admin/employers - List all employers & institutions
-router.get('/employers', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+router.get('/employers', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
   const { q, type, verificationStatus, state } = req.query;
 
   try {
@@ -514,9 +517,9 @@ router.get('/employers', authenticateJWT, requireRole(['ADMIN']), async (req: Re
 
       return {
         ...inst,
-        ownerName: owner?.fullName || 'Institutional Representative',
-        ownerEmail: owner?.email || 'email not listed',
-        ownerPhone: owner?.phone || 'phone not listed',
+        ownerName: inst.contactPerson || owner?.fullName || 'Institutional Representative',
+        ownerEmail: inst.email || owner?.email || 'email not listed',
+        ownerPhone: inst.phone || owner?.phone || 'phone not listed',
         ownerStatus: owner?.status || 'ACTIVE',
         totalJobs: jobsCount,
         totalApplicationsReceived: appsCount,
@@ -534,7 +537,7 @@ router.get('/employers', authenticateJWT, requireRole(['ADMIN']), async (req: Re
 });
 
 // GET /api/v1/admin/employers/:id - Full institution dossier & vacancy list
-router.get('/employers/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+router.get('/employers/:id', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
   try {
     const inst: any = await InstitutionModel.findOne({ id: req.params.id }).lean();
     if (!inst) {
@@ -559,12 +562,21 @@ router.get('/employers/:id', authenticateJWT, requireRole(['ADMIN']), async (req
 
 // PATCH /api/v1/admin/employers/:id - Update institution details
 router.patch('/employers/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
-  const { name, type, website, description, affiliationNumber, address, city, state, pincode } = req.body;
+  const { 
+    name, type, website, description, affiliationNumber, address, city, state, pincode,
+    contactPerson, phone, email, board, udiseCode, registrationNumber
+  } = req.body;
 
   try {
     const updated = await InstitutionModel.findOneAndUpdate(
       { id: req.params.id },
-      { $set: { name, type, website, description, affiliationNumber, address, city, state, pincode, updatedAt: new Date() } },
+      { 
+        $set: { 
+          name, type, website, description, affiliationNumber, address, city, state, pincode,
+          contactPerson, phone, email, board, udiseCode, registrationNumber,
+          updatedAt: new Date() 
+        } 
+      },
       { new: true }
     ).lean();
 
@@ -666,7 +678,7 @@ router.delete('/employers/:id', authenticateJWT, requireRole(['ADMIN']), async (
 // =========================================================================
 
 // GET /api/v1/admin/jobs - List all vacancies across institutions
-router.get('/jobs', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+router.get('/jobs', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
   const { q, subject, teachingLevel, city, status } = req.query;
 
   try {
@@ -790,7 +802,7 @@ router.delete('/jobs/:id', authenticateJWT, requireRole(['ADMIN']), async (req: 
 // =========================================================================
 
 // GET /api/v1/admin/applications - Monitor all platform job applications
-router.get('/applications', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+router.get('/applications', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
   const { q, stage, jobId } = req.query;
 
   try {
@@ -882,7 +894,7 @@ router.patch('/applications/:id/stage', authenticateJWT, requireRole(['ADMIN']),
 // =========================================================================
 
 // GET /api/v1/admin/documents - List verified candidate CV files
-router.get('/documents', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+router.get('/documents', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
   try {
     const apps = await JobApplicationModel.find({ resumeUrl: { $exists: true, $ne: '' } }).sort({ appliedAt: -1 }).lean();
     const profiles = await TeacherProfileModel.find({ resumeUrl: { $exists: true, $ne: '' } }).sort({ updatedAt: -1 }).lean();
@@ -945,7 +957,7 @@ router.get('/documents', authenticateJWT, requireRole(['ADMIN']), async (req: Re
 // =========================================================================
 
 // GET /api/v1/admin/master-data - Fetch platform categories
-router.get('/master-data', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+router.get('/master-data', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
   const { category } = req.query;
 
   try {
@@ -1107,7 +1119,7 @@ router.patch('/reports/:id', authenticateJWT, requireRole(['ADMIN']), async (req
 // 9. PLATFORM NOTIFICATIONS MANAGEMENT
 // =========================================================================
 
-// GET /api/v1/admin/notifications - Broadcast history
+// GET /api/v1/admin/notifications - Broadcast history with delivery statistics
 router.get('/notifications', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
   try {
     const notifications = await PlatformNotificationModel.find().sort({ createdAt: -1 }).lean();
@@ -1120,36 +1132,163 @@ router.get('/notifications', authenticateJWT, requireRole(['ADMIN']), async (req
   }
 });
 
-// POST /api/v1/admin/notifications - Send platform announcement
-router.post('/notifications', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
-  const { title, message, targetAudience = 'ALL', type = 'ANNOUNCEMENT', priority = 'MEDIUM' } = req.body;
+// GET /api/v1/admin/notifications/stats - Notification KPIs & FCM status
+router.get('/notifications/stats', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const totalBroadcasts = await PlatformNotificationModel.countDocuments();
+    const notifications = await PlatformNotificationModel.find().lean();
+    
+    let totalAudienceReached = 0;
+    let totalDelivered = 0;
+    let totalFailed = 0;
 
-  if (!title || !message) {
+    notifications.forEach((n: any) => {
+      totalAudienceReached += (n.totalMatchedAudience || 0);
+      totalDelivered += (n.successDeliveries || 0);
+      totalFailed += (n.failedDeliveries || 0);
+    });
+
+    const activeTokensCount = await DeviceTokenModel.countDocuments({ isActive: true });
+    const isFcmActive = fcmService.isFcmActive();
+
+    return res.json({
+      success: true,
+      stats: {
+        totalBroadcasts,
+        totalAudienceReached,
+        totalDelivered,
+        totalFailed,
+        activeTokensCount,
+        isFcmActive,
+        fcmMode: isFcmActive ? 'FCM_CLOUD_GATEWAY' : 'SMART_PUSH_HYBRID_INBOX',
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to load notification stats' });
+  }
+});
+
+// POST /api/v1/admin/notifications/target-count - Live audience estimator based on smart filters
+router.post('/notifications/target-count', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const filters = req.body.filters || {};
+    const result = await fcmService.findEligibleJobSeekers(filters);
+
+    return res.json({
+      success: true,
+      totalMatchedAudience: result.totalMatchedCount,
+      tokenCount: result.tokenCount,
+      sampleMatches: result.matchedProfiles.slice(0, 5).map(p => ({
+        id: p.id,
+        userId: p.userId,
+        headline: p.headline,
+        currentCity: p.currentCity,
+        experienceYears: p.experienceYears,
+        expectedSalaryLPA: p.expectedSalaryLPA,
+        subjects: p.subjects,
+        teachingLevels: p.teachingLevels,
+      })),
+    });
+  } catch (err: any) {
+    console.error('Target count calculation error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to calculate target audience.' });
+  }
+});
+
+// POST /api/v1/admin/notifications/send-smart-push - Dispatch Smart Push Notification via FCM
+router.post('/notifications/send-smart-push', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { 
+    title, 
+    message, 
+    actionUrl, 
+    filters = {}, 
+    priority = 'HIGH',
+    targetAudience = 'TEACHERS'
+  } = req.body;
+
+  if (!title?.trim() || !message?.trim()) {
+    return res.status(400).json({ success: false, message: 'Notification title and message are required.' });
+  }
+
+  try {
+    const result = await fcmService.dispatchNotification({
+      title: title.trim(),
+      message: message.trim(),
+      actionUrl: actionUrl?.trim() || '/teacher-dashboard',
+      priority,
+      filters,
+      sentBy: req.user?.fullName || req.user?.email || 'Super Admin',
+      targetAudience,
+    });
+
+    logAuditEvent(req, 'SMART_PUSH_DISPATCHED', 'PlatformNotification', result.notification.id, {
+      title,
+      targetAudience,
+      audienceCount: result.audienceCount,
+      tokensCount: result.tokensCount,
+      successDeliveries: result.successDeliveries,
+      failedDeliveries: result.failedDeliveries,
+      filters,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Notification successfully dispatched to ${result.audienceCount} matched educators (${result.successDeliveries} delivered).`,
+      notification: result.notification,
+      delivery: {
+        audienceCount: result.audienceCount,
+        tokensCount: result.tokensCount,
+        successDeliveries: result.successDeliveries,
+        failedDeliveries: result.failedDeliveries,
+        fcmSent: result.fcmSent,
+      },
+    });
+  } catch (err: any) {
+    console.error('Smart push dispatch error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to dispatch smart push notification.' });
+  }
+});
+
+// POST /api/v1/admin/notifications - Legacy broadcast alias routed to Smart Push
+router.post('/notifications', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { title, message, targetAudience = 'ALL', actionUrl, filters } = req.body;
+
+  if (!title?.trim() || !message?.trim()) {
     return res.status(400).json({ success: false, message: 'Title and message are required.' });
   }
 
   try {
-    const newNotif = {
-      id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      title,
-      message,
+    const result = await fcmService.dispatchNotification({
+      title: title.trim(),
+      message: message.trim(),
+      actionUrl: actionUrl || (targetAudience === 'EMPLOYERS' ? '/employer-dashboard' : '/teacher-dashboard'),
       targetAudience,
-      type,
-      priority,
-      sentBy: req.user?.fullName || req.user?.email || 'Super Admin',
-      status: 'SENT',
-    };
-
-    await PlatformNotificationModel.create(newNotif);
-    logAuditEvent(req, 'BROADCAST_NOTIFICATION_SENT', 'PlatformNotification', newNotif.id, { title, targetAudience });
+      filters: filters || {},
+      sentBy: req.user?.fullName || 'Super Admin',
+    });
 
     return res.status(201).json({
       success: true,
-      message: `Platform announcement broadcast to ${targetAudience}.`,
-      notification: newNotif,
+      message: `Announcement broadcast to ${result.audienceCount} users.`,
+      notification: result.notification,
     });
   } catch (err: any) {
-    return res.status(500).json({ success: false, message: 'Failed to broadcast notification' });
+    return res.status(500).json({ success: false, message: 'Failed to broadcast notification.' });
+  }
+});
+
+// DELETE /api/v1/admin/notifications/:id - Remove notification from history
+router.delete('/notifications/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const deleted = await PlatformNotificationModel.findOneAndDelete({ id: req.params.id });
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Notification record not found.' });
+    }
+
+    logAuditEvent(req, 'NOTIFICATION_DELETED', 'PlatformNotification', req.params.id);
+    return res.json({ success: true, message: 'Notification record removed from history.' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to delete notification record.' });
   }
 });
 
@@ -1368,6 +1507,602 @@ router.get('/export/:type', authenticateJWT, requireRole(['ADMIN']), async (req:
     return res.status(400).json({ success: false, message: 'Invalid export type requested' });
   } catch (err: any) {
     return res.status(500).json({ success: false, message: 'Export generation failed' });
+  }
+});
+
+// =========================================================================
+// 14. HR RECRUITMENT & CANDIDATE SHORTLISTING MODULE
+// =========================================================================
+
+// POST /api/v1/admin/cv-screening - Advanced multi-filter candidate & CV screening for HR/Admin
+router.post('/cv-screening', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
+  try {
+    const {
+      q,
+      state,
+      city,
+      minSalaryLPA,
+      maxSalaryLPA,
+      teachingLevels,
+      subjects,
+      qualification,
+      minExperience,
+      maxExperience,
+      boardExperience,
+      certifications,
+      languages,
+      joiningAvailability
+    } = req.body;
+
+    // Fetch teachers with profiles
+    const teachers = await UserModel.find({ role: 'TEACHER', status: { $ne: 'DEACTIVATED' } }).lean();
+    const profiles = await TeacherProfileModel.find().lean();
+    const profileMap = new Map<string, any>();
+    profiles.forEach((p: any) => profileMap.set(p.userId, p));
+
+    // Also get candidate groups to know which groups each candidate belongs to
+    const groups = await CandidateGroupModel.find({ status: 'ACTIVE' }).lean();
+
+    const results = teachers.map((teacher: any) => {
+      const prof = profileMap.get(teacher.id) || {};
+      const candidateGroups = groups.filter((g: any) => g.candidateIds?.includes(teacher.id)).map((g: any) => ({
+        id: g.id,
+        name: g.name,
+      }));
+
+      return {
+        id: teacher.id,
+        fullName: teacher.fullName,
+        email: teacher.email,
+        phone: teacher.phone || prof.phone || '',
+        avatarUrl: teacher.avatarUrl,
+        headline: prof.headline || 'Teaching Professional',
+        currentCity: prof.currentCity || teacher.city || '',
+        state: teacher.state || prof.preferredStates?.[0] || '',
+        preferredCities: prof.preferredCities || [],
+        experienceYears: prof.experienceYears ?? 0,
+        expectedSalaryLPA: prof.expectedSalaryLPA ?? 0,
+        highestQualification: prof.highestQualification || 'Graduate',
+        teachingLevels: prof.teachingLevels || [],
+        subjects: prof.subjects || [],
+        boardExperience: prof.boardExperience || [],
+        certifications: prof.certifications || [],
+        languages: prof.languages || [],
+        joiningAvailability: prof.joiningAvailability || 'Immediate',
+        previousSchool: prof.previousSchool || '',
+        skills: prof.skills || [],
+        resumeUrl: prof.resumeUrl || '',
+        resumeFileName: prof.resumeFileName || '',
+        profileCompletionScore: prof.profileCompletionScore || 75,
+        registeredAt: teacher.createdAt,
+        groups: candidateGroups,
+      };
+    }).filter((cand: any) => {
+      // 1. Text Search query
+      if (q && typeof q === 'string' && q.trim()) {
+        const query = q.trim().toLowerCase();
+        const matchesQ = 
+          cand.fullName.toLowerCase().includes(query) ||
+          cand.email.toLowerCase().includes(query) ||
+          cand.phone.toLowerCase().includes(query) ||
+          cand.headline.toLowerCase().includes(query) ||
+          cand.subjects.some((s: string) => s.toLowerCase().includes(query));
+        if (!matchesQ) return false;
+      }
+
+      // 2. Location: State
+      if (state && state !== 'ALL') {
+        const stateLower = state.toLowerCase();
+        const matchState = (cand.state && cand.state.toLowerCase().includes(stateLower)) ||
+          cand.preferredCities.some((c: string) => c.toLowerCase().includes(stateLower));
+        if (!matchState) return false;
+      }
+
+      // 3. Location: City
+      if (city && typeof city === 'string' && city.trim()) {
+        const cityLower = city.trim().toLowerCase();
+        const matchCity = (cand.currentCity && cand.currentCity.toLowerCase().includes(cityLower)) ||
+          cand.preferredCities.some((c: string) => c.toLowerCase().includes(cityLower));
+        if (!matchCity) return false;
+      }
+
+      // 4. Expected Salary
+      if (minSalaryLPA !== undefined && minSalaryLPA !== null && minSalaryLPA !== '') {
+        const minLpa = Number(minSalaryLPA);
+        if (!isNaN(minLpa) && minLpa > 0 && cand.expectedSalaryLPA < minLpa) return false;
+      }
+      if (maxSalaryLPA !== undefined && maxSalaryLPA !== null && maxSalaryLPA !== '') {
+        const maxLpa = Number(maxSalaryLPA);
+        if (!isNaN(maxLpa) && maxLpa > 0 && cand.expectedSalaryLPA > maxLpa) return false;
+      }
+
+      // 5. Teaching Level
+      if (Array.isArray(teachingLevels) && teachingLevels.length > 0) {
+        const hasLevel = teachingLevels.some(lvl => 
+          cand.teachingLevels.some((cl: string) => cl.toUpperCase() === lvl.toUpperCase())
+        );
+        if (!hasLevel) return false;
+      }
+
+      // 6. Subject
+      if (Array.isArray(subjects) && subjects.length > 0) {
+        const hasSub = subjects.some(sub => 
+          cand.subjects.some((cs: string) => cs.toLowerCase().includes(sub.toLowerCase()))
+        );
+        if (!hasSub) return false;
+      }
+
+      // 7. Qualification
+      if (qualification && typeof qualification === 'string' && qualification.trim()) {
+        const qLower = qualification.trim().toLowerCase();
+        if (!cand.highestQualification.toLowerCase().includes(qLower)) return false;
+      }
+
+      // 8. Experience
+      if (minExperience !== undefined && minExperience !== null && minExperience !== '') {
+        const minExp = Number(minExperience);
+        if (!isNaN(minExp) && cand.experienceYears < minExp) return false;
+      }
+      if (maxExperience !== undefined && maxExperience !== null && maxExperience !== '') {
+        const maxExp = Number(maxExperience);
+        if (!isNaN(maxExp) && cand.experienceYears > maxExp) return false;
+      }
+
+      // 9. Board Experience
+      if (Array.isArray(boardExperience) && boardExperience.length > 0) {
+        const hasBoard = boardExperience.some(b => 
+          cand.boardExperience.some((cb: string) => cb.toLowerCase().includes(b.toLowerCase()))
+        );
+        if (!hasBoard) return false;
+      }
+
+      // 10. Certifications
+      if (Array.isArray(certifications) && certifications.length > 0) {
+        const hasCert = certifications.some(cert => 
+          cand.certifications.some((cc: string) => cc.toLowerCase().includes(cert.toLowerCase()))
+        );
+        if (!hasCert) return false;
+      }
+
+      // 11. Languages
+      if (Array.isArray(languages) && languages.length > 0) {
+        const hasLang = languages.some(l => 
+          cand.languages.some((cl: string) => cl.toLowerCase().includes(l.toLowerCase()))
+        );
+        if (!hasLang) return false;
+      }
+
+      // 12. Availability
+      if (joiningAvailability && joiningAvailability !== 'ALL') {
+        if (!cand.joiningAvailability.toLowerCase().includes(joiningAvailability.toLowerCase())) return false;
+      }
+
+      return true;
+    });
+
+    logAuditEvent(req, 'HR_CV_SCREENING', 'TeacherProfile', 'SEARCH', { 
+      matchesFound: results.length,
+      filters: req.body 
+    });
+
+    return res.json({
+      success: true,
+      totalMatches: results.length,
+      candidates: results,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'CV Screening search failed' });
+  }
+});
+
+// GET /api/v1/admin/candidate-groups - List all shortlisted candidate groups
+router.get('/candidate-groups', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
+  try {
+    const groups = await CandidateGroupModel.find().sort({ createdAt: -1 }).lean();
+
+    // Enrich groups with candidate details
+    const allCandidateIds = Array.from(new Set(groups.flatMap((g: any) => g.candidateIds || [])));
+    const teachers = await UserModel.find({ id: { $in: allCandidateIds } }).lean();
+    const profiles = await TeacherProfileModel.find({ userId: { $in: allCandidateIds } }).lean();
+    const teacherMap = new Map<string, any>();
+    teachers.forEach((t: any) => teacherMap.set(t.id, t));
+    profiles.forEach((p: any) => {
+      const existing = teacherMap.get(p.userId) || {};
+      teacherMap.set(p.userId, { ...existing, profile: p });
+    });
+
+    const enrichedGroups = groups.map((g: any) => {
+      const groupCandidates = (g.candidateIds || []).map((cid: string) => {
+        const cand = teacherMap.get(cid);
+        return {
+          id: cid,
+          fullName: cand?.fullName || 'Educator',
+          email: cand?.email || '',
+          phone: cand?.phone || '',
+          currentCity: cand?.profile?.currentCity || cand?.city || '',
+          highestQualification: cand?.profile?.highestQualification || '',
+          experienceYears: cand?.profile?.experienceYears ?? 0,
+          expectedSalaryLPA: cand?.profile?.expectedSalaryLPA ?? 0,
+          subjects: cand?.profile?.subjects || [],
+          teachingLevels: cand?.profile?.teachingLevels || [],
+          resumeUrl: cand?.profile?.resumeUrl || '',
+          resumeFileName: cand?.profile?.resumeFileName || '',
+        };
+      });
+
+      return {
+        ...g,
+        candidatesCount: (g.candidateIds || []).length,
+        candidates: groupCandidates,
+      };
+    });
+
+    return res.json({
+      success: true,
+      total: enrichedGroups.length,
+      groups: enrichedGroups,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to retrieve candidate groups' });
+  }
+});
+
+// POST /api/v1/admin/candidate-groups - Create named candidate group
+router.post('/candidate-groups', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
+  const { 
+    name, 
+    description, 
+    targetVacancyId, 
+    targetVacancyTitle, 
+    targetSubject, 
+    targetLevel, 
+    targetLocation, 
+    candidateIds = [], 
+    notes,
+    tags = []
+  } = req.body;
+
+  if (!name || !name.trim()) {
+    return res.status(400).json({ success: false, message: 'Group name is required (e.g., "PGT Physics – Delhi Vacancy").' });
+  }
+
+  try {
+    const groupId = `group-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    const newGroup = {
+      id: groupId,
+      name: name.trim(),
+      description: description?.trim() || '',
+      targetVacancyId: targetVacancyId || '',
+      targetVacancyTitle: targetVacancyTitle?.trim() || '',
+      targetSubject: targetSubject?.trim() || '',
+      targetLevel: targetLevel?.trim() || '',
+      targetLocation: targetLocation?.trim() || '',
+      candidateIds: Array.isArray(candidateIds) ? candidateIds : [],
+      notes: notes?.trim() || '',
+      status: 'ACTIVE',
+      createdBy: req.user!.id,
+      createdByName: req.user!.fullName || 'HR Recruiter',
+      createdByRole: req.user!.role,
+      tags: Array.isArray(tags) ? tags : [],
+    };
+
+    await CandidateGroupModel.create(newGroup);
+
+    logAuditEvent(req, 'HR_GROUP_CREATED', 'CandidateGroup', groupId, {
+      name: newGroup.name,
+      candidatesCount: newGroup.candidateIds.length,
+      createdByName: newGroup.createdByName,
+      createdByRole: newGroup.createdByRole,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Candidate group "${name}" created successfully with ${newGroup.candidateIds.length} candidate(s).`,
+      group: newGroup,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to create candidate group' });
+  }
+});
+
+// GET /api/v1/admin/candidate-groups/:id - View full group dossier
+router.get('/candidate-groups/:id', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
+  try {
+    const group: any = await CandidateGroupModel.findOne({ id: req.params.id }).lean();
+    if (!group) {
+      return res.status(404).json({ success: false, message: 'Candidate group not found' });
+    }
+
+    const teachers = await UserModel.find({ id: { $in: group.candidateIds || [] } }).lean();
+    const profiles = await TeacherProfileModel.find({ userId: { $in: group.candidateIds || [] } }).lean();
+    const profileMap = new Map<string, any>();
+    profiles.forEach((p: any) => profileMap.set(p.userId, p));
+
+    const enrichedCandidates = teachers.map((t: any) => {
+      const p = profileMap.get(t.id) || {};
+      return {
+        id: t.id,
+        fullName: t.fullName,
+        email: t.email,
+        phone: t.phone || '',
+        currentCity: p.currentCity || t.city || '',
+        highestQualification: p.highestQualification || '',
+        experienceYears: p.experienceYears ?? 0,
+        expectedSalaryLPA: p.expectedSalaryLPA ?? 0,
+        teachingLevels: p.teachingLevels || [],
+        subjects: p.subjects || [],
+        boardExperience: p.boardExperience || [],
+        certifications: p.certifications || [],
+        languages: p.languages || [],
+        joiningAvailability: p.joiningAvailability || 'Immediate',
+        previousSchool: p.previousSchool || '',
+        resumeUrl: p.resumeUrl || '',
+        resumeFileName: p.resumeFileName || '',
+        profileCompletionScore: p.profileCompletionScore || 80,
+      };
+    });
+
+    return res.json({
+      success: true,
+      group: {
+        ...group,
+        candidates: enrichedCandidates,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to load group details' });
+  }
+});
+
+// PATCH /api/v1/admin/candidate-groups/:id - Modify group & add/remove candidates
+router.patch('/candidate-groups/:id', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
+  const { name, notes, status, targetVacancyTitle, targetLocation, addCandidateIds, removeCandidateId } = req.body;
+
+  try {
+    const group: any = await CandidateGroupModel.findOne({ id: req.params.id });
+    if (!group) {
+      return res.status(404).json({ success: false, message: 'Candidate group not found' });
+    }
+
+    if (name) group.name = name.trim();
+    if (notes !== undefined) group.notes = notes.trim();
+    if (status) group.status = status;
+    if (targetVacancyTitle !== undefined) group.targetVacancyTitle = targetVacancyTitle.trim();
+    if (targetLocation !== undefined) group.targetLocation = targetLocation.trim();
+
+    if (Array.isArray(addCandidateIds) && addCandidateIds.length > 0) {
+      const currentSet = new Set(group.candidateIds || []);
+      addCandidateIds.forEach((id: string) => currentSet.add(id));
+      group.candidateIds = Array.from(currentSet);
+      logAuditEvent(req, 'HR_GROUP_CANDIDATE_ADDED', 'CandidateGroup', group.id, { addedIds: addCandidateIds });
+    }
+
+    if (removeCandidateId) {
+      group.candidateIds = (group.candidateIds || []).filter((id: string) => id !== removeCandidateId);
+      logAuditEvent(req, 'HR_GROUP_CANDIDATE_REMOVED', 'CandidateGroup', group.id, { removedId: removeCandidateId });
+    }
+
+    group.updatedAt = new Date();
+    await group.save();
+
+    return res.json({
+      success: true,
+      message: 'Candidate group updated successfully.',
+      group,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to update candidate group' });
+  }
+});
+
+// DELETE /api/v1/admin/candidate-groups/:id - Remove candidate group
+router.delete('/candidate-groups/:id', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
+  try {
+    const deleted = await CandidateGroupModel.findOneAndDelete({ id: req.params.id });
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Candidate group not found' });
+    }
+
+    logAuditEvent(req, 'HR_GROUP_DELETED', 'CandidateGroup', req.params.id, { name: deleted.name });
+
+    return res.json({
+      success: true,
+      message: `Candidate group "${deleted.name}" removed successfully.`,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to delete candidate group' });
+  }
+});
+
+// GET /api/v1/admin/candidate-groups/:id/export - Export shortlisted candidates to CSV
+router.get('/candidate-groups/:id/export', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
+  try {
+    const group: any = await CandidateGroupModel.findOne({ id: req.params.id }).lean();
+    if (!group) {
+      return res.status(404).json({ success: false, message: 'Candidate group not found' });
+    }
+
+    const teachers = await UserModel.find({ id: { $in: group.candidateIds || [] } }).lean();
+    const profiles = await TeacherProfileModel.find({ userId: { $in: group.candidateIds || [] } }).lean();
+    const profileMap = new Map<string, any>();
+    profiles.forEach((p: any) => profileMap.set(p.userId, p));
+
+    const csvRows = [
+      'Candidate Name,Email,Phone,Current City,Highest Qualification,Experience (Years),Expected Salary (LPA),Teaching Subjects,Teaching Levels,Board Experience,Certifications,Availability,CV File URL'
+    ];
+
+    teachers.forEach((t: any) => {
+      const p = profileMap.get(t.id) || {};
+      const subjectsStr = (p.subjects || []).join('; ');
+      const levelsStr = (p.teachingLevels || []).join('; ');
+      const boardsStr = (p.boardExperience || []).join('; ');
+      const certsStr = (p.certifications || []).join('; ');
+      const resumeUrl = p.resumeUrl ? `https://sikchakhub.ai${p.resumeUrl}` : 'No CV uploaded';
+
+      csvRows.push(
+        `"${t.fullName}","${t.email}","${t.phone || ''}","${p.currentCity || t.city || ''}","${p.highestQualification || ''}","${p.experienceYears || 0}","${p.expectedSalaryLPA || 0}","${subjectsStr}","${levelsStr}","${boardsStr}","${certsStr}","${p.joiningAvailability || 'Immediate'}","${resumeUrl}"`
+      );
+    });
+
+    logAuditEvent(req, 'HR_GROUP_EXPORTED', 'CandidateGroup', group.id, {
+      groupName: group.name,
+      candidatesCount: teachers.length,
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="Shortlist_${group.name.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.csv"`);
+    return res.send(csvRows.join('\n'));
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Export failed' });
+  }
+});
+
+// POST /api/v1/admin/log-cv-view - Log authorized CV review for compliance
+router.post('/log-cv-view', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
+  const { candidateId, candidateName, fileName } = req.body;
+  try {
+    logAuditEvent(req, 'HR_CV_VIEWED', 'TeacherProfile', candidateId || 'UNKNOWN', {
+      candidateName,
+      fileName,
+      viewedByRole: req.user!.role,
+      viewedByName: req.user!.fullName,
+    });
+    return res.json({ success: true });
+  } catch (err) {
+    return res.json({ success: true });
+  }
+});
+
+// =========================================================================
+// 15. HR ACCOUNTS MANAGEMENT (SUPER ADMIN GOVERNANCE)
+// =========================================================================
+
+// GET /api/v1/admin/hr-accounts - List all HR recruiter accounts
+router.get('/hr-accounts', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const hrUsers = await UserModel.find({ 
+      $or: [{ role: 'HR' }, { adminRole: 'HR' }] 
+    }).select('-passwordHash').sort({ createdAt: -1 }).lean();
+
+    const groups = await CandidateGroupModel.find().lean();
+    const enriched = hrUsers.map((hr: any) => {
+      const hrGroups = groups.filter((g: any) => g.createdBy === hr.id);
+      return {
+        ...hr,
+        createdGroupsCount: hrGroups.length,
+      };
+    });
+
+    return res.json({
+      success: true,
+      total: enriched.length,
+      hrAccounts: enriched,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to retrieve HR accounts' });
+  }
+});
+
+// POST /api/v1/admin/hr-accounts - Super Admin provisions new HR Recruiter
+router.post('/hr-accounts', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { fullName, email, password, phone } = req.body;
+
+  if (!fullName || !email || !password) {
+    return res.status(400).json({ success: false, message: 'Full name, email, and password are required.' });
+  }
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await UserModel.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'An account with this email address already exists.' });
+    }
+
+    const passwordHash = bcryptjs.hashSync(password, 10);
+    const newHr = {
+      id: `hr-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      email: normalizedEmail,
+      passwordHash,
+      fullName: fullName.trim(),
+      role: 'HR',
+      adminRole: 'HR',
+      adminPermissions: ['CANDIDATE_SCREENING', 'SHORTLISTING', 'VIEW_RECORDS'],
+      phone: phone?.trim() || '',
+      status: 'ACTIVE',
+      isVerified: true,
+    };
+
+    await UserModel.create(newHr);
+    logAuditEvent(req, 'HR_ACCOUNT_CREATED', 'User', newHr.id, { email: normalizedEmail, fullName });
+
+    return res.status(201).json({
+      success: true,
+      message: `HR recruiter account for "${fullName}" registered successfully.`,
+      hrAccount: {
+        id: newHr.id,
+        email: newHr.email,
+        fullName: newHr.fullName,
+        role: newHr.role,
+        adminRole: newHr.adminRole,
+        phone: newHr.phone,
+        status: newHr.status,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to create HR account' });
+  }
+});
+
+// PATCH /api/v1/admin/hr-accounts/:id/status - Activate/Deactivate/Suspend HR account
+router.patch('/hr-accounts/:id/status', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { status } = req.body;
+  if (!['ACTIVE', 'DEACTIVATED', 'SUSPENDED'].includes(status)) {
+    return res.status(400).json({ success: false, message: 'Invalid status value.' });
+  }
+
+  try {
+    const updated = await UserModel.findOneAndUpdate(
+      { id: req.params.id, $or: [{ role: 'HR' }, { adminRole: 'HR' }] },
+      { $set: { status, updatedAt: new Date() } },
+      { new: true }
+    ).select('-passwordHash').lean();
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'HR account not found.' });
+    }
+
+    logAuditEvent(req, 'HR_ACCOUNT_STATUS_CHANGED', 'User', req.params.id, { status });
+
+    return res.json({
+      success: true,
+      message: `HR account marked as ${status}.`,
+      hrAccount: updated,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to update HR status' });
+  }
+});
+
+// DELETE /api/v1/admin/hr-accounts/:id - Remove HR account
+router.delete('/hr-accounts/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const deleted = await UserModel.findOneAndDelete({
+      id: req.params.id,
+      $or: [{ role: 'HR' }, { adminRole: 'HR' }]
+    });
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'HR account not found' });
+    }
+
+    logAuditEvent(req, 'HR_ACCOUNT_DELETED', 'User', req.params.id, { email: deleted.email });
+
+    return res.json({
+      success: true,
+      message: `HR account "${deleted.fullName}" removed.`,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to delete HR account' });
   }
 });
 

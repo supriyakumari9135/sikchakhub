@@ -74,9 +74,11 @@ router.get('/', authMiddleware_1.optionalJWT, async (req, res) => {
         }));
         // Moderation & Approval Filter:
         // Only approved vacancies ('ACTIVE') from verified institutions ('VERIFIED') show on the public portal.
-        // Super Admin can view all jobs.
+        // Super Admin and HR can view all jobs.
         // An employer can view all jobs for their own institution.
         const isSuperAdmin = req.user && req.user.role === 'ADMIN';
+        const isHr = req.user && (req.user.role === 'HR' || req.user.adminRole === 'HR');
+        const isPrivileged = isSuperAdmin || isHr;
         let isInstitutionOwner = false;
         if (req.user && institutionId) {
             try {
@@ -86,7 +88,7 @@ router.get('/', authMiddleware_1.optionalJWT, async (req, res) => {
             }
             catch (e) { }
         }
-        if (!isSuperAdmin && !isInstitutionOwner) {
+        if (!isPrivileged && !isInstitutionOwner) {
             results = results.filter(j => j.status === 'ACTIVE' && j.institution?.verificationStatus === 'VERIFIED');
         }
         else {
@@ -100,20 +102,45 @@ router.get('/', authMiddleware_1.optionalJWT, async (req, res) => {
             results = results.filter(j => j.title.toLowerCase().includes(query) ||
                 j.subject.toLowerCase().includes(query) ||
                 (j.description && j.description.toLowerCase().includes(query)) ||
-                (j.institution?.name && j.institution.name.toLowerCase().includes(query)) ||
+                'sikshahub'.includes(query) ||
+                (isPrivileged && j.institution?.name && j.institution.name.toLowerCase().includes(query)) ||
                 j.city.toLowerCase().includes(query));
         }
         const pageNum = parseInt(page, 10) || 1;
         const pageSize = parseInt(limit, 10) || 50;
         const total = results.length;
         const paginated = results.slice((pageNum - 1) * pageSize, pageNum * pageSize);
+        // Public Display Masking:
+        // Every job vacancy displayed publicly shows "SikshaHub" as the company/employer name.
+        // Real institution names are preserved in database and shown only to Super Admin, HR, and the posting institution owner.
+        const sanitizedJobs = paginated.map(j => {
+            const isOwnerOfThisJob = req.user && j.institution && j.institution.ownerId === req.user.id;
+            if (isPrivileged || isOwnerOfThisJob) {
+                return j;
+            }
+            return {
+                ...j,
+                institution: j.institution ? {
+                    ...j.institution,
+                    name: 'SikshaHub',
+                    logoUrl: '/logo.jpeg',
+                    description: 'Verified educational opening coordinated via SikshaHub teacher recruitment network.',
+                } : {
+                    name: 'SikshaHub',
+                    logoUrl: '/logo.jpeg',
+                    verificationStatus: 'VERIFIED',
+                    description: 'Verified educational opening coordinated via SikshaHub teacher recruitment network.',
+                },
+                institutionName: 'SikshaHub',
+            };
+        });
         return res.json({
             success: true,
             total,
             page: pageNum,
             pageSize,
             totalPages: Math.ceil(total / pageSize),
-            jobs: paginated,
+            jobs: sanitizedJobs,
         });
     }
     catch (error) {
@@ -151,8 +178,10 @@ router.get('/:id', authMiddleware_1.optionalJWT, async (req, res) => {
             applicationsCount = store_1.dbStore.applications.filter(a => a.jobId === job.id).length;
         }
         const isSuperAdmin = req.user && req.user.role === 'ADMIN';
+        const isHr = req.user && (req.user.role === 'HR' || req.user.adminRole === 'HR');
+        const isPrivileged = isSuperAdmin || isHr;
         const isInstitutionOwner = req.user && institution && institution.ownerId === req.user.id;
-        if (!isSuperAdmin && !isInstitutionOwner) {
+        if (!isPrivileged && !isInstitutionOwner) {
             if (job.status !== 'ACTIVE') {
                 return res.status(403).json({
                     success: false,
@@ -166,11 +195,27 @@ router.get('/:id', authMiddleware_1.optionalJWT, async (req, res) => {
                 });
             }
         }
+        // Public Display Masking for Single Job Details:
+        // If not viewed by Super Admin, HR, or the institution owner, employer name is displayed as "SikshaHub".
+        const displayedInstitution = (isPrivileged || isInstitutionOwner)
+            ? institution
+            : (institution ? {
+                ...institution,
+                name: 'SikshaHub',
+                logoUrl: '/logo.jpeg',
+                description: 'Verified educational opportunity coordinated through SikshaHub recruitment network.',
+            } : {
+                name: 'SikshaHub',
+                logoUrl: '/logo.jpeg',
+                verificationStatus: 'VERIFIED',
+                description: 'Verified educational opportunity coordinated through SikshaHub recruitment network.',
+            });
         return res.json({
             success: true,
             job: {
                 ...job,
-                institution,
+                institution: displayedInstitution,
+                institutionName: (isPrivileged || isInstitutionOwner) ? (institution?.name || 'SikshaHub') : 'SikshaHub',
                 totalApplicants: applicationsCount,
             },
         });
@@ -218,7 +263,32 @@ router.post('/', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireR
             store_1.dbStore.institutions.push(institution);
         }
         const isSuperAdmin = req.user.role === 'ADMIN';
-        const initialStatus = isSuperAdmin ? 'ACTIVE' : 'PENDING_APPROVAL';
+        let initialStatus = 'DRAFT';
+        let message = '';
+        if (isSuperAdmin) {
+            initialStatus = 'ACTIVE';
+            message = 'Job vacancy published successfully in database!';
+        }
+        else {
+            const hasVerificationDoc = Boolean(institution.certificateUrl);
+            const isVerified = institution.verificationStatus === 'VERIFIED';
+            if (req.body.status === 'DRAFT') {
+                initialStatus = 'DRAFT';
+                message = 'Job vacancy saved as draft in database.';
+            }
+            else if (!hasVerificationDoc) {
+                initialStatus = 'DRAFT';
+                message = 'Institutional registration/verification certificate is mandatory before vacancies can be published live. Saved as Draft until verified.';
+            }
+            else if (!isVerified) {
+                initialStatus = 'PENDING_APPROVAL';
+                message = 'Job vacancy submitted for review. It will appear on the public portal once approved by Super Admin.';
+            }
+            else {
+                initialStatus = 'PENDING_APPROVAL';
+                message = 'Job vacancy submitted for review. It will appear on the public portal once approved by Super Admin.';
+            }
+        }
         const newJob = {
             id: `job-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
             institutionId: institution.id,
@@ -248,10 +318,7 @@ router.post('/', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireR
             console.warn('MongoDB JobVacancyModel.create warning:', dbErr);
         }
         store_1.dbStore.jobs.unshift(newJob);
-        (0, auditLogger_1.logAuditEvent)(req, isSuperAdmin ? 'JOB_CREATED' : 'JOB_SUBMITTED_FOR_APPROVAL', 'JobVacancy', newJob.id, { title: newJob.title, status: initialStatus });
-        const message = isSuperAdmin
-            ? 'Job vacancy published successfully in database!'
-            : 'Job vacancy submitted for review. It will appear on the public portal once approved by Super Admin.';
+        (0, auditLogger_1.logAuditEvent)(req, isSuperAdmin ? 'JOB_CREATED' : (initialStatus === 'DRAFT' ? 'JOB_SAVED_DRAFT' : 'JOB_SUBMITTED_FOR_APPROVAL'), 'JobVacancy', newJob.id, { title: newJob.title, status: initialStatus });
         return res.status(201).json({
             success: true,
             message,
@@ -302,6 +369,27 @@ router.put('/:id', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requir
 router.patch('/:id/status', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
     const { status } = req.body;
     try {
+        if (status === 'ACTIVE' && req.user.role !== 'ADMIN') {
+            let inst = null;
+            try {
+                inst = await mongodb_1.InstitutionModel.findOne({ ownerId: req.user.id }).lean();
+            }
+            catch (e) { }
+            if (!inst)
+                inst = store_1.dbStore.institutions.find(i => i.ownerId === req.user.id);
+            if (inst && !inst.certificateUrl) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Registration/Affiliation verification document is mandatory before publishing live vacancies.',
+                });
+            }
+            if (inst && inst.verificationStatus !== 'VERIFIED') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Institution verification by Super Admin is required before publishing vacancies live.',
+                });
+            }
+        }
         let updatedJob = null;
         try {
             updatedJob = await mongodb_1.JobVacancyModel.findOneAndUpdate({ id: req.params.id }, { $set: { status, updatedAt: new Date().toISOString() } }, { new: true }).lean();

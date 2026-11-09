@@ -7,6 +7,7 @@ export interface AuthenticatedUser {
   email: string;
   role: UserRole;
   fullName: string;
+  adminRole?: string;
   institutionId?: string;
 }
 

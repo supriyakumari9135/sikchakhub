@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -38,7 +39,8 @@ import {
   Send,
   Sliders,
   Check,
-  Menu
+  Menu,
+  Layers
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -53,7 +55,6 @@ import {
   Area 
 } from 'recharts';
 import { apiUrl } from '../config/api';
-import { AdminAuthCard } from '../components/AdminAuthCard';
 
 // Modular Admin Modals
 import { AdminCvPreviewModal } from '../components/admin/AdminCvPreviewModal';
@@ -62,8 +63,11 @@ import { EmployerDossierModal, EmployerEditModal, VerificationActionModal } from
 import { JobDetailsModal, JobEditModal } from '../components/admin/AdminJobModals';
 import { ApplicationDossierModal, StageCorrectionModal } from '../components/admin/AdminAppModals';
 import { AddMasterDataModal, EditMasterDataModal } from '../components/admin/AdminMasterDataModals';
-import { AddStaffModal } from '../components/admin/AdminStaffModals';
+import { AddStaffModal, AddHrModal } from '../components/admin/AdminStaffModals';
+import { AdminNotificationsManager } from '../components/admin/AdminNotificationsManager';
 import { ReviewReportModal } from '../components/admin/AdminReportModals';
+import { AdminCvScreeningVault } from '../components/admin/AdminCvScreeningVault';
+import { AdminCandidateGroupsManager } from '../components/admin/AdminCandidateGroupsManager';
 
 type AdminTab = 
   | 'DASHBOARD'
@@ -73,6 +77,7 @@ type AdminTab =
   | 'JOBS'
   | 'APPLICATIONS'
   | 'DOCUMENTS'
+  | 'CANDIDATE_GROUPS'
   | 'ANALYTICS'
   | 'MASTER_DATA'
   | 'REPORTS'
@@ -84,7 +89,13 @@ type AdminTab =
 
 export const AdminDashboard: React.FC = () => {
   const { user, token, logout, isLoading } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   const [activeTab, setActiveTab] = useState<AdminTab>('DASHBOARD');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -143,7 +154,10 @@ export const AdminDashboard: React.FC = () => {
   const [selectedMasterDataForEdit, setSelectedMasterDataForEdit] = useState<any | null>(null);
 
   // Staff & Report Modals
+  const isHrMode = user?.role === 'HR' || user?.adminRole === 'HR';
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
+  const [isAddHrModalOpen, setIsAddHrModalOpen] = useState(false);
+  const [staffTab, setStaffTab] = useState<'ADMINS' | 'HR'>('ADMINS');
   const [selectedReportForReview, setSelectedReportForReview] = useState<any | null>(null);
 
   // Notification Composer
@@ -179,7 +193,7 @@ export const AdminDashboard: React.FC = () => {
       });
 
       if (res.status === 401) {
-        logout();
+        handleLogout();
         throw new Error('Admin session expired. Please sign in again.');
       }
       return res.json();
@@ -290,6 +304,80 @@ export const AdminDashboard: React.FC = () => {
     queryFn: () => authFetch(apiUrl('/api/v1/admin/staff')),
     enabled: !!token,
   });
+
+  const { data: hrData, refetch: refetchHr } = useQuery({
+    queryKey: ['admin-hr-accounts'],
+    queryFn: () => authFetch(apiUrl('/api/v1/admin/hr-accounts')),
+    enabled: !!token && !isHrMode,
+  });
+  const hrAccounts = hrData?.hrAccounts || [];
+
+  const { data: candidateGroupsData, refetch: refetchCandidateGroups } = useQuery({
+    queryKey: ['admin-candidate-groups'],
+    queryFn: () => authFetch(apiUrl('/api/v1/admin/candidate-groups')),
+    enabled: !!token,
+  });
+  const candidateGroups = candidateGroupsData?.groups || [];
+
+  const handleAddHr = async (data: any) => {
+    const res = await fetch(apiUrl('/api/v1/admin/hr-accounts'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast(result.message || 'HR Recruiter provisioned successfully!', 'success');
+      refetchHr();
+    } else {
+      throw new Error(result.message || 'Failed to create HR recruiter');
+    }
+  };
+
+  const handleToggleHrStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'ACTIVE' ? 'DEACTIVATED' : 'ACTIVE';
+    try {
+      const res = await fetch(apiUrl(`/api/v1/admin/hr-accounts/${id}/status`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        showToast(`HR account marked as ${newStatus}.`, 'success');
+        refetchHr();
+      } else {
+        showToast(result.message || 'Failed to update status', 'error');
+      }
+    } catch (e) {
+      showToast('Error updating status', 'error');
+    }
+  };
+
+  const handleDeleteHr = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to remove HR account for "${name}"?`)) return;
+    try {
+      const res = await fetch(apiUrl(`/api/v1/admin/hr-accounts/${id}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await res.json();
+      if (result.success) {
+        showToast(result.message || 'HR account deleted.', 'success');
+        refetchHr();
+      } else {
+        showToast(result.message || 'Failed to delete HR account', 'error');
+      }
+    } catch (e) {
+      showToast('Error deleting HR account', 'error');
+    }
+  };
 
   const { data: initialSettingsData } = useQuery({
     queryKey: ['admin-settings'],
@@ -621,8 +709,8 @@ export const AdminDashboard: React.FC = () => {
     );
   }
 
-  if (!user || user.role !== 'ADMIN') {
-    return <AdminAuthCard />;
+  if (!user || (user.role !== 'ADMIN' && user.role !== 'HR')) {
+    return <Navigate to="/" replace />;
   }
 
   // -------------------------------------------------------------
@@ -654,11 +742,12 @@ export const AdminDashboard: React.FC = () => {
       ],
     },
     {
-      group: 'RECRUITMENT & JOBS',
+      group: 'RECRUITMENT & SHORTLISTING',
       items: [
+        { id: 'DOCUMENTS' as AdminTab, label: 'CV Screening & Vault', icon: FileText, count: documents.length },
+        { id: 'CANDIDATE_GROUPS' as AdminTab, label: 'Candidate Shortlists / Groups', icon: Layers, count: candidateGroups.length },
         { id: 'JOBS' as AdminTab, label: 'Job Postings Moderation', icon: Briefcase, count: kpis.totalActiveVacancies },
         { id: 'APPLICATIONS' as AdminTab, label: 'Candidate Applications', icon: FileSpreadsheet, count: kpis.totalApplications },
-        { id: 'DOCUMENTS' as AdminTab, label: 'CV & Document Vault', icon: FileText, count: documents.length },
       ],
     },
     {
@@ -673,6 +762,35 @@ export const AdminDashboard: React.FC = () => {
       ],
     },
   ];
+
+  const visibleNavSections: { group: string; items: NavItem[] }[] = isHrMode
+    ? [
+        {
+          group: 'OVERVIEW',
+          items: [
+            { id: 'DASHBOARD' as AdminTab, label: 'Overview & KPIs', icon: LayoutDashboard },
+            { id: 'ANALYTICS' as AdminTab, label: 'Recruitment Analytics', icon: BarChart3 },
+            { id: 'AUDIT_LOGS' as AdminTab, label: 'Security & Activity Logs', icon: ShieldCheck },
+          ],
+        },
+        {
+          group: 'HR SCREENING & SHORTLISTS',
+          items: [
+            { id: 'DOCUMENTS' as AdminTab, label: 'CV Screening & Vault', icon: FileText, count: documents.length },
+            { id: 'CANDIDATE_GROUPS' as AdminTab, label: 'Candidate Shortlist Groups', icon: Layers, count: candidateGroups.length },
+          ],
+        },
+        {
+          group: 'DATA RECORDS (READ-ONLY)',
+          items: [
+            { id: 'TEACHERS' as AdminTab, label: 'Teachers / Candidates', icon: Users, count: kpis.totalTeachers },
+            { id: 'EMPLOYERS' as AdminTab, label: 'Institutions & Schools', icon: Building2, count: kpis.totalEmployers },
+            { id: 'JOBS' as AdminTab, label: 'Job Postings', icon: Briefcase, count: kpis.totalActiveVacancies },
+            { id: 'APPLICATIONS' as AdminTab, label: 'Candidate Applications', icon: FileSpreadsheet, count: kpis.totalApplications },
+          ],
+        },
+      ]
+    : navSections;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row antialiased">
@@ -714,11 +832,13 @@ export const AdminDashboard: React.FC = () => {
           <div>
             <div className="flex items-center gap-1.5">
               <h2 className="text-sm font-bold text-white font-serif tracking-tight">SikshaHub.AI</h2>
-              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30">
-                PRO
+              <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                isHrMode ? 'bg-amber-500/20 text-amber-300 border-amber-400/30' : 'bg-sky-500/20 text-sky-300 border-sky-400/30'
+              }`}>
+                {isHrMode ? 'HR' : 'PRO'}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">Super Admin Governance</p>
+            <p className="text-[11px] text-slate-400">{isHrMode ? 'HR Recruiter Clearance' : 'Super Admin Governance'}</p>
           </div>
         </div>
 
@@ -731,13 +851,13 @@ export const AdminDashboard: React.FC = () => {
               className="w-8 h-8 rounded-lg object-cover bg-slate-700 shrink-0"
             />
             <div className="truncate">
-              <p className="text-xs font-semibold text-white truncate">{user.fullName || 'Super Administrator'}</p>
+              <p className="text-xs font-semibold text-white truncate">{user.fullName || (isHrMode ? 'HR Recruiter' : 'Super Administrator')}</p>
               <p className="text-[10px] text-sky-400 font-mono truncate">{user.email}</p>
             </div>
           </div>
           <button
-            onClick={logout}
-            title="Sign out of Admin Session"
+            onClick={handleLogout}
+            title="Sign out of Admin Session and return to Home"
             className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-700/60 transition"
           >
             <LogOut className="w-4 h-4" />
@@ -746,7 +866,7 @@ export const AdminDashboard: React.FC = () => {
 
         {/* Navigation Items */}
         <div className="flex-1 overflow-y-auto px-3 py-2 space-y-5 text-xs">
-          {navSections.map((group, gIdx) => (
+          {visibleNavSections.map((group, gIdx) => (
             <div key={gIdx} className="space-y-1">
               <span className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                 {group.group}
@@ -806,11 +926,18 @@ export const AdminDashboard: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-bold text-slate-900 font-serif">
-                {navSections.flatMap(s => s.items).find(i => i.id === activeTab)?.label || 'Super Admin Dashboard'}
+                {visibleNavSections.flatMap(s => s.items).find(i => i.id === activeTab)?.label || 'Governance Dashboard'}
               </h1>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">
-                Centralized Governance
-              </span>
+              {isHrMode ? (
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                  <span>HR Candidate Screening • Read-Only Access</span>
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">
+                  Centralized Governance
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-500">
               Platform status monitoring, educator credentials auditing, and school hiring operations.
@@ -842,12 +969,23 @@ export const AdminDashboard: React.FC = () => {
               <span>Export Reports</span>
             </button>
 
+            {!isHrMode && (
+              <button
+                onClick={() => setActiveTab('NOTIFICATIONS')}
+                className="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition flex items-center gap-1.5 shadow-xs"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                <span>Broadcast Notice</span>
+              </button>
+            )}
+
             <button
-              onClick={() => setActiveTab('NOTIFICATIONS')}
-              className="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition flex items-center gap-1.5 shadow-xs"
+              onClick={handleLogout}
+              className="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition flex items-center gap-1.5 shadow-2xs"
+              title="Sign out of Admin Session and return to Home"
             >
-              <Bell className="w-3.5 h-3.5" />
-              <span>Broadcast Notice</span>
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </header>
@@ -1214,24 +1352,28 @@ export const AdminDashboard: React.FC = () => {
                                 >
                                   <Eye className="w-4 h-4" />
                                 </button>
-                                <button
-                                  onClick={() => setSelectedTeacherForEdit(t)}
-                                  className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition"
-                                  title="Edit Teacher Record"
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleToggleTeacherStatus(t.id, t.status)}
-                                  className={`p-1.5 rounded-lg transition ${
-                                    t.status === 'ACTIVE' 
-                                      ? 'text-amber-600 hover:bg-amber-50' 
-                                      : 'text-emerald-600 hover:bg-emerald-50'
-                                  }`}
-                                  title={t.status === 'ACTIVE' ? 'Suspend Account' : 'Reactivate Account'}
-                                >
-                                  <ShieldAlert className="w-4 h-4" />
-                                </button>
+                                {!isHrMode && (
+                                  <>
+                                    <button
+                                      onClick={() => setSelectedTeacherForEdit(t)}
+                                      className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition"
+                                      title="Edit Teacher Record"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleToggleTeacherStatus(t.id, t.status)}
+                                      className={`p-1.5 rounded-lg transition ${
+                                        t.status === 'ACTIVE' 
+                                          ? 'text-amber-600 hover:bg-amber-50' 
+                                          : 'text-emerald-600 hover:bg-emerald-50'
+                                      }`}
+                                      title={t.status === 'ACTIVE' ? 'Suspend Account' : 'Reactivate Account'}
+                                    >
+                                      <ShieldAlert className="w-4 h-4" />
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -1364,21 +1506,25 @@ export const AdminDashboard: React.FC = () => {
                                 >
                                   <Eye className="w-4 h-4" />
                                 </button>
-                                <button
-                                  onClick={() => setSelectedEmployerForEdit(emp)}
-                                  className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition"
-                                  title="Edit Institution Details"
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                                {emp.verificationStatus !== 'VERIFIED' && (
-                                  <button
-                                    onClick={() => setVerificationDecisionTarget({ institution: emp, decision: 'VERIFIED' })}
-                                    className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition"
-                                    title="Approve Institution"
-                                  >
-                                    <CheckCircle2 className="w-4 h-4" />
-                                  </button>
+                                {!isHrMode && (
+                                  <>
+                                    <button
+                                      onClick={() => setSelectedEmployerForEdit(emp)}
+                                      className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition"
+                                      title="Edit Institution Details"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    {emp.verificationStatus !== 'VERIFIED' && (
+                                      <button
+                                        onClick={() => setVerificationDecisionTarget({ institution: emp, decision: 'VERIFIED' })}
+                                        className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition"
+                                        title="Approve Institution"
+                                      >
+                                        <CheckCircle2 className="w-4 h-4" />
+                                      </button>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             </td>
@@ -1435,21 +1581,63 @@ export const AdminDashboard: React.FC = () => {
                           alt={inst.name}
                           className="w-12 h-12 rounded-xl object-cover border border-amber-300/40 bg-white shrink-0"
                         />
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                        <div className="space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
                             <h4 className="text-base font-bold text-slate-900 font-serif">{inst.name}</h4>
                             <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
                               Awaiting Review
                             </span>
+                            {inst.board && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                                {inst.board}
+                              </span>
+                            )}
+                            {inst.udiseCode && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                UDISE: {inst.udiseCode}
+                              </span>
+                            )}
                           </div>
+
                           <p className="text-xs text-slate-600">
                             {inst.type} • {inst.address}, {inst.city}, {inst.state} - {inst.pincode}
                           </p>
-                          <p className="text-[11px] text-slate-500">
-                            Affiliation: <strong>{inst.affiliationNumber || 'Pending'}</strong> • Recruiter: {inst.ownerName || inst.ownerEmail}
-                          </p>
+
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+                            <span>Reg / Affiliation: <strong className="text-slate-700">{inst.registrationNumber || inst.affiliationNumber || 'Pending'}</strong></span>
+                            <span>Contact: <strong className="text-slate-700">{inst.contactPerson || inst.ownerName}</strong> ({inst.phone || inst.ownerPhone || 'No phone'})</span>
+                            <span>Email: <strong className="text-slate-700">{inst.email || inst.ownerEmail}</strong></span>
+                          </div>
+
+                          {/* Certificate Document Badge */}
+                          <div className="pt-1 flex items-center gap-3">
+                            {inst.certificateUrl ? (
+                              <a
+                                href={inst.certificateUrl.startsWith('http') ? inst.certificateUrl : `${window.location.origin}${inst.certificateUrl}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 text-xs font-bold transition shadow-2xs"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>View Registration Certificate ({inst.certificateFileName || 'PDF'})</span>
+                              </a>
+                            ) : (
+                              <span className="text-[11px] font-semibold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                                No Verification Document Uploaded
+                              </span>
+                            )}
+
+                            <button
+                              onClick={() => setSelectedEmployerForDossier(inst)}
+                              className="text-xs text-sky-600 hover:text-sky-800 font-semibold underline underline-offset-2"
+                            >
+                              View Full Dossier
+                            </button>
+                          </div>
+
                           {inst.verificationNotes && (
-                            <p className="text-xs text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                            <p className="text-xs text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200 mt-1">
                               <strong>Note:</strong> {inst.verificationNotes}
                             </p>
                           )}
@@ -1586,27 +1774,6 @@ export const AdminDashboard: React.FC = () => {
                             </td>
                             <td className="py-3 px-4 text-right">
                               <div className="flex items-center justify-end gap-1.5">
-                                {job.status === 'PENDING_APPROVAL' && (
-                                  <>
-                                    <button
-                                      onClick={() => handleChangeJobStatus(job.id, 'ACTIVE', 'Approved and published by Super Admin')}
-                                      className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition"
-                                      title="Approve & Publish Vacancy to Public Portal"
-                                    >
-                                      <CheckCircle2 className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        const reason = window.prompt('Enter rejection reason for this job opening:', 'Does not meet institutional posting guidelines');
-                                        if (reason) handleChangeJobStatus(job.id, 'REJECTED', reason);
-                                      }}
-                                      className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition"
-                                      title="Reject Vacancy"
-                                    >
-                                      <XCircle className="w-4 h-4" />
-                                    </button>
-                                  </>
-                                )}
                                 <button
                                   onClick={() => setSelectedJobForDetails(job)}
                                   className="p-1.5 rounded-lg text-brand-600 hover:bg-brand-50 transition"
@@ -1614,20 +1781,45 @@ export const AdminDashboard: React.FC = () => {
                                 >
                                   <Eye className="w-4 h-4" />
                                 </button>
-                                <button
-                                  onClick={() => setSelectedJobForEdit(job)}
-                                  className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition"
-                                  title="Edit Job"
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteJob(job.id)}
-                                  className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition"
-                                  title="Remove Job"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                {!isHrMode && (
+                                  <>
+                                    {job.status === 'PENDING_APPROVAL' && (
+                                      <>
+                                        <button
+                                          onClick={() => handleChangeJobStatus(job.id, 'ACTIVE', 'Approved and published by Super Admin')}
+                                          className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition"
+                                          title="Approve & Publish Vacancy to Public Portal"
+                                        >
+                                          <CheckCircle2 className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            const reason = window.prompt('Enter rejection reason for this job opening:', 'Does not meet institutional posting guidelines');
+                                            if (reason) handleChangeJobStatus(job.id, 'REJECTED', reason);
+                                          }}
+                                          className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition"
+                                          title="Reject Vacancy"
+                                        >
+                                          <XCircle className="w-4 h-4" />
+                                        </button>
+                                      </>
+                                    )}
+                                    <button
+                                      onClick={() => setSelectedJobForEdit(job)}
+                                      className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition"
+                                      title="Edit Job"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteJob(job.id)}
+                                      className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition"
+                                      title="Remove Job"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -1761,13 +1953,15 @@ export const AdminDashboard: React.FC = () => {
                                   >
                                     <Eye className="w-4 h-4" />
                                   </button>
-                                  <button
-                                    onClick={() => setSelectedAppForStageCorrection(app)}
-                                    className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 transition"
-                                    title="Exceptional Stage Override"
-                                  >
-                                    <ShieldAlert className="w-4 h-4" />
-                                  </button>
+                                  {!isHrMode && (
+                                    <button
+                                      onClick={() => setSelectedAppForStageCorrection(app)}
+                                      className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 transition"
+                                      title="Exceptional Stage Override"
+                                    >
+                                      <ShieldAlert className="w-4 h-4" />
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -1784,79 +1978,33 @@ export const AdminDashboard: React.FC = () => {
           {/* ========================================================= */}
           {/* TAB 7: CV AND DOCUMENT MANAGEMENT */}
           {/* ========================================================= */}
+          {/* ========================================================= */}
+          {/* TAB 7: CV SCREENING & DOCUMENT VAULT */}
+          {/* ========================================================= */}
           {activeTab === 'DOCUMENTS' && (
-            <div className="space-y-4">
-              <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 font-serif">Candidate Resume Vault</h3>
-                  <p className="text-xs text-slate-500">
-                    Secure candidate PDF resumes uploaded for vacancies across educational institutions.
-                  </p>
-                </div>
-                <span className="text-xs font-mono font-bold text-brand-700 bg-brand-50 px-3 py-1 rounded-xl border border-brand-200">
-                  {documents.length} Verified Documents
-                </span>
-              </div>
+            <AdminCvScreeningVault
+              token={token}
+              userRole={user?.role}
+              onPreviewCv={(doc) => setPreviewCvDoc(doc)}
+              onShortlistCreated={() => {
+                refetchCandidateGroups();
+                setActiveTab('CANDIDATE_GROUPS');
+              }}
+              showToast={showToast}
+            />
+          )}
 
-              {documents.length === 0 ? (
-                <div className="bg-white rounded-2xl p-12 text-center text-slate-400 border border-slate-200/90">
-                  <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                  No applicant CVs registered in the document vault.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {documents.map((doc: any) => (
-                    <div
-                      key={doc.id}
-                      className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs transition space-y-3 flex flex-col justify-between"
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-red-50 text-red-600 border border-red-100 flex items-center justify-center shrink-0">
-                              <FileText className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <h4 className="text-xs font-bold text-slate-900 font-serif">{doc.candidateName}</h4>
-                              <p className="text-[10px] text-slate-500 truncate max-w-[180px]">{doc.candidateEmail}</p>
-                            </div>
-                          </div>
-
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            {doc.atsScore}% ATS
-                          </span>
-                        </div>
-
-                        <p className="text-xs text-slate-600">
-                          Applied for: <strong>{doc.jobTitle}</strong>
-                        </p>
-                        <p className="text-[11px] text-slate-400 font-mono">
-                          {doc.fileName}
-                        </p>
-                      </div>
-
-                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-                        <button
-                          onClick={() => setPreviewCvDoc(doc)}
-                          className="flex-1 py-1.5 text-xs font-bold rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition text-center"
-                        >
-                          Preview PDF
-                        </button>
-                        <a
-                          href={doc.fileUrl.startsWith('http') ? doc.fileUrl : apiUrl(doc.fileUrl)}
-                          download={doc.fileName}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                        </a>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+          {/* ========================================================= */}
+          {/* TAB 7.5: CANDIDATE SHORTLIST GROUPS */}
+          {/* ========================================================= */}
+          {activeTab === 'CANDIDATE_GROUPS' && (
+            <AdminCandidateGroupsManager
+              token={token}
+              userRole={user?.role}
+              onPreviewCv={(doc) => setPreviewCvDoc(doc)}
+              onNavigateToScreening={() => setActiveTab('DOCUMENTS')}
+              showToast={showToast}
+            />
           )}
 
           {/* ========================================================= */}
@@ -2087,166 +2235,219 @@ export const AdminDashboard: React.FC = () => {
           )}
 
           {/* ========================================================= */}
-          {/* TAB 11: NOTIFICATIONS & BROADCASTS */}
+          {/* TAB 11: LOCATION-BASED & SMART PUSH NOTIFICATIONS (FCM) */}
           {/* ========================================================= */}
           {activeTab === 'NOTIFICATIONS' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Composer */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 font-serif">Broadcast Announcement</h3>
-                  <p className="text-xs text-slate-500">
-                    Send platform-wide notifications to educators, institutions, or all users.
-                  </p>
-                </div>
-
-                <form onSubmit={handleSendBroadcast} className="space-y-3.5">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                      Target Audience
-                    </label>
-                    <select
-                      value={broadcastAudience}
-                      onChange={(e) => setBroadcastAudience(e.target.value as any)}
-                      className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-brand-500 outline-none"
-                    >
-                      <option value="ALL">ALL USERS (Teachers & Employers)</option>
-                      <option value="TEACHERS">Educators & Job Seekers Only</option>
-                      <option value="EMPLOYERS">Schools & Coaching Academies Only</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                      Announcement Title
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Platform Recruitment Fair Opening..."
-                      value={broadcastTitle}
-                      onChange={(e) => setBroadcastTitle(e.target.value)}
-                      className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                      Broadcast Message
-                    </label>
-                    <textarea
-                      rows={4}
-                      required
-                      placeholder="Type official notification message..."
-                      value={broadcastMessage}
-                      onChange={(e) => setBroadcastMessage(e.target.value)}
-                      className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSendingBroadcast}
-                    className="w-full py-2.5 text-xs font-bold rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition flex items-center justify-center gap-1.5 shadow-xs"
-                  >
-                    {isSendingBroadcast ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                    <span>Dispatch Broadcast Notice</span>
-                  </button>
-                </form>
-              </div>
-
-              {/* History Table */}
-              <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
-                <h3 className="text-sm font-bold text-slate-900 font-serif">Broadcast History</h3>
-                {notifications.length === 0 ? (
-                  <div className="py-12 text-center text-xs text-slate-400">
-                    No broadcasts sent yet.
-                  </div>
-                ) : (
-                  <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-                    {notifications.map((n: any) => (
-                      <div key={n.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-bold text-slate-900">{n.title}</h4>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-brand-100 text-brand-800">
-                            {n.targetAudience}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-600">{n.message}</p>
-                        <p className="text-[10px] text-slate-400">
-                          Dispatched by {n.sentBy} • {new Date(n.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            <AdminNotificationsManager
+              notifications={notifications}
+              refetchNotifications={refetchNotifications}
+              showToast={showToast}
+              token={token}
+              apiUrl={apiUrl}
+            />
           )}
 
           {/* ========================================================= */}
-          {/* TAB 12: ADMIN USERS & PERMISSIONS */}
+          {/* TAB 12: ADMIN USERS & HR ACCOUNTS */}
           {/* ========================================================= */}
           {activeTab === 'STAFF' && (
             <div className="space-y-4">
-              <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex items-center justify-between">
+              <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 font-serif">Administrator Accounts & Access Control</h3>
+                  <h3 className="text-sm font-bold text-slate-900 font-serif">Staff Roles & HR Access Control</h3>
                   <p className="text-xs text-slate-500">
-                    Manage administrative staff roles: Super Admin, Moderator, Support, and Analyst.
+                    Provision and govern Super Admin accounts, operational staff, and specialized HR recruiter screening accounts.
                   </p>
                 </div>
+
+                <div className="flex items-center gap-2">
+                  {staffTab === 'HR' ? (
+                    <button
+                      onClick={() => setIsAddHrModalOpen(true)}
+                      className="px-4 py-2 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Provision HR Recruiter</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setIsAddStaffOpen(true)}
+                      className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Add Administrator</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Segmented Tab Switch: Administrators vs HR Recruiters */}
+              <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
                 <button
-                  onClick={() => setIsAddStaffOpen(true)}
-                  className="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition flex items-center gap-1.5 shadow-xs"
+                  type="button"
+                  onClick={() => setStaffTab('ADMINS')}
+                  className={`text-xs px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 ${
+                    staffTab === 'ADMINS'
+                      ? 'bg-slate-900 text-white shadow-2xs'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
                 >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Add Administrator</span>
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Platform Administrators ({staff.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStaffTab('HR')}
+                  className={`text-xs px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 ${
+                    staffTab === 'HR'
+                      ? 'bg-sky-600 text-white shadow-2xs'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  <span>HR Recruiter Accounts ({hrAccounts.length})</span>
                 </button>
               </div>
 
-              <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
-                <table className="w-full text-left text-xs text-slate-600">
-                  <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
-                    <tr>
-                      <th className="py-3 px-4">Staff Member</th>
-                      <th className="py-3 px-4">Work Email</th>
-                      <th className="py-3 px-4">Administrative Role</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Created Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {staff.map((s: any) => (
-                      <tr key={s.id} className="hover:bg-slate-50/70 transition">
-                        <td className="py-3 px-4 font-bold text-slate-900 font-serif">
-                          {s.fullName}
-                        </td>
-                        <td className="py-3 px-4 font-mono text-slate-800">
-                          {s.email}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                            s.adminRole === 'SUPER_ADMIN' 
-                              ? 'bg-purple-50 text-purple-700 border-purple-200'
-                              : 'bg-sky-50 text-sky-700 border-sky-200'
-                          }`}>
-                            {s.adminRole || 'ADMIN'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            {s.status || 'ACTIVE'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-slate-500 text-[11px]">
-                          {new Date(s.createdAt).toLocaleDateString()}
-                        </td>
+              {staffTab === 'ADMINS' ? (
+                <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden">
+                  <table className="w-full text-left text-xs text-slate-600">
+                    <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                      <tr>
+                        <th className="py-3 px-4">Staff Member</th>
+                        <th className="py-3 px-4">Work Email</th>
+                        <th className="py-3 px-4">Administrative Role</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4">Created Date</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {staff.map((s: any) => (
+                        <tr key={s.id} className="hover:bg-slate-50/70 transition">
+                          <td className="py-3 px-4 font-bold text-slate-900 font-serif">
+                            {s.fullName}
+                          </td>
+                          <td className="py-3 px-4 font-mono text-slate-800">
+                            {s.email}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                              s.adminRole === 'SUPER_ADMIN' 
+                                ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                : 'bg-sky-50 text-sky-700 border-sky-200'
+                            }`}>
+                              {s.adminRole || 'ADMIN'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {s.status || 'ACTIVE'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-slate-500 text-[11px]">
+                            {new Date(s.createdAt).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden">
+                  {hrAccounts.length === 0 ? (
+                    <div className="p-12 text-center text-slate-400 space-y-3">
+                      <Users className="w-10 h-10 text-slate-300 mx-auto" />
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">No HR Recruiter Accounts Provisioned</p>
+                        <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                          Click "Provision HR Recruiter" to create an authorized HR account with read-only data access and candidate shortlisting capability.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setIsAddHrModalOpen(true)}
+                        className="px-4 py-2 text-xs font-bold rounded-xl bg-sky-600 text-white hover:bg-sky-700 inline-flex items-center gap-1.5"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Provision First HR Recruiter</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <table className="w-full text-left text-xs text-slate-600">
+                      <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                        <tr>
+                          <th className="py-3 px-4">HR Recruiter</th>
+                          <th className="py-3 px-4">Official Email</th>
+                          <th className="py-3 px-4">Mobile</th>
+                          <th className="py-3 px-4">Shortlist Groups</th>
+                          <th className="py-3 px-4">Operational Status</th>
+                          <th className="py-3 px-4 text-right">Super Admin Governance</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {hrAccounts.map((hr: any) => (
+                          <tr key={hr.id} className="hover:bg-slate-50/70 transition">
+                            <td className="py-3 px-4 font-bold text-slate-900 font-serif">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-xs">
+                                  {hr.fullName?.charAt(0) || 'H'}
+                                </div>
+                                <div>
+                                  <span>{hr.fullName}</span>
+                                  <span className="block text-[10px] text-slate-400 font-normal">Candidate Screening Specialist</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 font-mono text-slate-800">
+                              {hr.email}
+                            </td>
+                            <td className="py-3 px-4 text-slate-600">
+                              {hr.phone || '—'}
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 font-mono">
+                                {hr.createdGroupsCount ?? 0} Groups
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                hr.status === 'ACTIVE'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-red-50 text-red-700 border-red-200'
+                              }`}>
+                                {hr.status || 'ACTIVE'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleHrStatus(hr.id, hr.status || 'ACTIVE')}
+                                  className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
+                                    hr.status === 'ACTIVE'
+                                      ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                                  }`}
+                                >
+                                  {hr.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteHr(hr.id, hr.fullName)}
+                                  className="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
+                                  title="Delete HR account"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -2604,6 +2805,13 @@ export const AdminDashboard: React.FC = () => {
         isOpen={isAddStaffOpen}
         onClose={() => setIsAddStaffOpen(false)}
         onAddStaff={handleAddStaff}
+      />
+
+      {/* Add HR Recruiter Modal */}
+      <AddHrModal
+        isOpen={isAddHrModalOpen}
+        onClose={() => setIsAddHrModalOpen(false)}
+        onAddHr={handleAddHr}
       />
 
       {/* Review Report Modal */}

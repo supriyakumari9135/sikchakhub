@@ -211,7 +211,16 @@ export const EmployerDashboard: React.FC = () => {
       const matchSubject = c.teacher?.profile?.subjects?.some((s: string) => s.toLowerCase().includes(q));
       const matchCity = c.teacher?.profile?.currentCity?.toLowerCase().includes(q);
       const matchJob = (c as any).job?.title?.toLowerCase().includes(q);
-      if (!matchName && !matchEmail && !matchSubject && !matchCity && !matchJob) {
+      const prof = c.teacher?.profile as any;
+      const matchSchool = prof?.previousSchool?.toLowerCase().includes(q);
+      const matchBoard = prof?.boards?.some((b: string) => b.toLowerCase().includes(q));
+      const matchSkills = prof?.skills?.some((s: string) => s.toLowerCase().includes(q));
+      const matchLevel = prof?.teachingLevels?.some((l: string) => l.toLowerCase().includes(q));
+      const matchCert = prof?.certifications?.some((ct: string) => ct.toLowerCase().includes(q));
+      const matchQual = prof?.highestQualification?.toLowerCase().includes(q) || prof?.degree?.toLowerCase().includes(q);
+      const matchLanguages = prof?.languages?.some((lng: string) => lng.toLowerCase().includes(q));
+
+      if (!matchName && !matchEmail && !matchSubject && !matchCity && !matchJob && !matchSchool && !matchBoard && !matchSkills && !matchLevel && !matchCert && !matchQual && !matchLanguages) {
         return false;
       }
     }

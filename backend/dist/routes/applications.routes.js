@@ -290,7 +290,19 @@ router.get('/my-applications', authMiddleware_1.authenticateJWT, async (req, res
             }
             return {
                 ...app,
-                job: job ? { ...job, institution } : undefined,
+                institutionName: 'SikshaHub',
+                job: job ? {
+                    ...job,
+                    institution: institution ? {
+                        ...institution,
+                        name: 'SikshaHub',
+                        logoUrl: '/logo.jpeg',
+                    } : {
+                        name: 'SikshaHub',
+                        logoUrl: '/logo.jpeg',
+                    },
+                    institutionName: 'SikshaHub',
+                } : undefined,
             };
         }));
         return res.json({ success: true, applications: populated });
@@ -406,15 +418,26 @@ router.get('/job/:jobId', authMiddleware_1.authenticateJWT, (0, authMiddleware_1
         if (minScore) {
             candidates = candidates.filter(c => (c.matchResult?.overallScore || 0) >= Number(minScore));
         }
-        // Filtering by search query
+        // Filtering by search query (including new teacher details)
         if (q && typeof q === 'string') {
             const query = q.toLowerCase();
-            candidates = candidates.filter(c => c.teacher?.fullName?.toLowerCase().includes(query) ||
-                c.teacher?.email?.toLowerCase().includes(query) ||
-                c.teacher?.profile?.subjects?.some((s) => s.toLowerCase().includes(query)) ||
-                c.teacher?.profile?.currentCity?.toLowerCase().includes(query) ||
-                c.job?.title?.toLowerCase().includes(query) ||
-                c.job?.subject?.toLowerCase().includes(query));
+            candidates = candidates.filter(c => {
+                const prof = c.teacher?.profile;
+                return (c.teacher?.fullName?.toLowerCase().includes(query) ||
+                    c.teacher?.email?.toLowerCase().includes(query) ||
+                    prof?.subjects?.some((s) => s.toLowerCase().includes(query)) ||
+                    prof?.currentCity?.toLowerCase().includes(query) ||
+                    c.job?.title?.toLowerCase().includes(query) ||
+                    c.job?.subject?.toLowerCase().includes(query) ||
+                    prof?.previousSchool?.toLowerCase().includes(query) ||
+                    prof?.boards?.some((b) => b.toLowerCase().includes(query)) ||
+                    prof?.skills?.some((sk) => sk.toLowerCase().includes(query)) ||
+                    prof?.teachingLevels?.some((lvl) => lvl.toLowerCase().includes(query)) ||
+                    prof?.certifications?.some((ct) => ct.toLowerCase().includes(query)) ||
+                    prof?.highestQualification?.toLowerCase().includes(query) ||
+                    prof?.degree?.toLowerCase().includes(query) ||
+                    prof?.languages?.some((lng) => lng.toLowerCase().includes(query)));
+            });
         }
         // Sort strictly by ATS match score descending (highest ATS score first)
         candidates.sort((a, b) => (b.matchResult?.overallScore || 0) - (a.matchResult?.overallScore || 0));

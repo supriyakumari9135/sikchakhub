@@ -133,7 +133,7 @@ export const JobsPage: React.FC = () => {
               <Search className="w-4 h-4 text-brand-600 shrink-0" />
               <input
                 type="text"
-                placeholder="Search by job title, keywords, or institution..."
+                placeholder="Search by job title, subject, or location..."
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 className="w-full text-xs sm:text-sm bg-transparent focus:outline-hidden"
@@ -353,8 +353,8 @@ export const JobsPage: React.FC = () => {
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div className="flex items-start gap-3.5">
                       <img
-                        src={job.institution?.logoUrl || '/logo.jpeg'}
-                        alt={job.institution?.name}
+                        src="/logo.jpeg"
+                        alt="SikshaHub"
                         className="w-12 h-12 rounded-xl object-cover border border-slate-100 shrink-0 bg-white"
                       />
                       <div>
@@ -365,7 +365,7 @@ export const JobsPage: React.FC = () => {
                           {job.title}
                         </h3>
                         <p className="text-xs text-slate-600 font-medium">
-                          {job.institution?.name} • <span className="text-slate-500">{job.city}, {job.state}</span>
+                          SikshaHub • <span className="text-slate-500">{job.city}, {job.state}</span>
                         </p>
                       </div>
                     </div>
@@ -460,8 +460,8 @@ export const JobsPage: React.FC = () => {
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-3">
                 <img
-                  src={activeJobDetail.institution?.logoUrl || '/logo.jpeg'}
-                  alt={activeJobDetail.institution?.name}
+                  src="/logo.jpeg"
+                  alt="SikshaHub"
                   className="w-11 h-11 rounded-xl object-cover border border-amber-300/40 bg-white shrink-0"
                 />
                 <div>
@@ -469,7 +469,7 @@ export const JobsPage: React.FC = () => {
                     {activeJobDetail.teachingLevel} • {activeJobDetail.board}
                   </span>
                   <h3 className="text-lg font-bold text-slate-900 mt-0.5 font-serif">{activeJobDetail.title}</h3>
-                  <p className="text-xs text-slate-500">{activeJobDetail.institution?.name} • {activeJobDetail.city}</p>
+                  <p className="text-xs text-slate-500">SikshaHub • {activeJobDetail.city}, {activeJobDetail.state}</p>
                 </div>
               </div>
               <button onClick={() => setActiveJobDetail(null)} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
