@@ -124,12 +124,12 @@ export const Navbar: React.FC = () => {
               >
                 <img
                   src="/logo.jpeg"
-                  alt="SikshaHub Logo"
+                  alt="SikchaKhub Logo"
                   className="w-10 h-10 rounded-full object-cover shadow-2xs border border-amber-300/60 bg-white shrink-0 group-hover:scale-105 group-hover:shadow-md transition-all duration-200"
                 />
                 <div className="flex flex-col">
                   <span className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 font-serif leading-none">
-                    Siksha<span className="text-sky-600">Hub</span><span className="text-sky-500 font-sans">.Ai</span>
+                    Sikcha<span className="text-sky-600">Khub</span><span className="text-sky-500 font-sans">.Ai</span>
                   </span>
                   <span className="text-[10px] text-slate-400 font-medium tracking-wide mt-1 hidden sm:block">
                     {isTeacher && 'Job Seeker Portal'}
@@ -477,7 +477,7 @@ export const Navbar: React.FC = () => {
             <a
               href="tel:9783143866"
               className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-slate-700 hover:text-sky-600 hover:bg-sky-100/50 transition-all duration-200 text-[11px] sm:text-xs font-medium whitespace-nowrap hover:scale-105 active:scale-95"
-              title="Call SikshaHub Helpline"
+              title="Call SikchaKhub Helpline"
             >
               <PhoneCall className="w-3.5 h-3.5 text-sky-600 shrink-0" />
               <span className="text-slate-500 hidden sm:inline">Helpline:</span>
@@ -497,12 +497,12 @@ export const Navbar: React.FC = () => {
               <Link to="/" className="cursor-pointer flex items-center gap-2 sm:gap-2.5 group shrink-0">
                 <img
                   src="/logo.jpeg"
-                  alt="SikshaHub Logo"
+                  alt="SikchaKhub Logo"
                   className="w-9 h-9 sm:w-11 sm:h-11 rounded-full object-cover shadow-2xs border border-amber-300/70 bg-white shrink-0 group-hover:scale-105 group-hover:shadow-md transition-all duration-200"
                 />
                 <div className="flex flex-col">
                   <span className="text-lg sm:text-[1.35rem] 2xl:text-2xl font-black tracking-tight text-slate-900 font-serif leading-none whitespace-nowrap">
-                    Siksha<span className="text-sky-600">Hub</span><span className="text-sky-500 font-sans">.Ai</span>
+                    Sikcha<span className="text-sky-600">Khub</span><span className="text-sky-500 font-sans">.Ai</span>
                   </span>
                   <span className="text-[10px] text-slate-400 font-medium tracking-wide mt-1 hidden sm:block whitespace-nowrap">
                     AI-Powered Teacher Recruitment
@@ -518,7 +518,7 @@ export const Navbar: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowCityDropdown(!showCityDropdown)}
-                  className="cursor-pointer h-9.5 2xl:h-10 inline-flex items-center gap-1.5 px-2.5 2xl:px-3 rounded-xl text-xs font-semibold text-slate-700 bg-slate-50/80 hover:bg-sky-50 hover:text-sky-700 border border-slate-200 hover:border-sky-300 transition-all duration-200 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 active:scale-95 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-sky-500"
+                  className="cursor-pointer h-9.5 2xl:h-10 inline-flex items-center gap-1.5 px-3.5 2xl:px-4 rounded-full text-xs font-semibold text-slate-700 bg-white hover:bg-sky-50 hover:text-sky-700 border border-slate-200 hover:border-sky-300 transition-all duration-200 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 active:scale-95 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-sky-500"
                   title="Filter vacancies by City"
                 >
                   <MapPin className="w-3.5 h-3.5 text-sky-600 shrink-0" />
@@ -581,7 +581,7 @@ export const Navbar: React.FC = () => {
 
               <Link
                 to="/jobs?teachingLevel=COACHING_JEE"
-                className={`cursor-pointer h-9.5 2xl:h-10 inline-flex items-center gap-1.5 px-2.5 2xl:px-3 rounded-xl text-xs 2xl:text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 whitespace-nowrap shrink-0 ${
+                className={`cursor-pointer h-9.5 2xl:h-10 inline-flex items-center gap-1.5 px-3 2xl:px-3.5 rounded-full text-xs 2xl:text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 whitespace-nowrap shrink-0 ${
                   location.search.includes('COACHING_JEE')
                     ? 'text-sky-700 bg-sky-50 font-bold shadow-2xs border border-sky-100'
                     : 'text-slate-600 hover:text-amber-600 hover:bg-amber-50/60'
@@ -596,7 +596,7 @@ export const Navbar: React.FC = () => {
 
               <Link
                 to="/jobs?teachingLevel=PGT"
-                className={`cursor-pointer h-9.5 2xl:h-10 inline-flex items-center gap-1.5 px-2.5 2xl:px-3 rounded-xl text-xs 2xl:text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 whitespace-nowrap shrink-0 ${
+                className={`cursor-pointer h-9.5 2xl:h-10 inline-flex items-center gap-1.5 px-3 2xl:px-3.5 rounded-full text-xs 2xl:text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 whitespace-nowrap shrink-0 ${
                   location.search.includes('PGT')
                     ? 'text-sky-700 bg-sky-50 font-bold shadow-2xs border border-sky-100'
                     : 'text-slate-600 hover:text-sky-600 hover:bg-sky-50/60'
@@ -610,40 +610,39 @@ export const Navbar: React.FC = () => {
               </Link>
             </nav>
 
-            {/* Right Column: Standardized Action Buttons (Uniform h-9 on mobile, h-9.5/h-10 on sm+) */}
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              {/* + Post a Job CTA (Visible on sm: and up) */}
+            {/* Right Column: Standardized Action Buttons */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+              {/* + Post a Job CTA */}
               <Link
                 to="/login?role=EMPLOYER"
-                className="cursor-pointer h-9.5 2xl:h-10 hidden sm:inline-flex items-center gap-1.5 px-3.5 2xl:px-4 rounded-full font-bold text-xs 2xl:text-sm text-sky-600 hover:text-sky-700 bg-white hover:bg-sky-50/80 border border-sky-400 hover:border-sky-500 transition-all duration-200 shadow-2xs hover:shadow-md hover:shadow-sky-100 hover:-translate-y-0.5 group active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-sky-500"
+                className="cursor-pointer h-9.5 2xl:h-10 hidden sm:inline-flex items-center gap-1.5 px-3.5 2xl:px-4 rounded-full font-bold text-xs 2xl:text-sm text-sky-600 hover:text-sky-700 bg-white hover:bg-sky-50 border border-sky-400 hover:border-sky-500 transition-all duration-200 shadow-2xs hover:shadow-md hover:shadow-sky-100 hover:-translate-y-0.5 group active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-sky-500"
               >
-                <Plus className="w-4 h-4 text-sky-500 group-hover:rotate-90 transition-transform duration-200" />
-                <span>Post a Job</span>
+                <span>+ Post a Job</span>
               </Link>
 
-              {/* HR Login CTA (Visible on xl screens; also in mobile menu & sign-in page) */}
+              {/* HR Login CTA */}
               <Link
                 to="/hr-login"
-                className="cursor-pointer h-9.5 2xl:h-10 hidden xl:inline-flex items-center gap-1.5 px-3 2xl:px-3.5 rounded-full font-bold text-xs text-amber-700 hover:text-amber-800 bg-amber-50/80 hover:bg-amber-100/90 border border-amber-300 hover:border-amber-400 transition-all duration-200 shadow-2xs hover:shadow-md hover:shadow-amber-100 hover:-translate-y-0.5 active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-amber-500"
+                className="cursor-pointer h-9.5 2xl:h-10 hidden xl:inline-flex items-center gap-1.5 px-3 2xl:px-3.5 rounded-full font-bold text-xs text-amber-700 hover:text-amber-800 bg-amber-50/60 hover:bg-amber-100/80 border border-amber-300 hover:border-amber-400 transition-all duration-200 shadow-2xs hover:shadow-md hover:shadow-amber-100/60 hover:-translate-y-0.5 active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-amber-500"
                 title="HR Recruiter Portal - Screening & Shortlisting"
               >
                 <UserCheck className="w-3.5 h-3.5 text-amber-600" />
                 <span>HR Login</span>
               </Link>
 
-              {/* Sign In (Always visible, compact on small mobile) */}
+              {/* Sign In */}
               <Link
                 to="/login"
-                className="cursor-pointer h-9 sm:h-9.5 2xl:h-10 inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 rounded-xl font-bold text-xs 2xl:text-sm text-slate-700 hover:text-sky-700 hover:bg-sky-50/80 border border-transparent hover:border-sky-200 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-sky-500"
+                className="cursor-pointer h-9 sm:h-9.5 2xl:h-10 inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 rounded-full font-bold text-xs 2xl:text-sm text-slate-700 hover:text-sky-700 hover:bg-sky-50/80 border border-transparent hover:border-sky-200 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-sky-500"
               >
                 <UserCircle className="w-4 h-4 text-slate-500 shrink-0" />
                 <span>Sign In</span>
               </Link>
 
-              {/* Sign Up (Visible on sm: and up; in mobile drawer for small mobile) */}
+              {/* Sign Up */}
               <Link
                 to="/signup"
-                className="cursor-pointer h-9.5 2xl:h-10 hidden sm:inline-flex items-center justify-center px-4.5 2xl:px-5 rounded-full font-bold text-xs 2xl:text-sm text-white bg-gradient-to-r from-orange-500 via-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 shadow-xs hover:shadow-md hover:shadow-orange-500/25 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-orange-500"
+                className="cursor-pointer h-9.5 2xl:h-10 hidden sm:inline-flex items-center justify-center px-5 2xl:px-6 rounded-full font-bold text-xs 2xl:text-sm text-white bg-sky-500 hover:bg-sky-600 shadow-sm shadow-sky-500/20 hover:shadow-md hover:shadow-sky-500/30 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-sky-500"
               >
                 <span>Sign Up</span>
               </Link>
@@ -670,10 +669,10 @@ export const Navbar: React.FC = () => {
           {/* Brand Header Card */}
           <div className="flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-sky-900 via-sky-800 to-blue-900 text-white border border-sky-700/50 shadow-md">
             <div className="flex items-center gap-3">
-              <img src="/logo.jpeg" alt="SikshaHub" className="w-10 h-10 rounded-xl object-cover ring-2 ring-sky-300 bg-white shrink-0" />
+              <img src="/logo.jpeg" alt="SikchaKhub" className="w-10 h-10 rounded-xl object-cover ring-2 ring-sky-300 bg-white shrink-0" />
               <div>
                 <span className="font-serif font-black text-sm tracking-wide">
-                  Siksha<span className="text-cyan-300">Hub</span>.ai
+                  Sikcha<span className="text-cyan-300">Khub</span>.ai
                 </span>
                 <p className="text-[10px] text-sky-200">AI Teacher Recruitment Network</p>
               </div>

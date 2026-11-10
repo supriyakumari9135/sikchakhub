@@ -294,7 +294,7 @@ class FCMService {
             data: {
               actionUrl: actionUrl || '/teacher-dashboard',
               priority,
-              platform: 'SIKSHAHUB_AI',
+              platform: 'SIKCHAKHUB_AI',
             },
             webpush: {
               fcmOptions: {

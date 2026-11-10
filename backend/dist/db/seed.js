@@ -4,7 +4,7 @@ const client_1 = require("@prisma/client");
 const seedData_1 = require("./seedData");
 const prisma = new client_1.PrismaClient();
 async function main() {
-    console.log('🌱 Seeding SikshaHub database...');
+    console.log('🌱 Seeding SikchaKhub database...');
     // Upsert users
     for (const u of seedData_1.SEED_USERS) {
         await prisma.user.upsert({

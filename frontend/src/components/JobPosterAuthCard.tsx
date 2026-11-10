@@ -422,7 +422,7 @@ export const JobPosterAuthCard: React.FC = () => {
                 </button>
 
                 <p className="text-center text-xs text-slate-500 pt-2 border-t border-slate-100">
-                  New institution to SikshaHub?{' '}
+                  New institution to SikchaKhub?{' '}
                   <button
                     type="button"
                     onClick={() => {

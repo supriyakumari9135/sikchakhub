@@ -192,7 +192,7 @@ export const TeacherDashboard: React.FC = () => {
   const mappedApplications = liveApplications.map(la => ({
     id: la.id,
     jobTitle: la.job?.title || 'Teaching Vacancy',
-    institutionName: 'SikshaHub',
+    institutionName: 'SikchaKhub',
     institutionLogo: '/logo.jpeg',
     subject: la.job?.subject || 'General Teaching',
     level: la.job?.teachingLevel || 'PGT',
@@ -1007,7 +1007,7 @@ export const TeacherDashboard: React.FC = () => {
                                   <span>{job.matchScore}% AI Match</span>
                                 </span>
                                 <h3 className="text-sm font-bold text-slate-900 mt-1">{job.title}</h3>
-                                <p className="text-xs text-slate-600 font-medium">SikshaHub</p>
+                                <p className="text-xs text-slate-600 font-medium">SikchaKhub</p>
                               </div>
                               <button
                                 onClick={() => toggleSaveJob(job.id)}
@@ -1483,12 +1483,12 @@ export const TeacherDashboard: React.FC = () => {
                             <div className="flex items-center gap-3">
                               <img
                                 src="/logo.jpeg"
-                                alt="SikshaHub"
+                                alt="SikchaKhub"
                                 className="w-10 h-10 rounded-xl object-cover border border-slate-200 bg-white"
                               />
                               <div>
                                 <h3 className="text-sm font-bold text-slate-900">{job.title}</h3>
-                                <p className="text-xs text-slate-500">SikshaHub • {job.city}</p>
+                                <p className="text-xs text-slate-500">SikchaKhub • {job.city}</p>
                               </div>
                             </div>
                             <button
@@ -1561,12 +1561,12 @@ export const TeacherDashboard: React.FC = () => {
                           <div className="flex items-center gap-3">
                             <img
                               src="/logo.jpeg"
-                              alt="SikshaHub"
+                              alt="SikchaKhub"
                               className="w-10 h-10 rounded-xl object-cover border border-slate-200 bg-white"
                             />
                             <div>
                               <h3 className="text-sm font-bold text-slate-900">{job.title}</h3>
-                              <p className="text-xs text-slate-500">SikshaHub</p>
+                              <p className="text-xs text-slate-500">SikchaKhub</p>
                             </div>
                           </div>
                           <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">

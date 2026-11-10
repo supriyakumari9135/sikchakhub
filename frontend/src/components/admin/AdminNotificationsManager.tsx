@@ -732,7 +732,7 @@ export const AdminNotificationsManager: React.FC<AdminNotificationsManagerProps>
                 <div className="flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800 pb-2">
                   <div className="flex items-center gap-2">
                     <img src="/logo.jpeg" alt="Logo" className="w-4 h-4 rounded-md object-contain bg-white" />
-                    <span className="font-bold text-slate-200">SikshaHub.AI Push</span>
+                    <span className="font-bold text-slate-200">SikchaKhub.AI Push</span>
                     <span>•</span>
                     <span>Google Chrome</span>
                   </div>
@@ -772,7 +772,7 @@ export const AdminNotificationsManager: React.FC<AdminNotificationsManagerProps>
                   <div className="flex items-center justify-between text-[10px]">
                     <div className="flex items-center gap-1.5">
                       <img src="/logo.jpeg" alt="Logo" className="w-4 h-4 rounded-md object-contain bg-white" />
-                      <span className="font-bold text-sky-400">SikshaHub.AI</span>
+                      <span className="font-bold text-sky-400">SikchaKhub.AI</span>
                     </div>
                     <span className="text-slate-400">1m ago</span>
                   </div>

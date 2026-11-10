@@ -513,7 +513,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
 
   const handleGoogleLogin = async () => {
     setError(null);
-    const mockEmail = selectedPortal === 'TEACHER' ? 'educator.google@sikshahub.ai' : 'recruiter.google@sikshahub.ai';
+    const mockEmail = selectedPortal === 'TEACHER' ? 'educator.google@sikchakhub.ai' : 'recruiter.google@sikchakhub.ai';
     const mockName = selectedPortal === 'TEACHER' ? 'Google Verified Educator' : 'Google Verified Institution';
     
     setLoading(true);
@@ -839,8 +839,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder={
-                        selectedPortal === 'ADMIN' ? 'sikshahub@gmail.com' : 
-                        selectedPortal === 'HR' ? 'hr.recruiter@sikshahub.ai' :
+                        selectedPortal === 'ADMIN' ? 'sikchakhub@gmail.com' : 
+                        selectedPortal === 'HR' ? 'hr.recruiter@sikchakhub.ai' :
                         selectedPortal === 'EMPLOYER' ? 'recruiter@institution.edu' : 
                         'e.g. educator@gmail.com'
                       }
@@ -1757,7 +1757,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
                             className="mt-0.5 rounded text-sky-600 focus:ring-sky-500 w-4 h-4 cursor-pointer"
                           />
                           <span className="text-xs text-slate-600 leading-snug">
-                            I accept the <strong className="text-slate-800">SikshaHub.AI Terms of Service</strong>, Privacy Policy, and confirm that I am an authorized representative of this institution.
+                            I accept the <strong className="text-slate-800">SikchaKhub.AI Terms of Service</strong>, Privacy Policy, and confirm that I am an authorized representative of this institution.
                           </span>
                         </label>
                       </div>
@@ -2046,7 +2046,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
               ) : selectedPortal === 'HR' ? (
                 <div className="space-y-1">
                   <p className="font-semibold text-amber-900">
-                    SikshaHub.AI HR Recruitment Desk • Provisioned Access
+                    SikchaKhub.AI HR Recruitment Desk • Provisioned Access
                   </p>
                   <p className="text-[11px] text-slate-500">
                     HR credentials are created exclusively by the Super Administrator. Need login access or a password reset? Contact your platform Super Admin.
@@ -2054,7 +2054,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
                 </div>
               ) : (
                 <p className="text-slate-400">
-                  SikshaHub.Ai Super Admin Console • Authorized Personnel Only
+                  SikchaKhub.Ai Super Admin Console • Authorized Personnel Only
                 </p>
               )
             ) : (

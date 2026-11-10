@@ -48,7 +48,7 @@ app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'ok',
-        service: 'SikshaHub API',
+        service: 'SikchaKhub API',
         database: 'MongoDB Atlas',
         version: '1.0.0',
         timestamp: new Date().toISOString(),
@@ -65,7 +65,7 @@ app.use('/api/v1/master-data', masterData_routes_1.default);
 app.use('/api/v1/notifications', notifications_routes_1.default);
 // 404 handler
 app.use((req, res) => {
-    res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found on SikshaHub API.` });
+    res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found on SikchaKhub API.` });
 });
 // Central error handler
 app.use((err, req, res, next) => {
@@ -78,8 +78,8 @@ app.use((err, req, res, next) => {
 if (process.env.NODE_ENV !== 'test') {
     const startServer = (portToTry) => {
         const server = app.listen(portToTry, () => {
-            console.log(`🚀 SikshaHub API running on http://localhost:${portToTry}`);
-            console.log(`📚 SikshaHub AI Recruitment Platform`);
+            console.log(`🚀 SikchaKhub API running on http://localhost:${portToTry}`);
+            console.log(`📚 SikchaKhub AI Recruitment Platform`);
         });
         server.on('error', (err) => {
             if (err.code === 'EADDRINUSE') {

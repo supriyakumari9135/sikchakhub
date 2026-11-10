@@ -1,5 +1,5 @@
 /**
- * SikshaHub.AI - Client-Side Push Notification & FCM Token Manager
+ * SikchaKhub.AI - Client-Side Push Notification & FCM Token Manager
  * Handles browser notification permissions, service worker registration,
  * and syncing FCM device tokens with the backend database.
  */

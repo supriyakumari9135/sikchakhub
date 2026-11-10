@@ -443,12 +443,12 @@ export const EmployerDashboard: React.FC = () => {
             <div className="flex items-center gap-2.5 min-w-0">
               <img
                 src={institution?.logoUrl || '/logo.jpeg'}
-                alt="SikshaHub School Logo"
+                alt="SikchaKhub School Logo"
                 className="w-10 h-10 rounded-xl object-cover border border-amber-300/50 bg-white shadow-2xs shrink-0"
               />
               <div className="min-w-0">
                 <h3 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                  {institution?.name || 'SikshaHub Recruiter'}
+                  {institution?.name || 'SikchaKhub Recruiter'}
                 </h3>
                 {institution?.verificationStatus === 'VERIFIED' ? (
                   <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -520,12 +520,12 @@ export const EmployerDashboard: React.FC = () => {
             <div className="flex items-center gap-3">
               <img
                 src={institution?.logoUrl || '/logo.jpeg'}
-                alt="SikshaHub School Logo"
+                alt="SikchaKhub School Logo"
                 className="w-12 h-12 rounded-xl object-cover border border-amber-300/50 bg-white shadow-2xs"
               />
               <div>
                 <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                  {institution?.name || 'SikshaHub Institution'}
+                  {institution?.name || 'SikchaKhub Institution'}
                 </h3>
                 <p className="text-[11px] text-slate-500 font-medium">
                   {institution?.affiliationNumber || 'CBSE'} | {institution?.city || 'India'}

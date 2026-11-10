@@ -187,7 +187,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center gap-3">
-            <img src="/logo.jpeg" alt="SikshaHub" className="w-10 h-10 rounded-xl object-cover border border-amber-300/40 bg-white shrink-0" />
+            <img src="/logo.jpeg" alt="SikchaKhub" className="w-10 h-10 rounded-xl object-cover border border-amber-300/40 bg-white shrink-0" />
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
                 Recruitment Posting Wizard
@@ -464,7 +464,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
                     <span>Candidate Resume & ATS Scoring Setup</span>
                   </h4>
                   <p className="text-[11px] text-slate-500">
-                    SikshaHub ATS automatically scores and ranks applicants from highest to lowest.
+                    SikchaKhub ATS automatically scores and ranks applicants from highest to lowest.
                   </p>
                 </div>
                 <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">

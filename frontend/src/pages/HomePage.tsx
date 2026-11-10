@@ -137,149 +137,240 @@ export const HomePage: React.FC = () => {
     <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-sky-500 selection:text-white">
       
       {/* ========================================================================= */}
-      {/* 1. HERO SECTION (White & Light Blue Clean Modern Mesh)                    */}
+      {/* 1. HERO SECTION (Identical to reference screenshot)                       */}
       {/* ========================================================================= */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-sky-100/70 via-sky-50/40 to-white pt-16 sm:pt-24 pb-20 sm:pb-28 px-4 sm:px-6 lg:px-8 border-b border-sky-100">
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#f0f9ff]/60 via-white to-[#f0f9ff]/40 pt-12 sm:pt-16 pb-16 sm:pb-24 px-4 sm:px-6 lg:px-8 border-b border-sky-100/80">
         
-        {/* Subtle dot matrix grid background overlay */}
-        <div 
-          className="absolute inset-0 pointer-events-none opacity-40"
-          style={{
-            backgroundImage: 'radial-gradient(circle, rgba(2, 132, 199, 0.16) 1px, transparent 1px)',
-            backgroundSize: '24px 24px'
-          }}
-        />
+        {/* Soft Fluid Swoosh Wave (Left Side) */}
+        <svg 
+          className="absolute -top-10 -left-10 w-[360px] sm:w-[500px] lg:w-[620px] h-[780px] pointer-events-none z-0 opacity-75" 
+          viewBox="0 0 600 800" 
+          fill="none"
+        >
+          <path 
+            d="M0,0 C200,100 380,220 300,420 C220,620 90,680 0,780 L0,0 Z" 
+            fill="url(#heroLeftWave)" 
+          />
+          <path 
+            d="M0,60 C160,160 300,280 220,480 C140,680 50,720 0,780 L0,60 Z" 
+            fill="#e0f2fe" 
+            fillOpacity="0.4" 
+          />
+          <defs>
+            <linearGradient id="heroLeftWave" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#bae6fd" stopOpacity="0.55" />
+              <stop offset="50%" stopColor="#e0f2fe" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+        </svg>
 
-        {/* Ambient radial color meshes */}
-        <div className="absolute top-10 left-1/4 -translate-x-1/2 w-[550px] h-[350px] bg-gradient-to-tr from-sky-300/30 to-blue-200/30 blur-[130px] rounded-full pointer-events-none animate-pulse-subtle" />
-        <div className="absolute top-20 right-1/4 translate-x-1/2 w-[500px] h-[350px] bg-gradient-to-bl from-blue-300/25 to-cyan-200/25 blur-[140px] rounded-full pointer-events-none animate-pulse-subtle" />
+        {/* Soft Fluid Swoosh Wave (Right Side) */}
+        <svg 
+          className="absolute -top-10 -right-10 w-[360px] sm:w-[500px] lg:w-[620px] h-[780px] pointer-events-none z-0 opacity-75" 
+          viewBox="0 0 600 800" 
+          fill="none"
+        >
+          <path 
+            d="M600,0 C400,100 220,220 300,420 C380,620 510,680 600,780 L600,0 Z" 
+            fill="url(#heroRightWave)" 
+          />
+          <path 
+            d="M600,60 C440,160 300,280 380,480 C460,680 550,720 600,780 L600,60 Z" 
+            fill="#e0f2fe" 
+            fillOpacity="0.4" 
+          />
+          <defs>
+            <linearGradient id="heroRightWave" x1="100%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#bae6fd" stopOpacity="0.55" />
+              <stop offset="50%" stopColor="#e0f2fe" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+        </svg>
 
-        <div className="max-w-5xl mx-auto text-center relative z-10 space-y-6">
+        {/* Dot Grids in exact positions from design */}
+        {/* Top-Left Dot Matrix */}
+        <div className="absolute top-20 left-6 sm:left-14 grid grid-cols-4 gap-2.5 opacity-60 pointer-events-none z-0 hidden sm:grid">
+          {[...Array(24)].map((_, i) => (
+            <span key={i} className="w-1.5 h-1.5 rounded-full bg-sky-300" />
+          ))}
+        </div>
+
+        {/* Mid-Left Dot Matrix */}
+        <div className="absolute top-72 left-8 sm:left-20 grid grid-cols-4 gap-2.5 opacity-40 pointer-events-none z-0 hidden sm:grid">
+          {[...Array(16)].map((_, i) => (
+            <span key={i} className="w-1.5 h-1.5 rounded-full bg-sky-300" />
+          ))}
+        </div>
+
+        {/* Bottom-Right Dot Matrix */}
+        <div className="absolute top-84 right-8 sm:right-20 grid grid-cols-6 gap-2.5 opacity-55 pointer-events-none z-0 hidden sm:grid">
+          {[...Array(24)].map((_, i) => (
+            <span key={i} className="w-1.5 h-1.5 rounded-full bg-sky-300" />
+          ))}
+        </div>
+
+        <div className="max-w-5xl mx-auto text-center relative z-10 space-y-5 sm:space-y-6">
           
           {/* Trust Pill / AI Badge with Logo */}
-          <div className="inline-flex items-center gap-2.5 px-3.5 sm:px-4 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-sky-200/90 text-[11px] sm:text-xs text-sky-800 font-semibold shadow-xs max-w-full hover:border-sky-300 hover:shadow-md hover:shadow-sky-100/80 transition-all duration-300 cursor-default animate-hero-slide-up">
-            <img src="/logo.jpeg" alt="SikshaHub" className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover border border-sky-300 shrink-0" />
-            <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-ping shrink-0" />
-            <span className="truncate">AI MATCH: India's Premier Teacher & Faculty Recruitment Engine</span>
+          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white border border-sky-200/90 text-[11px] sm:text-xs text-sky-800 font-bold shadow-xs max-w-full hover:border-sky-300 hover:shadow-sm transition-all duration-300 cursor-default animate-hero-slide-up">
+            <img src="/logo.jpeg" alt="SikchaKhub" className="w-5 h-5 rounded-full object-cover border border-amber-300/80 shrink-0" />
+            <span className="truncate tracking-tight font-medium">AI MATCH: India's Premier Teacher & Faculty Recruitment Engine</span>
           </div>
 
-          {/* Headline */}
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 font-serif max-w-4xl mx-auto leading-[1.14] animate-hero-slide-up">
-            Best Job Portal in India With{' '}
-            <span className="bg-gradient-to-r from-sky-600 via-blue-600 to-cyan-600 bg-clip-text text-transparent">
+          {/* Editorial Serif Headline */}
+          <h1 className="text-3xl sm:text-5xl lg:text-[3.5rem] xl:text-[3.85rem] font-black tracking-tight text-slate-900 font-serif max-w-4xl mx-auto leading-[1.12] animate-hero-slide-up">
+            Best Job Portal in India With<br />
+            <span className="text-[#0284c7]">
               AI-Powered Hiring Engine
             </span>
           </h1>
 
           {/* Subtitle */}
-          <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed animate-hero-slide-up">
+          <p className="text-xs sm:text-[15px] text-slate-600 max-w-3xl mx-auto leading-relaxed font-normal animate-hero-slide-up">
             Automated teacher recruitment portal connecting over <strong>5,500+ top educational institutions</strong> and <strong>1.8M+ verified educators</strong> across India. Instant shortlists in ~72h, syllabus matching, and direct interview scheduling.
           </p>
 
           {/* ========================================================================= */}
           {/* Hero Search Box (Floating Pill Container in Crisp White & Light Blue)      */}
           {/* ========================================================================= */}
-          <div className="max-w-3xl mx-auto pt-3 animate-hero-slide-up">
+          <div className="max-w-3xl mx-auto pt-2 animate-hero-slide-up">
             <form
               onSubmit={handleSearch}
-              className="bg-white p-2 sm:p-2.5 rounded-2xl sm:rounded-3xl shadow-xl shadow-sky-100/80 border border-sky-200/90 hover:border-sky-300 hover:shadow-2xl hover:shadow-sky-100 transition-all duration-300 flex flex-col md:flex-row items-center gap-2 group/search"
+              className="bg-white p-2 sm:p-2.5 rounded-full shadow-xl shadow-sky-100/90 border border-sky-100 hover:border-sky-300 hover:shadow-2xl hover:shadow-sky-200/40 transition-all duration-300 flex flex-col sm:flex-row items-center gap-2 group/search"
             >
-              <div className="w-full md:w-auto md:flex-1 flex items-center gap-3 px-3 py-2 min-w-0 border-b md:border-b-0 md:border-r border-sky-100 rounded-xl transition-all duration-200 hover:bg-sky-50/40 focus-within:bg-sky-50/40">
-                <Search className="w-5 h-5 text-sky-600 shrink-0 transition-transform duration-200 group-focus-within/search:scale-110" />
+              <div className="w-full sm:flex-1 flex items-center gap-3 px-4 py-2 min-w-0">
+                <Search className="w-5 h-5 text-sky-500 shrink-0 transition-transform duration-200 group-focus-within/search:scale-110" />
                 <input
                   type="text"
-                  placeholder="Subject, role (e.g. JEE Physics, PGT Math, Principal)"
+                  placeholder="Subject, role (e.g. JEE Physics, PGT M"
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
-                  className="w-full min-w-0 text-xs sm:text-sm text-slate-900 focus:outline-hidden placeholder:text-slate-400 font-medium bg-transparent"
+                  className="w-full min-w-0 text-xs sm:text-sm text-slate-800 focus:outline-hidden placeholder:text-slate-400 font-medium bg-transparent"
                 />
               </div>
 
-              <div className="w-full md:w-64 md:shrink-0 flex items-center gap-3 px-3 py-2 min-w-0 border-b md:border-b-0 border-sky-100 rounded-xl transition-all duration-200 hover:bg-sky-50/40 focus-within:bg-sky-50/40">
-                <MapPin className="w-5 h-5 text-blue-500 shrink-0 transition-transform duration-200 group-focus-within/search:scale-110" />
+              <div className="hidden sm:block h-7 w-px bg-slate-200 shrink-0" />
+
+              <div className="w-full sm:w-64 flex items-center gap-3 px-4 py-2 min-w-0">
+                <MapPin className="w-5 h-5 text-sky-500 shrink-0 transition-transform duration-200 group-focus-within/search:scale-110" />
                 <input
                   type="text"
-                  placeholder="City (Kota, Delhi NCR, Jaipur...)"
+                  placeholder="City (Kota, Delhi NCR, Jaipur.."
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  className="w-full min-w-0 text-xs sm:text-sm text-slate-900 focus:outline-hidden placeholder:text-slate-400 font-medium bg-transparent"
+                  className="w-full min-w-0 text-xs sm:text-sm text-slate-800 focus:outline-hidden placeholder:text-slate-400 font-medium bg-transparent"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full md:w-auto px-7 py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white text-xs sm:text-sm font-bold rounded-xl sm:rounded-2xl shadow-md shadow-sky-500/25 hover:shadow-lg hover:shadow-sky-500/35 flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 shrink-0 cursor-pointer group/btn"
+                className="w-full sm:w-auto px-7 sm:px-8 py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white text-xs sm:text-sm font-bold rounded-full shadow-md shadow-sky-500/25 hover:shadow-lg hover:shadow-sky-500/35 flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 shrink-0 cursor-pointer group/btn"
               >
                 <span>Search Jobs</span>
                 <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform duration-200" />
               </button>
             </form>
 
-            {/* Popular Quick Searches */}
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-4 text-xs text-slate-500">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                Trending Searches:
-              </span>
-              {[
-                'JEE Advanced Physics', 
-                'NEET Zoology', 
-                'PGT Mathematics', 
-                'CBSE English', 
-                'Kota Mega Batch', 
-                'School Principal'
-              ].map(tag => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => navigate(`/jobs?q=${encodeURIComponent(tag)}`)}
-                  className="cursor-pointer px-3.5 py-1.5 rounded-full bg-white hover:bg-sky-50 text-slate-600 hover:text-sky-700 border border-sky-200/80 hover:border-sky-300 text-[11px] font-medium transition-all duration-200 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 active:scale-95 focus-visible:ring-2 focus-visible:ring-sky-500"
-                >
-                  {tag}
-                </button>
-              ))}
+            {/* Popular Quick Searches matching screenshot */}
+            <div className="flex flex-col items-center justify-center gap-2 pt-4">
+              <div className="flex flex-wrap items-center justify-center gap-2 text-xs">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                  TRENDING SEARCHES:
+                </span>
+                {['JEE Advanced Physics', 'NEET Zoology', 'PGT Mathematics', 'CBSE English'].map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => navigate(`/jobs?q=${encodeURIComponent(tag)}`)}
+                    className="cursor-pointer px-4 py-1.5 rounded-full bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-700 border border-slate-200 hover:border-sky-300 text-[11px] font-medium transition-all duration-200 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 active:scale-95"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-2 text-xs">
+                {['Kota Mega Batch', 'School Principal'].map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => navigate(`/jobs?q=${encodeURIComponent(tag)}`)}
+                    className="cursor-pointer px-4 py-1.5 rounded-full bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-700 border border-slate-200 hover:border-sky-300 text-[11px] font-medium transition-all duration-200 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 active:scale-95"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
           {/* ========================================================================= */}
-          {/* Trust Counter Strip                                                      */}
+          {/* Trust Counter Strip (4 Distinct Metric Cards with Corner Glow Accents)    */}
           {/* ========================================================================= */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-12 border-t border-sky-100 text-left max-w-4xl mx-auto">
-            <div className="bg-white/95 backdrop-blur-xs p-5 rounded-2xl border border-sky-100/90 shadow-xs hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100/80 hover:-translate-y-1 transition-all duration-300 cursor-default group relative overflow-hidden animate-stat-card">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-400 to-slate-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">5,500+</p>
-                <Building2 className="w-5 h-5 text-slate-400 group-hover:text-slate-700 transition-colors" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 pt-10 text-left max-w-6xl mx-auto w-full">
+            {/* Card 1: 5,500+ Hiring Institutions */}
+            <div className="relative bg-white rounded-3xl p-5 border border-sky-100 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-4 overflow-hidden group">
+              <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-gradient-to-tl from-sky-200/60 via-cyan-100/40 to-transparent rounded-full pointer-events-none group-hover:scale-110 transition-transform" />
+              <div className="w-14 h-14 rounded-2xl bg-sky-100/90 text-sky-600 flex items-center justify-center shrink-0 border border-sky-200/60 shadow-2xs">
+                <School className="w-7 h-7" />
               </div>
-              <p className="text-xs text-slate-500 font-medium">Hiring Institutions</p>
+              <div className="text-left relative z-10">
+                <p className="text-2xl sm:text-[1.75rem] font-black text-slate-900 tracking-tight leading-none">
+                  5,500+
+                </p>
+                <p className="text-xs text-slate-500 font-medium mt-1.5">
+                  Hiring Institutions
+                </p>
+              </div>
             </div>
 
-            <div className="bg-white/95 backdrop-blur-xs p-5 rounded-2xl border border-sky-100/90 shadow-xs hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100/80 hover:-translate-y-1 transition-all duration-300 cursor-default group relative overflow-hidden animate-stat-card">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent tracking-tight">
+            {/* Card 2: 1.8M+ Verified Educators */}
+            <div className="relative bg-white rounded-3xl p-5 border border-purple-100/80 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-4 overflow-hidden group">
+              <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-gradient-to-tl from-purple-200/60 via-violet-100/40 to-transparent rounded-full pointer-events-none group-hover:scale-110 transition-transform" />
+              <div className="w-14 h-14 rounded-2xl bg-purple-100/90 text-purple-600 flex items-center justify-center shrink-0 border border-purple-200/60 shadow-2xs">
+                <Users className="w-7 h-7" />
+              </div>
+              <div className="text-left relative z-10">
+                <p className="text-2xl sm:text-[1.75rem] font-black text-slate-900 tracking-tight leading-none">
                   1.8M+
                 </p>
-                <Users className="w-5 h-5 text-sky-400 group-hover:text-sky-600 transition-colors" />
+                <p className="text-xs text-slate-500 font-medium mt-1.5">
+                  Verified Educators
+                </p>
               </div>
-              <p className="text-xs text-slate-500 font-medium">Verified Educators</p>
             </div>
 
-            <div className="bg-white/95 backdrop-blur-xs p-5 rounded-2xl border border-sky-100/90 shadow-xs hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100/80 hover:-translate-y-1 transition-all duration-300 cursor-default group relative overflow-hidden animate-stat-card">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-2xl sm:text-3xl font-black text-emerald-600 tracking-tight">~72 Hours</p>
-                <TrendingUp className="w-5 h-5 text-emerald-400 group-hover:text-emerald-600 transition-colors" />
+            {/* Card 3: ~72 Hours Average Shortlist Time */}
+            <div className="relative bg-white rounded-3xl p-5 border border-emerald-100/80 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-4 overflow-hidden group">
+              <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-gradient-to-tl from-emerald-200/60 via-teal-100/40 to-transparent rounded-full pointer-events-none group-hover:scale-110 transition-transform" />
+              <div className="w-14 h-14 rounded-2xl bg-emerald-100/90 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-200/60 shadow-2xs">
+                <Zap className="w-7 h-7 fill-emerald-500 text-emerald-500" />
               </div>
-              <p className="text-xs text-slate-500 font-medium">Average Shortlist Time</p>
+              <div className="text-left relative z-10">
+                <p className="text-2xl sm:text-[1.75rem] font-black text-emerald-600 tracking-tight leading-none">
+                  ~72 Hours
+                </p>
+                <p className="text-xs text-slate-500 font-medium mt-1.5">
+                  Average Shortlist Time
+                </p>
+              </div>
             </div>
 
-            <div className="bg-white/95 backdrop-blur-xs p-5 rounded-2xl border border-sky-100/90 shadow-xs hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100/80 hover:-translate-y-1 transition-all duration-300 cursor-default group relative overflow-hidden animate-stat-card">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-400 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-2xl sm:text-3xl font-black text-sky-600 tracking-tight">₹6-35 LPA</p>
-                <Award className="w-5 h-5 text-sky-400 group-hover:text-sky-600 transition-colors" />
+            {/* Card 4: ₹6-35 LPA Verified Salary Bands */}
+            <div className="relative bg-white rounded-3xl p-5 border border-amber-100/80 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-4 overflow-hidden group">
+              <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-gradient-to-tl from-amber-200/60 via-orange-100/40 to-transparent rounded-full pointer-events-none group-hover:scale-110 transition-transform" />
+              <div className="w-14 h-14 rounded-2xl bg-amber-100/90 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200/60 shadow-2xs font-bold text-2xl font-serif">
+                <span>₹</span>
               </div>
-              <p className="text-xs text-slate-500 font-medium">Verified Salary Bands</p>
+              <div className="text-left relative z-10">
+                <p className="text-2xl sm:text-[1.75rem] font-black text-slate-900 tracking-tight leading-none">
+                  ₹6-35 LPA
+                </p>
+                <p className="text-xs text-slate-500 font-medium mt-1.5">
+                  Verified Salary Bands
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -445,12 +536,12 @@ export const HomePage: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <img
                           src="/logo.jpeg"
-                          alt="SikshaHub"
+                          alt="SikchaKhub"
                           className="w-12 h-12 rounded-xl object-cover border border-sky-100 bg-white group-hover:scale-105 group-hover:border-sky-200 transition-all duration-200"
                         />
                         <div>
                           <h4 className="text-xs font-bold text-slate-900 line-clamp-1 flex items-center gap-1.5">
-                            <span>SikshaHub</span>
+                            <span>SikchaKhub</span>
                             <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                           </h4>
                           <p className="text-[11px] text-slate-500 flex items-center gap-1">
@@ -535,7 +626,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. WHY CHOOSE SIKSHAHUB (Value Propositions)                              */}
+      {/* 4. WHY CHOOSE SIKCHAKHUB (Value Propositions)                              */}
       {/* ========================================================================= */}
       <section className="bg-gradient-to-b from-white via-sky-50/30 to-white py-16 sm:py-20 px-4 sm:px-6 lg:px-8 border-b border-sky-100">
         <div className="max-w-7xl mx-auto space-y-12">
@@ -547,7 +638,7 @@ export const HomePage: React.FC = () => {
               Why 1.8M+ Teachers & 5,500+ Schools Choose Us
             </h2>
             <p className="text-xs sm:text-sm text-slate-600">
-              Unlike generic job portals, SikshaHub is engineered specifically for the Indian education ecosystem.
+              Unlike generic job portals, SikchaKhub is engineered specifically for the Indian education ecosystem.
             </p>
           </div>
 
@@ -684,7 +775,7 @@ export const HomePage: React.FC = () => {
           <div className="space-y-4 max-w-xl">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-100 text-sky-700 text-xs font-bold border border-sky-200 shadow-2xs">
               <Smartphone className="w-4 h-4" />
-              <span>SikshaHub Mobile App (Android & iOS)</span>
+              <span>SikchaKhub Mobile App (Android & iOS)</span>
             </span>
 
             <h3 className="text-2xl sm:text-4xl font-black font-serif text-slate-900 tracking-tight leading-tight">
@@ -706,7 +797,7 @@ export const HomePage: React.FC = () => {
 
             <div className="flex flex-wrap items-center gap-4 pt-3">
               <div className="cursor-pointer p-3.5 bg-white border border-sky-200 hover:border-sky-300 rounded-2xl flex items-center gap-3.5 shadow-xs hover:shadow-md hover:shadow-sky-100 hover:-translate-y-0.5 transition-all duration-200 group">
-                <img src="/logo.jpeg" alt="SikshaHub Logo" className="w-10 h-10 rounded-xl object-cover border border-sky-200 bg-white group-hover:scale-105 transition-transform" />
+                <img src="/logo.jpeg" alt="SikchaKhub Logo" className="w-10 h-10 rounded-xl object-cover border border-sky-200 bg-white group-hover:scale-105 transition-transform" />
                 <div className="text-left">
                   <p className="text-[10px] text-slate-500 font-medium">Scan QR to install</p>
                   <p className="text-xs font-bold text-slate-900 group-hover:text-sky-600 transition-colors">Free on Google Play & iOS</p>
@@ -734,8 +825,8 @@ export const HomePage: React.FC = () => {
               <div className="bg-sky-50/60 rounded-2xl p-4 space-y-3 text-xs border border-sky-100">
                 <div className="flex items-center justify-between pb-2 border-b border-sky-200/80">
                   <div className="flex items-center gap-2">
-                    <img src="/logo.jpeg" alt="SikshaHub Mobile" className="w-6 h-6 rounded-md object-cover border border-sky-200 bg-white" />
-                    <span className="font-bold text-slate-900">SikshaHub Mobile</span>
+                    <img src="/logo.jpeg" alt="SikchaKhub Mobile" className="w-6 h-6 rounded-md object-cover border border-sky-200 bg-white" />
+                    <span className="font-bold text-slate-900">SikchaKhub Mobile</span>
                   </div>
                   <span className="text-[10px] text-sky-700 font-bold bg-sky-100 px-2 py-0.5 rounded-full border border-sky-200">
                     LIVE ALERTS

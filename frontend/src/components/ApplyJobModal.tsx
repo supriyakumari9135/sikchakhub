@@ -44,7 +44,7 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
   const existingApp = (myAppsData?.applications || []).find((a: any) => a.jobId === job.id);
 
   const [coverLetter, setCoverLetter] = useState(
-    `Dear Hiring Committee at SikshaHub, I am writing to express my enthusiastic interest in the ${job.title} position. With my background in ${job.subject} instruction and student mentorship, I am confident in my ability to contribute meaningfully to your academic objectives.`
+    `Dear Hiring Committee at SikchaKhub, I am writing to express my enthusiastic interest in the ${job.title} position. With my background in ${job.subject} instruction and student mentorship, I am confident in my ability to contribute meaningfully to your academic objectives.`
   );
   const [customAnswers, setCustomAnswers] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -145,13 +145,13 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-3">
-            <img src="/logo.jpeg" alt="SikshaHub" className="w-10 h-10 rounded-xl object-cover border border-amber-300/40 bg-white shrink-0" />
+            <img src="/logo.jpeg" alt="SikchaKhub" className="w-10 h-10 rounded-xl object-cover border border-amber-300/40 bg-white shrink-0" />
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
                 Structured Recruitment Form
               </span>
               <h3 className="text-lg font-bold text-slate-900 mt-1 font-serif line-clamp-1">{job.title}</h3>
-              <p className="text-xs text-slate-500">SikshaHub • {job.city}, {job.state}</p>
+              <p className="text-xs text-slate-500">SikchaKhub • {job.city}, {job.state}</p>
             </div>
           </div>
           <button
@@ -180,7 +180,7 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
                 </div>
                 <h4 className="text-xl font-bold text-slate-900">Application Submitted!</h4>
                 <p className="text-xs text-slate-600 max-w-sm mx-auto">
-                  Your profile and responses were processed by SikshaHub's automated screening engine.
+                  Your profile and responses were processed by SikchaKhub's automated screening engine.
                 </p>
               </div>
 
@@ -328,7 +328,7 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
                 </div>
                 <div className="text-right flex flex-col items-end gap-1">
                   <span className="text-[11px] font-bold text-sky-700 bg-sky-50 px-2.5 py-1 rounded-md border border-sky-200">
-                    SikshaHub Verified Candidate
+                    SikchaKhub Verified Candidate
                   </span>
                 </div>
               </div>
@@ -418,7 +418,7 @@ export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAp
                       <div>
                         <Upload className="w-6 h-6 text-sky-500 mx-auto mb-1" />
                         <p className="text-xs font-bold text-slate-700">Click to upload new PDF CV for this role</p>
-                        <p className="text-[10px] text-slate-400">PDF under 1MB • Parsed by SikshaHub ATS</p>
+                        <p className="text-[10px] text-slate-400">PDF under 1MB • Parsed by SikchaKhub ATS</p>
                       </div>
                     )}
                   </label>

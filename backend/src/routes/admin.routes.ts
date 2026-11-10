@@ -237,7 +237,7 @@ router.get('/recent-activities', authenticateJWT, requireRole(['ADMIN', 'HR']), 
             userEmail: teacher.email,
             resourceType: 'TEACHER',
             resourceId: teacher.id,
-            details: `Teacher ${teacher.fullName} registered on SikshaHub network`,
+            details: `Teacher ${teacher.fullName} registered on SikchaKhub network`,
             createdAt: teacher.createdAt || new Date().toISOString(),
           });
         });

@@ -147,13 +147,13 @@ export const AuthModal: React.FC = () => {
           <div className="flex items-center gap-3">
             <img
               src="/logo.jpeg"
-              alt="SikshaHub Logo"
+              alt="SikchaKhub Logo"
               className="w-12 h-12 rounded-2xl object-cover shadow-xs border border-sky-200 bg-white"
             />
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xl font-black tracking-tight text-slate-900 font-serif">
-                  Siksha<span className="bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">Hub</span>
+                  Sikcha<span className="bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">Khub</span>
                 </span>
                 <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 border border-sky-200">
                   .ai

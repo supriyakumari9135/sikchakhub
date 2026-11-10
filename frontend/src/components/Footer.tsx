@@ -53,12 +53,12 @@ export const Footer: React.FC = () => {
             <div className="flex items-center gap-3 group cursor-pointer">
               <img
                 src="/logo.jpeg"
-                alt="SikshaHub Logo"
+                alt="SikchaKhub Logo"
                 className="w-12 h-12 rounded-2xl object-cover shadow-xs border border-sky-200 bg-white group-hover:scale-105 group-hover:border-sky-300 transition-all duration-200"
               />
               <div className="flex items-center gap-1.5">
                 <span className="text-2xl font-black text-slate-900 font-serif tracking-tight">
-                  Siksha<span className="bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">Hub</span>
+                  Sikcha<span className="bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">Khub</span>
                 </span>
                 <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 border border-sky-200">
                   .ai
@@ -86,7 +86,7 @@ export const Footer: React.FC = () => {
               {['LinkedIn', 'YouTube', 'Instagram', 'Facebook', 'Telegram'].map((net) => (
                 <span
                   key={net}
-                  title={`Follow SikshaHub on ${net}`}
+                  title={`Follow SikchaKhub on ${net}`}
                   className="w-8 h-8 rounded-xl bg-white hover:bg-sky-600 hover:text-white border border-sky-200 hover:border-sky-600 flex items-center justify-center text-xs font-bold text-slate-600 cursor-pointer shadow-2xs hover:shadow-md hover:shadow-sky-500/25 hover:-translate-y-1 active:scale-95 transition-all duration-200"
                 >
                   {net[0]}
@@ -212,7 +212,7 @@ export const Footer: React.FC = () => {
                 <span className="text-xs font-bold text-slate-900">Mobile App (4.8★)</span>
               </div>
               <p className="text-[11px] text-slate-500 leading-snug">
-                Download SikshaHub for instant interview alerts & fast-track hiring.
+                Download SikchaKhub for instant interview alerts & fast-track hiring.
               </p>
               <div className="flex gap-1.5 pt-1">
                 <span className="cursor-pointer text-[10px] font-bold px-2 py-1 rounded bg-sky-50 hover:bg-sky-100 text-slate-700 hover:text-sky-700 border border-sky-200 hover:border-sky-300 transition-all duration-200 shadow-2xs hover:shadow-xs active:scale-95">
@@ -228,7 +228,7 @@ export const Footer: React.FC = () => {
 
         {/* Bottom Credits & Legal Links */}
         <div className="pt-8 border-t border-sky-200/80 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-          <p>© {new Date().getFullYear()} SikshaHub Technologies Pvt. Ltd. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} SikchaKhub Technologies Pvt. Ltd. All rights reserved.</p>
           <div className="flex flex-wrap items-center gap-5">
             <span className="cursor-pointer hover:text-sky-700 hover:underline transition-colors">Privacy Policy</span>
             <span className="cursor-pointer hover:text-sky-700 hover:underline transition-colors">Terms of Service</span>

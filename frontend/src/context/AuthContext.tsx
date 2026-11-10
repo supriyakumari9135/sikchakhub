@@ -40,11 +40,11 @@ const getStoredJson = <T,>(key: string): T | null => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('siksha_token'));
-  const [user, setUser] = useState<User | null>(() => getStoredJson<User>('siksha_user'));
-  const [profile, setProfile] = useState<TeacherProfile | null>(() => getStoredJson<TeacherProfile>('siksha_profile'));
-  const [institution, setInstitution] = useState<Institution | null>(() => getStoredJson<Institution>('siksha_institution'));
-  const [isLoading, setIsLoading] = useState<boolean>(() => !localStorage.getItem('siksha_token'));
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('sikchakhub_token') || localStorage.getItem('sikcha_token') || localStorage.getItem('siksha_token'));
+  const [user, setUser] = useState<User | null>(() => getStoredJson<User>('sikchakhub_user') || getStoredJson<User>('sikcha_user') || getStoredJson<User>('siksha_user'));
+  const [profile, setProfile] = useState<TeacherProfile | null>(() => getStoredJson<TeacherProfile>('sikchakhub_profile') || getStoredJson<TeacherProfile>('sikcha_profile') || getStoredJson<TeacherProfile>('siksha_profile'));
+  const [institution, setInstitution] = useState<Institution | null>(() => getStoredJson<Institution>('sikchakhub_institution') || getStoredJson<Institution>('sikcha_institution') || getStoredJson<Institution>('siksha_institution'));
+  const [isLoading, setIsLoading] = useState<boolean>(() => !localStorage.getItem('sikchakhub_token') && !localStorage.getItem('sikcha_token') && !localStorage.getItem('siksha_token'));
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalTab, setAuthModalTab] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
   const [authModalRole, setAuthModalRole] = useState<PortalRole>('TEACHER');
@@ -56,16 +56,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     newInstitution?: Institution | null
   ) => {
     try {
-      localStorage.setItem('siksha_token', newToken);
-      localStorage.setItem('siksha_user', JSON.stringify(newUser));
+      localStorage.setItem('sikchakhub_token', newToken);
+      localStorage.setItem('sikchakhub_user', JSON.stringify(newUser));
+      localStorage.removeItem('sikcha_token');
+      localStorage.removeItem('siksha_token');
+      localStorage.removeItem('sikcha_user');
+      localStorage.removeItem('siksha_user');
       if (newProfile) {
-        localStorage.setItem('siksha_profile', JSON.stringify(newProfile));
+        localStorage.setItem('sikchakhub_profile', JSON.stringify(newProfile));
+        localStorage.removeItem('sikcha_profile');
+        localStorage.removeItem('siksha_profile');
       } else {
+        localStorage.removeItem('sikchakhub_profile');
+        localStorage.removeItem('sikcha_profile');
         localStorage.removeItem('siksha_profile');
       }
       if (newInstitution) {
-        localStorage.setItem('siksha_institution', JSON.stringify(newInstitution));
+        localStorage.setItem('sikchakhub_institution', JSON.stringify(newInstitution));
+        localStorage.removeItem('sikcha_institution');
+        localStorage.removeItem('siksha_institution');
       } else {
+        localStorage.removeItem('sikchakhub_institution');
+        localStorage.removeItem('sikcha_institution');
         localStorage.removeItem('siksha_institution');
       }
     } catch (e) {
@@ -79,9 +91,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearSession = () => {
     try {
+      localStorage.removeItem('sikchakhub_token');
+      localStorage.removeItem('sikcha_token');
       localStorage.removeItem('siksha_token');
+      localStorage.removeItem('sikchakhub_user');
+      localStorage.removeItem('sikcha_user');
       localStorage.removeItem('siksha_user');
+      localStorage.removeItem('sikchakhub_profile');
+      localStorage.removeItem('sikcha_profile');
       localStorage.removeItem('siksha_profile');
+      localStorage.removeItem('sikchakhub_institution');
+      localStorage.removeItem('sikcha_institution');
       localStorage.removeItem('siksha_institution');
     } catch (e) {}
     setToken(null);
@@ -104,7 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Restore session
   useEffect(() => {
     async function loadUser() {
-      const storedToken = localStorage.getItem('siksha_token');
+      const storedToken = localStorage.getItem('sikchakhub_token') || localStorage.getItem('sikcha_token') || localStorage.getItem('siksha_token');
       if (!storedToken) {
         setIsLoading(false);
         return;
@@ -255,7 +275,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data.success && data.profile) {
         setProfile(data.profile);
         try {
-          localStorage.setItem('siksha_profile', JSON.stringify(data.profile));
+          localStorage.setItem('sikchakhub_profile', JSON.stringify(data.profile));
+          localStorage.removeItem('sikcha_profile');
+          localStorage.removeItem('siksha_profile');
         } catch (e) {}
       }
     } catch (err) {
@@ -279,13 +301,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (data.user) {
           setUser(data.user);
           try {
-            localStorage.setItem('siksha_user', JSON.stringify(data.user));
+            localStorage.setItem('sikchakhub_user', JSON.stringify(data.user));
+            localStorage.removeItem('sikcha_user');
+            localStorage.removeItem('siksha_user');
           } catch (e) {}
         }
         if (data.institution) {
           setInstitution(data.institution);
           try {
-            localStorage.setItem('siksha_institution', JSON.stringify(data.institution));
+            localStorage.setItem('sikchakhub_institution', JSON.stringify(data.institution));
+            localStorage.removeItem('sikcha_institution');
+            localStorage.removeItem('siksha_institution');
           } catch (e) {}
         }
         return { success: true, message: data.message };

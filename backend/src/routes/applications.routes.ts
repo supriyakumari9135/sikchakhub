@@ -309,18 +309,18 @@ router.get('/my-applications', authenticateJWT, async (req: Request, res: Respon
 
       return {
         ...app,
-        institutionName: 'SikshaHub',
+        institutionName: 'SikchaKhub',
         job: job ? {
           ...job,
           institution: institution ? {
             ...institution,
-            name: 'SikshaHub',
+            name: 'SikchaKhub',
             logoUrl: '/logo.jpeg',
           } : {
-            name: 'SikshaHub',
+            name: 'SikchaKhub',
             logoUrl: '/logo.jpeg',
           },
-          institutionName: 'SikshaHub',
+          institutionName: 'SikchaKhub',
         } : undefined,
       };
     }));

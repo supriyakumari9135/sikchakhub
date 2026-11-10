@@ -11,6 +11,9 @@
   h1, h2, h3, h4 {
     font-family: 'Outfit', sans-serif;
   }
+  .font-serif {
+    font-family: 'Playfair Display', Georgia, Cambria, 'Times New Roman', serif !important;
+  }
   
   /* Keyboard Accessibility focus rings */
   :focus-visible {

@@ -50,7 +50,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    service: 'SikshaHub API',
+    service: 'SikchaKhub API',
     database: 'MongoDB Atlas',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
@@ -69,7 +69,7 @@ app.use('/api/v1/notifications', notificationRoutes);
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found on SikshaHub API.` });
+  res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found on SikchaKhub API.` });
 });
 
 // Central error handler
@@ -84,8 +84,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 if (process.env.NODE_ENV !== 'test') {
   const startServer = (portToTry: number) => {
     const server = app.listen(portToTry, () => {
-      console.log(`🚀 SikshaHub API running on http://localhost:${portToTry}`);
-      console.log(`📚 SikshaHub AI Recruitment Platform`);
+      console.log(`🚀 SikchaKhub API running on http://localhost:${portToTry}`);
+      console.log(`📚 SikchaKhub AI Recruitment Platform`);
     });
 
     server.on('error', (err: any) => {

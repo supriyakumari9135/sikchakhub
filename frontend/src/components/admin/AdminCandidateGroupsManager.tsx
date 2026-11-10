@@ -597,7 +597,7 @@ export const AdminCandidateGroupsManager: React.FC<AdminCandidateGroupsManagerPr
             {/* Footer */}
             <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs">
               <span className="text-slate-500 text-[11px]">
-                Authorized Candidate Shortlisting Group • SikshaHub.AI
+                Authorized Candidate Shortlisting Group • SikchaKhub.AI
               </span>
               <button
                 onClick={() => setSelectedGroupDetail(null)}

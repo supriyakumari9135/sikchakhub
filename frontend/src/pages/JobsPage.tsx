@@ -919,7 +919,7 @@ export const JobsPage: React.FC = () => {
                       <div className="flex items-start gap-3.5">
                         <img
                           src="/logo.jpeg"
-                          alt="SikshaHub"
+                          alt="SikchaKhub"
                           className="w-12 h-12 rounded-2xl border border-amber-300/70 bg-white object-cover shadow-2xs shrink-0 group-hover:scale-105 transition-transform"
                         />
                         <div>
@@ -932,7 +932,7 @@ export const JobsPage: React.FC = () => {
                           <div className="flex items-center gap-3 text-xs text-slate-600 mt-1 font-medium">
                             <span className="flex items-center gap-1 text-slate-800 font-semibold">
                               <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                              <span>SikshaHub</span>
+                              <span>SikchaKhub</span>
                             </span>
                             <span className="flex items-center gap-1 text-slate-500">
                               <MapPin className="w-3.5 h-3.5 text-slate-400" />
@@ -1067,7 +1067,7 @@ export const JobsPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <img
                   src="/logo.jpeg"
-                  alt="SikshaHub"
+                  alt="SikchaKhub"
                   className="w-12 h-12 rounded-2xl object-cover border border-amber-300/60 bg-white shrink-0 shadow-2xs"
                 />
                 <div>
@@ -1075,7 +1075,7 @@ export const JobsPage: React.FC = () => {
                     {activeJobDetail.teachingLevel} • {activeJobDetail.board}
                   </span>
                   <h3 className="text-lg font-bold text-slate-900 mt-1 font-serif">{activeJobDetail.title}</h3>
-                  <p className="text-xs text-slate-500 font-medium">SikshaHub • {activeJobDetail.city}, {activeJobDetail.state}</p>
+                  <p className="text-xs text-slate-500 font-medium">SikchaKhub • {activeJobDetail.city}, {activeJobDetail.state}</p>
                 </div>
               </div>
               <button 

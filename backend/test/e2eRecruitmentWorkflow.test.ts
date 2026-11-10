@@ -8,7 +8,7 @@ import app from '../src/index';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-test('SikshaHub End-to-End Real Recruitment Platform & Database Persistence Workflow', async () => {
+test('SikchaKhub End-to-End Real Recruitment Platform & Database Persistence Workflow', async () => {
   let server: http.Server | null = null;
   let baseUrl = '';
 

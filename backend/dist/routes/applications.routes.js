@@ -290,18 +290,18 @@ router.get('/my-applications', authMiddleware_1.authenticateJWT, async (req, res
             }
             return {
                 ...app,
-                institutionName: 'SikshaHub',
+                institutionName: 'SikchaKhub',
                 job: job ? {
                     ...job,
                     institution: institution ? {
                         ...institution,
-                        name: 'SikshaHub',
+                        name: 'SikchaKhub',
                         logoUrl: '/logo.jpeg',
                     } : {
-                        name: 'SikshaHub',
+                        name: 'SikchaKhub',
                         logoUrl: '/logo.jpeg',
                     },
-                    institutionName: 'SikshaHub',
+                    institutionName: 'SikchaKhub',
                 } : undefined,
             };
         }));

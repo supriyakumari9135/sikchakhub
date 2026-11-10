@@ -169,7 +169,7 @@ export const AdminDashboard: React.FC = () => {
 
   // Platform Settings Form
   const [settingsForm, setSettingsForm] = useState({
-    siteName: 'SikshaHub.AI',
+    siteName: 'SikchaKhub.AI',
     supportEmail: 'support@sikchakhub.ai',
     supportPhone: '+91 9783143866',
     maxCvUploadSizeMB: 1,
@@ -385,7 +385,7 @@ export const AdminDashboard: React.FC = () => {
       const data = await authFetch(apiUrl('/api/v1/admin/settings'));
       if (data.settings) {
         setSettingsForm({
-          siteName: data.settings.siteName || 'SikshaHub.AI',
+          siteName: data.settings.siteName || 'SikchaKhub.AI',
           supportEmail: data.settings.supportEmail || 'support@sikchakhub.ai',
           supportPhone: data.settings.supportPhone || '+91 9783143866',
           maxCvUploadSizeMB: data.settings.maxCvUploadSizeMB ?? 1,
@@ -809,8 +809,8 @@ export const AdminDashboard: React.FC = () => {
       {/* Mobile Top Bar */}
       <div className="md:hidden bg-slate-900 text-white p-4 flex items-center justify-between border-b border-slate-800">
         <div className="flex items-center gap-2.5">
-          <img src="/logo.jpeg" alt="SikshaHub Super Admin" className="w-8 h-8 rounded-lg object-cover" />
-          <span className="font-bold font-serif text-sm">SikshaHub Super Admin</span>
+          <img src="/logo.jpeg" alt="SikchaKhub Super Admin" className="w-8 h-8 rounded-lg object-cover" />
+          <span className="font-bold font-serif text-sm">SikchaKhub Super Admin</span>
         </div>
         <button
           onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
@@ -828,10 +828,10 @@ export const AdminDashboard: React.FC = () => {
       `}>
         {/* Brand Header */}
         <div className="p-5 border-b border-slate-800/80 flex items-center gap-3">
-          <img src="/logo.jpeg" alt="SikshaHub" className="w-11 h-11 rounded-xl object-cover border border-sky-400/40 bg-white shadow-xs shrink-0" />
+          <img src="/logo.jpeg" alt="SikchaKhub" className="w-11 h-11 rounded-xl object-cover border border-sky-400/40 bg-white shadow-xs shrink-0" />
           <div>
             <div className="flex items-center gap-1.5">
-              <h2 className="text-sm font-bold text-white font-serif tracking-tight">SikshaHub.AI</h2>
+              <h2 className="text-sm font-bold text-white font-serif tracking-tight">SikchaKhub.AI</h2>
               <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
                 isHrMode ? 'bg-amber-500/20 text-amber-300 border-amber-400/30' : 'bg-sky-500/20 text-sky-300 border-sky-400/30'
               }`}>

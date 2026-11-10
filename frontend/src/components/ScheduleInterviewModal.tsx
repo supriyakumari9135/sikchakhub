@@ -69,7 +69,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center gap-3">
-            <img src="/logo.jpeg" alt="SikshaHub" className="w-10 h-10 rounded-xl object-cover border border-amber-300/40 bg-white shrink-0" />
+            <img src="/logo.jpeg" alt="SikchaKhub" className="w-10 h-10 rounded-xl object-cover border border-amber-300/40 bg-white shrink-0" />
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
                 Recruitment Stage Transition

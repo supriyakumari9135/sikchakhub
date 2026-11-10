@@ -473,7 +473,7 @@ export const JobSeekerAuthCard: React.FC = () => {
                 </button>
 
                 <p className="text-center text-xs text-slate-500 pt-2 border-t border-slate-100">
-                  New to SikshaHub?{' '}
+                  New to SikchaKhub?{' '}
                   <button
                     type="button"
                     onClick={() => {
@@ -497,7 +497,7 @@ export const JobSeekerAuthCard: React.FC = () => {
                   Zero Agency Commission
                 </span>
                 <h3 className="text-xl font-bold font-serif">
-                  Why Educators Choose SikshaHub
+                  Why Educators Choose SikchaKhub
                 </h3>
                 <p className="text-xs text-sky-200 leading-relaxed">
                   Join India's dedicated teacher hiring exchange with verified school connections and instant status visibility.

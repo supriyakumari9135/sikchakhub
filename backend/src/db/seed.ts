@@ -11,7 +11,7 @@ import {
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding SikshaHub database...');
+  console.log('🌱 Seeding SikchaKhub database...');
 
   // Upsert users
   for (const u of SEED_USERS) {

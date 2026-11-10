@@ -1,4 +1,4 @@
-// SikshaHub.AI - Firebase Cloud Messaging Service Worker
+// SikchaKhub.AI - Firebase Cloud Messaging Service Worker
 // Handles background push notifications for educators and institutions
 
 self.addEventListener('install', (event) => {
@@ -10,7 +10,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  let title = 'SikshaHub.AI Recruitment Alert';
+  let title = 'SikchaKhub.AI Recruitment Alert';
   let body = 'A new teaching opportunity or platform announcement matches your profile.';
   let actionUrl = '/teacher-dashboard';
   let icon = '/logo.jpeg';

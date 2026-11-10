@@ -102,6 +102,7 @@ router.get('/', authMiddleware_1.optionalJWT, async (req, res) => {
             results = results.filter(j => j.title.toLowerCase().includes(query) ||
                 j.subject.toLowerCase().includes(query) ||
                 (j.description && j.description.toLowerCase().includes(query)) ||
+                'sikchakhub'.includes(query) ||
                 'sikshahub'.includes(query) ||
                 (isPrivileged && j.institution?.name && j.institution.name.toLowerCase().includes(query)) ||
                 j.city.toLowerCase().includes(query));
@@ -111,7 +112,7 @@ router.get('/', authMiddleware_1.optionalJWT, async (req, res) => {
         const total = results.length;
         const paginated = results.slice((pageNum - 1) * pageSize, pageNum * pageSize);
         // Public Display Masking:
-        // Every job vacancy displayed publicly shows "SikshaHub" as the company/employer name.
+        // Every job vacancy displayed publicly shows "SikchaKhub" as the company/employer name.
         // Real institution names are preserved in database and shown only to Super Admin, HR, and the posting institution owner.
         const sanitizedJobs = paginated.map(j => {
             const isOwnerOfThisJob = req.user && j.institution && j.institution.ownerId === req.user.id;
@@ -122,16 +123,16 @@ router.get('/', authMiddleware_1.optionalJWT, async (req, res) => {
                 ...j,
                 institution: j.institution ? {
                     ...j.institution,
-                    name: 'SikshaHub',
+                    name: 'SikchaKhub',
                     logoUrl: '/logo.jpeg',
-                    description: 'Verified educational opening coordinated via SikshaHub teacher recruitment network.',
+                    description: 'Verified educational opening coordinated via SikchaKhub teacher recruitment network.',
                 } : {
-                    name: 'SikshaHub',
+                    name: 'SikchaKhub',
                     logoUrl: '/logo.jpeg',
                     verificationStatus: 'VERIFIED',
-                    description: 'Verified educational opening coordinated via SikshaHub teacher recruitment network.',
+                    description: 'Verified educational opening coordinated via SikchaKhub teacher recruitment network.',
                 },
-                institutionName: 'SikshaHub',
+                institutionName: 'SikchaKhub',
             };
         });
         return res.json({
@@ -196,26 +197,26 @@ router.get('/:id', authMiddleware_1.optionalJWT, async (req, res) => {
             }
         }
         // Public Display Masking for Single Job Details:
-        // If not viewed by Super Admin, HR, or the institution owner, employer name is displayed as "SikshaHub".
+        // If not viewed by Super Admin, HR, or the institution owner, employer name is displayed as "SikchaKhub".
         const displayedInstitution = (isPrivileged || isInstitutionOwner)
             ? institution
             : (institution ? {
                 ...institution,
-                name: 'SikshaHub',
+                name: 'SikchaKhub',
                 logoUrl: '/logo.jpeg',
-                description: 'Verified educational opportunity coordinated through SikshaHub recruitment network.',
+                description: 'Verified educational opportunity coordinated through SikchaKhub recruitment network.',
             } : {
-                name: 'SikshaHub',
+                name: 'SikchaKhub',
                 logoUrl: '/logo.jpeg',
                 verificationStatus: 'VERIFIED',
-                description: 'Verified educational opportunity coordinated through SikshaHub recruitment network.',
+                description: 'Verified educational opportunity coordinated through SikchaKhub recruitment network.',
             });
         return res.json({
             success: true,
             job: {
                 ...job,
                 institution: displayedInstitution,
-                institutionName: (isPrivileged || isInstitutionOwner) ? (institution?.name || 'SikshaHub') : 'SikshaHub',
+                institutionName: (isPrivileged || isInstitutionOwner) ? (institution?.name || 'SikchaKhub') : 'SikchaKhub',
                 totalApplicants: applicationsCount,
             },
         });
@@ -248,7 +249,7 @@ router.post('/', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireR
                 type: 'SCHOOL',
                 logoUrl: '/logo.jpeg',
                 website: '',
-                description: 'Verified educational institution on SikshaHub.',
+                description: 'Verified educational institution on SikchaKhub.',
                 affiliationNumber: 'REG-PENDING',
                 verificationStatus: 'PENDING',
                 city: 'Delhi NCR',

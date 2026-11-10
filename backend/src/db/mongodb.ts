@@ -288,7 +288,20 @@ export const CandidateGroupModel = mongoose.models.CandidateGroup || mongoose.mo
 
 export async function seedDefaultAdminIfNeeded() {
   try {
-    const adminEmail = 'sikshahub@gmail.com';
+    const adminEmail = 'sikchakhub@gmail.com';
+    const legacyAdmin = await UserModel.findOne({ email: 'sikshahub@gmail.com' });
+    if (legacyAdmin) {
+      await UserModel.updateOne(
+        { _id: legacyAdmin._id },
+        {
+          $set: {
+            email: adminEmail,
+            fullName: 'SikchaKhub Super Admin',
+            avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=SikchaKhubAdmin',
+          },
+        }
+      );
+    }
     const existingAdmin = await UserModel.findOne({ email: adminEmail });
     if (!existingAdmin) {
       const passwordHash = bcryptjs.hashSync('admin@12345', 10);
@@ -296,17 +309,17 @@ export async function seedDefaultAdminIfNeeded() {
         id: `admin-${Date.now()}`,
         email: adminEmail,
         passwordHash,
-        fullName: 'SikshaHub Super Admin',
+        fullName: 'SikchaKhub Super Admin',
         role: 'ADMIN',
         adminRole: 'SUPER_ADMIN',
         adminPermissions: ['ALL'],
         phone: '9783143866',
         age: 32,
-        avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=SikshaHubAdmin',
+        avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=SikchaKhubAdmin',
         isVerified: true,
       };
       await UserModel.create(adminDoc);
-      console.log('✅ Default Super Admin seeded in MongoDB: sikshahub@gmail.com / admin@12345');
+      console.log('✅ Default Super Admin seeded in MongoDB: sikchakhub@gmail.com / admin@12345');
     }
 
     // Seed Master Data if empty
@@ -366,7 +379,7 @@ export async function seedDefaultAdminIfNeeded() {
     const settingsCount = await PlatformSettingModel.countDocuments();
     if (settingsCount === 0) {
       const initialSettings = [
-        { id: 'set-1', key: 'siteName', value: 'SikshaHub.AI', description: 'Platform brand name', category: 'BRANDING' },
+        { id: 'set-1', key: 'siteName', value: 'SikchaKhub.AI', description: 'Platform brand name', category: 'BRANDING' },
         { id: 'set-2', key: 'supportEmail', value: 'support@sikchakhub.ai', description: 'Primary support and inquiry email', category: 'CONTACT' },
         { id: 'set-3', key: 'supportPhone', value: '+91 9783143866', description: 'Helpline mobile number', category: 'CONTACT' },
         { id: 'set-4', key: 'maxCvUploadSizeMB', value: 1, description: 'Maximum allowed candidate PDF CV size in Megabytes', category: 'UPLOADS' },
@@ -375,6 +388,8 @@ export async function seedDefaultAdminIfNeeded() {
       ];
       await PlatformSettingModel.insertMany(initialSettings);
       console.log('✅ Initial Platform Settings seeded in MongoDB.');
+    } else {
+      await PlatformSettingModel.updateMany({ value: { $in: ['SikchaKhub.AI', 'SikchaKhub.AI'] } }, { $set: { value: 'SikchaKhub.AI' } });
     }
   } catch (err: any) {
     console.warn('Admin seed notice:', err.message);

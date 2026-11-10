@@ -555,7 +555,7 @@ router.post('/google', async (req, res) => {
                     type: 'SCHOOL',
                     logoUrl: '/logo.jpeg',
                     website: 'https://sikchakhub.ai',
-                    description: 'Verified educational organization on SikshaHub.',
+                    description: 'Verified educational organization on SikchaKhub.',
                     affiliationNumber: 'REG-PENDING',
                     verificationStatus: 'PENDING',
                     address: 'Institutional Hub',
