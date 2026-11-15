@@ -27,19 +27,26 @@ declare global {
 const JWT_SECRET = process.env.JWT_SECRET || 'sikchakhub-super-secret-jwt-key-2025';
 
 export async function authenticateJWT(req: Request, res: Response, next: NextFunction) {
+  let token: string | null = null;
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.query && typeof req.query.token === 'string') {
+    // Support authenticated document downloads & iframes via query parameter
+    token = req.query.token;
+  }
+
+  if (!token) {
     return res.status(401).json({ success: false, message: 'Authentication required. No token provided.' });
   }
 
-  const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthenticatedUser;
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as AuthenticatedUser & { iat?: number };
 
-    // Verify account active status and hydrate live verification status
+    // Verify account active status, session freshness, and hydrate live verification status
     try {
       const liveUser = await UserModel.findOne({ id: decoded.id })
-        .select('status isVerified verificationStatus emailVerified phoneVerified')
+        .select('status isVerified verificationStatus emailVerified phoneVerified passwordChangedAt')
         .lean() as any;
       if (liveUser && (liveUser.status === 'SUSPENDED' || liveUser.status === 'DEACTIVATED')) {
         return res.status(403).json({
@@ -47,6 +54,19 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
           message: `Access denied. Your account is currently ${liveUser.status.toLowerCase()}. Please contact support@sikchakhub.ai.`,
         });
       }
+
+      // Session invalidation after password changes
+      if (liveUser?.passwordChangedAt && decoded.iat) {
+        const changedTimestamp = new Date(liveUser.passwordChangedAt).getTime();
+        // Allow 2-second clock skew tolerance
+        if (decoded.iat * 1000 < changedTimestamp - 2000) {
+          return res.status(401).json({
+            success: false,
+            message: 'Session invalidated due to recent password change. Please sign in again with your new password.',
+          });
+        }
+      }
+
       if (liveUser) {
         const isDualVerified = (liveUser.emailVerified === true && liveUser.phoneVerified === true) || decoded.role === 'ADMIN' || decoded.role === 'HR';
         decoded.isVerified = isDualVerified;
@@ -60,6 +80,17 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
           message: `Access denied. Your account is currently ${fallbackUser.status.toLowerCase()}. Please contact support@sikchakhub.ai.`,
         });
       }
+
+      if (fallbackUser?.passwordChangedAt && decoded.iat) {
+        const changedTimestamp = new Date(fallbackUser.passwordChangedAt).getTime();
+        if (decoded.iat * 1000 < changedTimestamp - 2000) {
+          return res.status(401).json({
+            success: false,
+            message: 'Session invalidated due to recent password change. Please sign in again with your new password.',
+          });
+        }
+      }
+
       if (fallbackUser) {
         const isDualVerified = (fallbackUser.emailVerified === true && fallbackUser.phoneVerified === true) || decoded.role === 'ADMIN' || decoded.role === 'HR';
         decoded.isVerified = isDualVerified;

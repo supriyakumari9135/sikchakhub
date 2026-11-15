@@ -368,7 +368,7 @@ export const OtpVerificationPage: React.FC = () => {
         // Defensive guard: Ensure exactly one widget element exists in container by trimming any older orphaned elements
         if (freshContainer && freshContainer.children.length > 1) {
           while (freshContainer.children.length > 1) {
-            freshContainer.removeChild(freshContainer.firstChild!);
+            freshContainer.removeChild(freshContainer.lastElementChild!);
           }
         }
 
@@ -408,7 +408,7 @@ export const OtpVerificationPage: React.FC = () => {
     const enforceSingleChild = () => {
       if (container.children.length > 1) {
         while (container.children.length > 1) {
-          container.removeChild(container.firstChild!);
+          container.removeChild(container.lastElementChild!);
         }
       }
     };

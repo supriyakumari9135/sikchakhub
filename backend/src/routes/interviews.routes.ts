@@ -206,24 +206,56 @@ router.get('/my-interviews', authenticateJWT, requireVerifiedAccount, async (req
   }
 });
 
-// PATCH /api/v1/interviews/:id - Update interview status or feedback
+// PATCH /api/v1/interviews/:id - Update interview status or feedback (Strict employer ownership + field whitelisting)
 router.patch('/:id', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
   try {
+    let existingInterview: any = null;
+    try {
+      existingInterview = await InterviewModel.findOne({ id: req.params.id }).lean();
+    } catch (e) {}
+    if (!existingInterview) {
+      existingInterview = dbStore.interviews.find(i => i.id === req.params.id);
+    }
+
+    if (!existingInterview) {
+      return res.status(404).json({ success: false, message: 'Interview record not found.' });
+    }
+
+    // Role-based authorization: Employer must own the institution holding the interview
+    if (req.user!.role === 'EMPLOYER') {
+      let employerInst: any = null;
+      try {
+        employerInst = await InstitutionModel.findOne({ ownerId: req.user!.id }).lean();
+      } catch (e) {}
+      if (!employerInst) employerInst = dbStore.institutions.find(i => i.ownerId === req.user!.id);
+
+      if (!employerInst || existingInterview.institutionId !== employerInst.id) {
+        return res.status(403).json({ success: false, message: 'Forbidden: You are not authorized to modify this interview.' });
+      }
+    }
+
+    // Whitelist allowed fields to prevent mass-assignment
+    const allowedFields = ['status', 'feedback', 'rating', 'scheduledTime', 'meetingLink', 'locationDetails', 'notes'];
+    const sanitizedUpdates: Record<string, any> = {};
+    for (const f of allowedFields) {
+      if (req.body[f] !== undefined) {
+        sanitizedUpdates[f] = req.body[f];
+      }
+    }
+    sanitizedUpdates.updatedAt = new Date();
+
     let updated: any = null;
     try {
       updated = await InterviewModel.findOneAndUpdate(
         { id: req.params.id },
-        { $set: { ...req.body, updatedAt: new Date() } },
+        { $set: sanitizedUpdates },
         { new: true }
       ).lean();
     } catch (e) {}
 
     const interview = dbStore.interviews.find(i => i.id === req.params.id);
     if (interview) {
-      if (req.body.status) interview.status = req.body.status;
-      if (req.body.feedback) interview.feedback = req.body.feedback;
-      if (req.body.rating) interview.rating = req.body.rating;
-      if (req.body.scheduledTime) interview.scheduledTime = req.body.scheduledTime;
+      Object.assign(interview, sanitizedUpdates);
       if (!updated) updated = interview;
     }
 
@@ -231,7 +263,7 @@ router.patch('/:id', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async 
       return res.status(404).json({ success: false, message: 'Interview record not found.' });
     }
 
-    logAuditEvent(req, 'INTERVIEW_UPDATED', 'Interview', req.params.id, req.body);
+    logAuditEvent(req, 'INTERVIEW_UPDATED', 'Interview', req.params.id, sanitizedUpdates);
 
     return res.json({
       success: true,

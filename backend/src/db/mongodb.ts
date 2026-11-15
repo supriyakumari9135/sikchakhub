@@ -25,6 +25,7 @@ const UserSchema = new mongoose.Schema({
   phoneVerified: { type: Boolean, default: false },
   emailVerifiedAt: { type: Date },
   phoneVerifiedAt: { type: Date },
+  passwordChangedAt: { type: Date },
 }, { timestamps: true });
 
 UserSchema.index({ role: 1, status: 1 });

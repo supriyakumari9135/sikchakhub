@@ -661,7 +661,7 @@ router.get('/me', authenticateJWT, async (req: Request, res: Response) => {
 });
 
 // PUT /api/v1/auth/profile
-// Real profile update synchronized to MongoDB Atlas
+// Secure profile updates with strict field whitelisting (Prevents mass-assignment / role tampering)
 router.put('/profile', authenticateJWT, async (req: Request, res: Response) => {
   const userId = req.user!.id;
   const currentProfile = dbStore.profiles[userId] || {
@@ -682,17 +682,33 @@ router.put('/profile', authenticateJWT, async (req: Request, res: Response) => {
     streakDays: 1,
   };
 
+  // Strictly whitelist allowed profile fields
+  const allowedKeys = [
+    'headline', 'bio', 'age', 'gender', 'experienceYears', 'highestQualification',
+    'degree', 'teachingLevels', 'classesTaught', 'subjects', 'previousSchool',
+    'boards', 'currentCity', 'preferredCities', 'isWillingToRelocate',
+    'currentSalaryLPA', 'expectedSalaryLPA', 'expectedSalary', 'noticePeriodDays',
+    'joiningAvailability', 'skills', 'certifications', 'languages'
+  ];
+
+  const sanitizedUpdates: Record<string, any> = {};
+  for (const key of allowedKeys) {
+    if (req.body[key] !== undefined) {
+      sanitizedUpdates[key] = req.body[key];
+    }
+  }
+
   const updatedProfile = {
     ...currentProfile,
-    ...req.body,
+    ...sanitizedUpdates,
     userId,
     profileCompletionScore: Math.min(100, Math.max(50, 
-      (req.body.resumeUrl ? 25 : 10) +
-      (req.body.subjects?.length ? 20 : 0) +
-      (req.body.highestQualification ? 15 : 0) +
-      (req.body.headline ? 15 : 0) +
-      (req.body.bio ? 15 : 0) +
-      (req.body.skills?.length ? 10 : 0)
+      (currentProfile.resumeUrl ? 25 : 10) +
+      ((sanitizedUpdates.subjects || currentProfile.subjects)?.length ? 20 : 0) +
+      (sanitizedUpdates.highestQualification || currentProfile.highestQualification ? 15 : 0) +
+      (sanitizedUpdates.headline || currentProfile.headline ? 15 : 0) +
+      (sanitizedUpdates.bio || currentProfile.bio ? 15 : 0) +
+      ((sanitizedUpdates.skills || currentProfile.skills)?.length ? 10 : 0)
     )),
   };
 
@@ -845,8 +861,12 @@ router.put('/password', authenticateJWT, async (req: Request, res: Response) => 
     return res.status(400).json({ success: false, message: 'Current password and new password are required.' });
   }
 
-  if (newPassword.length < 6) {
-    return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+  // Strong password complexity validation: at least 8 chars, letter + number
+  if (newPassword.length < 8 || !/(?=.*[A-Za-z])(?=.*\d)/.test(newPassword)) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'New password must be at least 8 characters long and contain both letters and numbers.' 
+    });
   }
 
   try {
@@ -869,24 +889,37 @@ router.put('/password', authenticateJWT, async (req: Request, res: Response) => 
     }
 
     const newHash = bcryptjs.hashSync(newPassword, 10);
+    const passwordChangedAt = new Date();
+
     try {
       await UserModel.findOneAndUpdate(
         { id: userId },
-        { $set: { passwordHash: newHash, updatedAt: new Date().toISOString() } }
+        { 
+          $set: { 
+            passwordHash: newHash, 
+            passwordChangedAt,
+            updatedAt: new Date().toISOString() 
+          } 
+        }
       );
     } catch (e) {}
 
     const memUser = dbStore.getUserById(userId) as any;
     if (memUser) {
       memUser.passwordHash = newHash;
+      memUser.passwordChangedAt = passwordChangedAt;
       memUser.updatedAt = new Date().toISOString();
     }
 
     logAuditEvent(req, 'PASSWORD_CHANGED', 'User', userId);
 
+    // Issue refreshed token for the current session (all previous tokens are invalidated by passwordChangedAt)
+    const freshToken = generateToken({ ...user, passwordChangedAt });
+
     return res.json({
       success: true,
-      message: 'Password changed successfully!',
+      message: 'Password changed successfully! All other active sessions have been invalidated.',
+      token: freshToken,
     });
   } catch (err: any) {
     console.error('Password change error:', err);

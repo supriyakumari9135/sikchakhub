@@ -417,8 +417,10 @@ router.get('/job/:jobId', authenticateJWT, requireVerifiedAccount, requireRole([
         return res.status(404).json({ success: false, message: 'Job opening not found.' });
       }
 
-      if (req.user!.role === 'EMPLOYER' && employerInst && job.institutionId !== employerInst.id) {
-        return res.status(403).json({ success: false, message: 'Unauthorized to view candidates for this vacancy.' });
+      if (req.user!.role === 'EMPLOYER') {
+        if (!employerInst || job.institutionId !== employerInst.id) {
+          return res.status(403).json({ success: false, message: 'Unauthorized to view candidates for this vacancy.' });
+        }
       }
 
       targetJobIds = [job.id];
@@ -821,7 +823,7 @@ router.get('/:id', authenticateJWT, async (req: Request, res: Response) => {
       } catch (e) {}
       if (!employerInst) employerInst = dbStore.institutions.find(i => i.ownerId === req.user!.id);
 
-      if (job && employerInst && job.institutionId !== employerInst.id) {
+      if (!job || !employerInst || job.institutionId !== employerInst.id) {
         return res.status(403).json({ success: false, message: 'Forbidden: Unauthorized to access candidate profiles for this vacancy.' });
       }
 
@@ -1010,7 +1012,7 @@ router.get('/:id/resume', authenticateJWT, async (req: Request, res: Response) =
       } catch (e) {}
       if (!employerInst) employerInst = dbStore.institutions.find(i => i.ownerId === req.user!.id);
 
-      if (job && employerInst && job.institutionId !== employerInst.id) {
+      if (!job || !employerInst || job.institutionId !== employerInst.id) {
         return res.status(403).json({ success: false, message: 'Forbidden: Unauthorized to access CV for this vacancy.' });
       }
 
@@ -1091,8 +1093,12 @@ router.patch('/:id/stage', authenticateJWT, requireVerifiedAccount, requireRole(
       targetApp = dbStore.applications.find(a => a.id === req.params.id);
     }
 
+    if (!targetApp) {
+      return res.status(404).json({ success: false, message: 'Application not found.' });
+    }
+
     // 2. Authorization: Employer must own the vacancy
-    if (req.user!.role === 'EMPLOYER' && targetApp) {
+    if (req.user!.role === 'EMPLOYER') {
       let job: any = null;
       try {
         job = await JobVacancyModel.findOne({ id: targetApp.jobId }).lean();
@@ -1105,7 +1111,7 @@ router.patch('/:id/stage', authenticateJWT, requireVerifiedAccount, requireRole(
       } catch (e) {}
       if (!employerInst) employerInst = dbStore.institutions.find(i => i.ownerId === req.user!.id);
 
-      if (job && employerInst && job.institutionId !== employerInst.id) {
+      if (!job || !employerInst || job.institutionId !== employerInst.id) {
         return res.status(403).json({ success: false, message: 'Forbidden: Unauthorized to update applications for this vacancy.' });
       }
 
@@ -1175,11 +1181,41 @@ router.patch('/:id/stage', authenticateJWT, requireVerifiedAccount, requireRole(
   }
 });
 
-// PATCH /api/v1/applications/:id/notes - Add internal recruiter notes in database
+// PATCH /api/v1/applications/:id/notes - Add internal recruiter notes in database (Strict employer ownership)
 router.patch('/:id/notes', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
   const { notes } = req.body;
 
   try {
+    let app: any = null;
+    try {
+      app = await JobApplicationModel.findOne({ id: req.params.id }).lean();
+    } catch (e) {}
+    if (!app) {
+      app = dbStore.applications.find(a => a.id === req.params.id);
+    }
+
+    if (!app) {
+      return res.status(404).json({ success: false, message: 'Application not found.' });
+    }
+
+    if (req.user!.role === 'EMPLOYER') {
+      let job: any = null;
+      try {
+        job = await JobVacancyModel.findOne({ id: app.jobId }).lean();
+      } catch (e) {}
+      if (!job) job = dbStore.getJobById(app.jobId);
+
+      let employerInst: any = null;
+      try {
+        employerInst = await InstitutionModel.findOne({ ownerId: req.user!.id }).lean();
+      } catch (e) {}
+      if (!employerInst) employerInst = dbStore.institutions.find(i => i.ownerId === req.user!.id);
+
+      if (!job || !employerInst || job.institutionId !== employerInst.id) {
+        return res.status(403).json({ success: false, message: 'Forbidden: Unauthorized to edit notes for this candidate application.' });
+      }
+    }
+
     let updatedApp: any = null;
     try {
       updatedApp = await JobApplicationModel.findOneAndUpdate(
@@ -1189,11 +1225,11 @@ router.patch('/:id/notes', authenticateJWT, requireVerifiedAccount, requireRole(
       ).lean();
     } catch (e) {}
 
-    const app = dbStore.applications.find(a => a.id === req.params.id);
-    if (app) {
-      app.recruiterNotes = notes;
-      app.updatedAt = new Date().toISOString();
-      if (!updatedApp) updatedApp = app;
+    const storeApp = dbStore.applications.find(a => a.id === req.params.id);
+    if (storeApp) {
+      storeApp.recruiterNotes = notes;
+      storeApp.updatedAt = new Date().toISOString();
+      if (!updatedApp) updatedApp = storeApp;
     }
 
     if (!updatedApp) {

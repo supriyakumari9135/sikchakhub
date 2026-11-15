@@ -7,6 +7,10 @@ import { JobVacancySchema } from '@sikchakhub/shared-validation';
 
 const router = Router();
 
+function escapeRegex(text: string): string {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+}
+
 // GET /api/v1/jobs - Public Search & Filtering directly from database
 router.get('/', optionalJWT, async (req: Request, res: Response) => {
   const {
@@ -37,7 +41,7 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
         queryFilter.institutionId = institutionId;
       }
       if (subject) {
-        queryFilter.subject = new RegExp(String(subject), 'i');
+        queryFilter.subject = new RegExp(escapeRegex(String(subject)), 'i');
       }
       if (teachingLevel) {
         queryFilter.teachingLevel = teachingLevel;
@@ -49,7 +53,7 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
         queryFilter.employmentType = employmentType;
       }
       if (city) {
-        queryFilter.city = new RegExp(String(city), 'i');
+        queryFilter.city = new RegExp(escapeRegex(String(city)), 'i');
       }
       if (minSalary) {
         queryFilter.maxSalaryLPA = { $gte: Number(minSalary) };
@@ -384,14 +388,52 @@ router.post('/', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER
   }
 });
 
-// PUT /api/v1/jobs/:id - Update vacancy
+// PUT /api/v1/jobs/:id - Update vacancy (Strict employer ownership + field whitelisting)
 router.put('/:id', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
   try {
+    let existingJob: any = null;
+    try {
+      existingJob = await JobVacancyModel.findOne({ id: req.params.id }).lean();
+    } catch (e) {}
+    if (!existingJob) existingJob = dbStore.getJobById(req.params.id);
+
+    if (!existingJob) {
+      return res.status(404).json({ success: false, message: 'Job vacancy not found.' });
+    }
+
+    // Role-based authorization: Employer can only modify their own institution's vacancies
+    if (req.user!.role === 'EMPLOYER') {
+      let inst: any = null;
+      try {
+        inst = await InstitutionModel.findOne({ ownerId: req.user!.id }).lean();
+      } catch (e) {}
+      if (!inst) inst = dbStore.institutions.find(i => i.ownerId === req.user!.id);
+
+      if (!inst || existingJob.institutionId !== inst.id) {
+        return res.status(403).json({ success: false, message: 'Forbidden: You do not have permission to edit this vacancy.' });
+      }
+    }
+
+    // Whitelist allowed fields to prevent mass-assignment
+    const allowedFields = [
+      'title', 'department', 'subject', 'additionalSubjects', 'teachingLevel',
+      'board', 'employmentType', 'minExperienceYears', 'maxExperienceYears',
+      'requiredQualification', 'description', 'responsibilities', 'benefits',
+      'minSalaryLPA', 'maxSalaryLPA', 'city', 'state', 'vacanciesCount'
+    ];
+    const sanitizedUpdates: Record<string, any> = {};
+    for (const f of allowedFields) {
+      if (req.body[f] !== undefined) {
+        sanitizedUpdates[f] = req.body[f];
+      }
+    }
+    sanitizedUpdates.updatedAt = new Date().toISOString();
+
     let updatedJob: any = null;
     try {
       updatedJob = await JobVacancyModel.findOneAndUpdate(
         { id: req.params.id },
-        { $set: { ...req.body, updatedAt: new Date().toISOString() } },
+        { $set: sanitizedUpdates },
         { new: true }
       ).lean();
     } catch (e) {}
@@ -400,8 +442,7 @@ router.put('/:id', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOY
     if (index !== -1) {
       dbStore.jobs[index] = {
         ...dbStore.jobs[index],
-        ...req.body,
-        updatedAt: new Date().toISOString(),
+        ...sanitizedUpdates,
       };
       if (!updatedJob) updatedJob = dbStore.jobs[index];
     }
@@ -422,11 +463,38 @@ router.put('/:id', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOY
   }
 });
 
-// PATCH /api/v1/jobs/:id/status - Change status (ACTIVE, PAUSED, CLOSED)
+// PATCH /api/v1/jobs/:id/status - Change status (ACTIVE, PAUSED, CLOSED) with ownership verification
 router.patch('/:id/status', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
   const { status } = req.body;
 
+  if (!status || !['ACTIVE', 'PAUSED', 'CLOSED', 'DRAFT'].includes(status)) {
+    return res.status(400).json({ success: false, message: 'Invalid status. Must be ACTIVE, PAUSED, CLOSED, or DRAFT.' });
+  }
+
   try {
+    let existingJob: any = null;
+    try {
+      existingJob = await JobVacancyModel.findOne({ id: req.params.id }).lean();
+    } catch (e) {}
+    if (!existingJob) existingJob = dbStore.jobs.find(j => j.id === req.params.id);
+
+    if (!existingJob) {
+      return res.status(404).json({ success: false, message: 'Job vacancy not found.' });
+    }
+
+    // Role-based authorization: Employer must own the vacancy
+    if (req.user!.role === 'EMPLOYER') {
+      let inst: any = null;
+      try {
+        inst = await InstitutionModel.findOne({ ownerId: req.user!.id }).lean();
+      } catch (e) {}
+      if (!inst) inst = dbStore.institutions.find(i => i.ownerId === req.user!.id);
+
+      if (!inst || existingJob.institutionId !== inst.id) {
+        return res.status(403).json({ success: false, message: 'Forbidden: You do not have permission to modify this vacancy.' });
+      }
+    }
+
     if (status === 'ACTIVE' && req.user!.role !== 'ADMIN') {
       let inst: any = null;
       try {
