@@ -9,16 +9,22 @@ node_modules/
 .pnp
 .pnp.js
 
-# Environment variables & secrets (Never commit real credentials)
+# Environment variables & secrets (Never commit credentials or env templates)
 .env
 .env.*
-!.env.example
+.env.example
 *.env
 *.env.*
-!*.env.example
+*.env.example
 backend/.env
+backend/.env.*
+backend/.env.example
 frontend/.env
+frontend/.env.*
+frontend/.env.example
 app/.env
+app/.env.*
+app/.env.example
 
 # Firebase credentials & Service Account Keys
 firebase-service-account*.json

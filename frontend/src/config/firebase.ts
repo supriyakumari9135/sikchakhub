@@ -1,6 +1,6 @@
 /**
  * SikchaKhub.AI - Real Firebase Client Configuration
- * Connected to Firebase project: sikchakhub-9593c
+ * Connected to Firebase Phone & Authentication Service
  * Enables Live Real-Time Phone OTP Authentication with invisible reCAPTCHA
  */
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';

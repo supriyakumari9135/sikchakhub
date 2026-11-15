@@ -3,8 +3,8 @@
 **Date of Execution:** November 15, 2026  
 **Test Runner:** Node.js v24 Test Harness + `npx tsx --test`  
 **Database:** MongoDB Atlas Production Replica Cluster  
-**SMTP:** Gmail SMTP (`sikchakhub@gmail.com`)  
-**Identity Provider:** Firebase Identity Platform (`sikchakhub-9593c`)  
+**SMTP:** Gmail SMTP (Secure App Credentials)  
+**Identity Provider:** Firebase Identity Platform (Enterprise Phone Auth)  
 **Overall Status:** ALL TESTS PASSED (15/15 Unit/Integration + 1 E2E Workflow)
 
 ---
@@ -30,7 +30,7 @@
 |:---:|---|---|---|---|:---:|
 | **1** | Signup Verification State | New Job Seeker signs up | Account created with `PENDING_VERIFICATION`, `isVerified: false` | Verified: `PENDING_VERIFICATION` | **PASS** |
 | **2** | Cryptographic Hash Generation | 6-digit OTP generated | HMAC-SHA256 hash stored; plain OTP never saved | Verified: timing-safe equality matches | **PASS** |
-| **3** | Phone Normalization | `6204414757`, `+916204414757` | Formats into E.164 standard `+916204414757` | Verified: correctly normalized | **PASS** |
+| **3** | Phone Normalization | `9876543210`, `+919876543210` | Formats into E.164 standard `+919876543210` | Verified: correctly normalized | **PASS** |
 | **4** | 60-Second Cooldown Enforcement | Resend requested before 60s | Rejected with HTTP 429 and remaining seconds | Verified: `Please wait 60 seconds` | **PASS** |
 | **5** | Daily Limit (Max 3 Sends/24h) | 4th send attempt in rolling 24h | Rejected with HTTP 429 "limit reached" | Verified: 4th attempt blocked | **PASS** |
 | **6** | 3 Failed Attempts $\to$ 24h Lockout | 3 incorrect OTP entries | Account blocked for 24 hours | Verified: `TEMPORARILY_BLOCKED` | **PASS** |

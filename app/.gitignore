@@ -5,7 +5,8 @@ dist/
 web-build/
 .env
 .env.*
-!.env.example
+.env.example
+*.env.example
 *.jks
 *.p8
 *.p12

@@ -1,7 +1,7 @@
 # Firebase Phone Authentication Setup & Configuration Guide
 **Project:** SikchaKhub.AI Teacher Recruitment Platform  
-**Firebase Project ID:** `sikchakhub-9593c`  
-**Web App ID:** `1:1079295695023:web:59049cdbe2c8c0625ddc5a`  
+**Firebase Project ID:** `<your-firebase-project-id>`  
+**Web App ID:** `<your-firebase-web-app-id>`  
 
 ---
 
@@ -16,7 +16,7 @@ SikchaKhub utilizes a hybrid dual-factor verification architecture:
 ## 2. Firebase Console Configuration Checklist
 
 ### A. Enable Phone Authentication Provider
-1. Navigate to [Firebase Console](https://console.firebase.google.com/project/sikchakhub-9593c/authentication/providers).
+1. Navigate to [Firebase Console](https://console.firebase.google.com/project/_/authentication/providers).
 2. Under **Sign-in method**, click **Phone**.
 3. Toggle **Enable** to ON.
 4. Click **Save**.
@@ -36,13 +36,13 @@ To prevent SMS pumping while guaranteeing delivery to Indian mobile numbers:
    - `127.0.0.1`
    - `sikchakhub.ai`
    - `www.sikchakhub.ai`
-   - `sikchakhub-9593c.firebaseapp.com`
-   - `sikchakhub-9593c.web.app`
+   - `<your-project-id>.firebaseapp.com`
+   - `<your-project-id>.web.app`
 
 ### D. Firebase Plan: Blaze (Pay-as-you-go)
 - Phone Authentication provides **10 free SMS/day**.
 - Beyond 10 SMS/day, real cellular delivery requires an active **Blaze** plan.
-- Billing is active on project `sikchakhub-9593c` with Google Cloud trial credits.
+- Ensure billing is active on your Firebase project.
 
 ### E. Real Cellular SMS Delivery (Production-Grade Security)
 - In accordance with production security standards, **all mock OTPs, bypasses, and static test phone numbers (`123456`) have been completely purged**.
