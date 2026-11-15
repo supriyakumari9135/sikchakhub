@@ -73,11 +73,13 @@ router.post('/register', async (req: Request, res: Response) => {
       });
     }
 
-    // 1C. Verify Mobile Number uniqueness across entire database (1 mobile = 1 account across all roles)
+    // 1C. Verify Mobile Number uniqueness strictly between Job Seekers and Job Posters ONLY
+    // Mobile numbers belonging to ADMIN and HR are excluded so applicants & recruiters can register without conflict
     let existingPhoneUser = null;
     try {
       existingPhoneUser = await UserModel.findOne({
-        phone: { $regex: `${phoneDigits}$` }
+        phone: { $regex: `${phoneDigits}$` },
+        role: { $in: ['TEACHER', 'EMPLOYER'] }
       }).lean();
     } catch (dbErr) {
       console.warn('MongoDB phone uniqueness check warning in register:', dbErr);
@@ -86,15 +88,16 @@ router.post('/register', async (req: Request, res: Response) => {
     if (!existingPhoneUser) {
       existingPhoneUser = dbStore.users.find(u => {
         if (!u.phone) return false;
+        if (u.role === 'ADMIN' || u.role === 'HR') return false; // Exclude ADMIN and HR from match
         const uDigits = u.phone.replace(/\D/g, '').slice(-10);
-        return uDigits === phoneDigits;
+        return uDigits === phoneDigits && (u.role === 'TEACHER' || u.role === 'EMPLOYER');
       });
     }
 
     if (existingPhoneUser) {
       return res.status(400).json({ 
         success: false, 
-        message: 'An account with this mobile number already exists. Only one account can be created per mobile number.' 
+        message: 'An account with this mobile number already exists for a Job Seeker or Job Poster. Only one account can be created per mobile number.' 
       });
     }
 
@@ -720,6 +723,39 @@ router.put('/account', authenticateJWT, async (req: Request, res: Response) => {
   const { fullName, phone, age, organizationName, type, city, state, website, affiliationNumber, description } = req.body;
 
   try {
+    const userRole = req.user!.role;
+
+    // Check uniqueness if updating phone for TEACHER or EMPLOYER
+    if (phone !== undefined && (userRole === 'TEACHER' || userRole === 'EMPLOYER')) {
+      const phoneDigits = phone.replace(/\D/g, '').slice(-10);
+      if (phoneDigits.length === 10) {
+        let existingUser: any = null;
+        try {
+          existingUser = await UserModel.findOne({
+            id: { $ne: userId },
+            phone: { $regex: `${phoneDigits}$` },
+            role: { $in: ['TEACHER', 'EMPLOYER'] }
+          }).lean();
+        } catch (e) {}
+
+        if (!existingUser) {
+          existingUser = dbStore.users.find(u => {
+            if (u.id === userId || !u.phone) return false;
+            if (u.role === 'ADMIN' || u.role === 'HR') return false;
+            const uDigits = u.phone.replace(/\D/g, '').slice(-10);
+            return uDigits === phoneDigits && (u.role === 'TEACHER' || u.role === 'EMPLOYER');
+          });
+        }
+
+        if (existingUser) {
+          return res.status(400).json({
+            success: false,
+            message: 'This mobile number is already in use by another Job Seeker or Job Poster account.'
+          });
+        }
+      }
+    }
+
     const userUpdate: any = {};
     if (fullName) userUpdate.fullName = fullName.trim();
     if (phone !== undefined) userUpdate.phone = phone.trim();
