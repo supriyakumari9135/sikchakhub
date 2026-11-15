@@ -13,13 +13,13 @@ import {
 } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBTS6wmG2rS3_Y71FeV-j5nTEKJBtOE2UY",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "sikchakhub-9593c.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "sikchakhub-9593c",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "sikchakhub-9593c.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1079295695023",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:1079295695023:web:59049cdbe2c8c0625ddc5a",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-X5RK71EGFE"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || ""
 };
 
 // Initialize or reuse existing Firebase App

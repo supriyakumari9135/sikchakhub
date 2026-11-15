@@ -78,9 +78,9 @@ The backend uses the Firebase Admin SDK to cryptographically verify Firebase ID 
    - `private_key`
 6. Add them to your `backend/.env` file:
    ```ini
-   FIREBASE_PROJECT_ID="sikchakhub-prod"
-   FIREBASE_CLIENT_EMAIL="firebase-adminsdk-xxxxx@sikchakhub-prod.iam.gserviceaccount.com"
-   FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC...\n-----END PRIVATE KEY-----\n"
+   FIREBASE_PROJECT_ID="your-project-id"
+   FIREBASE_CLIENT_EMAIL="firebase-adminsdk-xxxxx@your-project-id.iam.gserviceaccount.com"
+   FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n"
    ```
    _Note: Ensure the `\n` linebreaks are preserved in double quotes._
 

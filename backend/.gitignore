@@ -1,0 +1,17 @@
+# Backend-specific ignore rules
+node_modules/
+dist/
+build/
+.env
+.env.*
+!.env.example
+firebase-service-account*.json
+*service-account*.json
+*.pem
+*.key
+uploads/
+logs/
+*.log
+*.tsbuildinfo
+coverage/
+.DS_Store

@@ -56,42 +56,42 @@ To prevent SMS pumping while guaranteeing delivery to Indian mobile numbers:
 
 ## 3. Environment Variables Reference
 
-### Frontend (`frontend/.env`)
+### Frontend (`frontend/.env.example`)
 ```bash
 # Backend API Base URL
 VITE_API_BASE_URL=http://localhost:5001
 
-# Firebase Web Client Configuration (Safe for frontend exposure)
-VITE_FIREBASE_API_KEY=AIzaSyBTS6wmG2rS3_Y71FeV-j5nTEKJBtOE2UY
-VITE_FIREBASE_AUTH_DOMAIN=sikchakhub-9593c.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=sikchakhub-9593c
-VITE_FIREBASE_STORAGE_BUCKET=sikchakhub-9593c.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=1079295695023
-VITE_FIREBASE_APP_ID=1:1079295695023:web:59049cdbe2c8c0625ddc5a
-VITE_FIREBASE_MEASUREMENT_ID=G-X5RK71EGFE
+# Firebase Web Client Configuration
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project_id.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
 ```
 
-### Backend (`backend/.env`)
+### Backend (`backend/.env.example`)
 ```bash
 PORT=5001
 NODE_ENV=development
-MONGODB_URI="mongodb+srv://sikchakhub_db_user:ouOWOVxdOBbfvShW@sikchakhub.2mnckxj.mongodb.net/?retryWrites=true&w=majority"
-JWT_SECRET="sikchakhubjdfgahsdjfgdashjvksdfhvuyrebaavlashui"
+MONGODB_URI="mongodb+srv://<username>:<password>@cluster.example.mongodb.net/sikchakhub?retryWrites=true&w=majority"
+JWT_SECRET="your_secure_jwt_secret_min_32_characters"
 JWT_EXPIRES_IN="7d"
 CORS_ORIGIN="http://localhost:5173,http://localhost:8081"
 
-# Firebase Admin SDK Credentials (Never exposed on frontend)
-FIREBASE_PROJECT_ID=sikchakhub-9593c
-FIREBASE_CLIENT_EMAIL="firebase-adminsdk-fbsvc@sikchakhub-9593c.iam.gserviceaccount.com"
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+# Firebase Admin SDK Credentials (Never expose publicly)
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_CLIENT_EMAIL="firebase-adminsdk-xxxxx@your_project_id.iam.gserviceaccount.com"
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n"
 FIREBASE_SERVICE_ACCOUNT="./firebase-service-account.json"
 
-# Email Provider (Gmail SMTP)
+# Email Provider (SMTP)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=sikchakhub@gmail.com
-SMTP_PASS=cojgupaybtfkgdyo
-SMTP_FROM="SikchaKhub" <sikchakhub@gmail.com>
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_smtp_app_password
+SMTP_FROM="SikchaKhub" <your_email@gmail.com>
 
 # Application-Level OTP Security & Rate Limiting
 OTP_LENGTH=6
@@ -100,7 +100,7 @@ OTP_RESEND_COOLDOWN_SECONDS=60
 OTP_MAX_SENDS_PER_24H=3
 OTP_MAX_FAILED_ATTEMPTS=3
 OTP_BLOCK_DURATION_HOURS=24
-OTP_HASH_SECRET="sikchakhub-otp-secure-hmac-secret-2026"
+OTP_HASH_SECRET="your_secure_otp_hmac_secret"
 ```
 
 ---
