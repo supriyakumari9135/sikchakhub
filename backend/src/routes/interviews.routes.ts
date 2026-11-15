@@ -5,7 +5,9 @@ import {
   JobApplicationModel, 
   JobVacancyModel, 
   UserModel, 
-  InstitutionModel 
+  InstitutionModel,
+  getOrInitEmployerSubscription,
+  getGlobalFreeApplicantLimit
 } from '../db/mongodb';
 import { authenticateJWT, requireRole } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
@@ -14,7 +16,7 @@ import { ScheduleInterviewSchema } from '@sikchakhub/shared-validation';
 const router = Router();
 
 // POST /api/v1/interviews - Schedule an interview directly in MongoDB Atlas
-router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
+router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN', 'HR']), async (req: Request, res: Response) => {
   const parseResult = ScheduleInterviewSchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({ success: false, errors: parseResult.error.format() });
@@ -51,6 +53,37 @@ router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req
 
       if (job && employerInst && job.institutionId !== employerInst.id) {
         return res.status(403).json({ success: false, message: 'Unauthorized to schedule interview for this vacancy.' });
+      }
+
+      // Check subscription tier access limit
+      const sub: any = await getOrInitEmployerSubscription(req.user!.id, employerInst?.id);
+      const hasUnlimited = sub.hasUnlimitedAccess === true && sub.status === 'ACTIVE';
+      const freeLimit = sub.freeLimitPerJob || await getGlobalFreeApplicantLimit();
+
+      if (!hasUnlimited) {
+        let vacancyApps: any[] = [];
+        try {
+          vacancyApps = await JobApplicationModel.find({ jobId: app.jobId })
+            .sort({ appliedAt: 1, createdAt: 1 })
+            .select('id')
+            .lean();
+        } catch (e) {}
+        if (vacancyApps.length === 0) {
+          vacancyApps = dbStore.applications
+            .filter(a => a.jobId === app.jobId)
+            .sort((a, b) => new Date(a.appliedAt || 0).getTime() - new Date(b.appliedAt || 0).getTime());
+        }
+        const appIndex = vacancyApps.findIndex(a => a.id === app.id);
+        const rank = appIndex >= 0 ? appIndex + 1 : 1;
+        if (rank > freeLimit) {
+          return res.status(403).json({
+            success: false,
+            isLocked: true,
+            applicantIndex: rank,
+            freeLimit,
+            message: 'Upgrade your subscription to schedule interviews with locked applicants.',
+          });
+        }
       }
     }
 

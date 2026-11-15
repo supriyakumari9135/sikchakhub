@@ -7,8 +7,10 @@ exports.authenticateJWT = authenticateJWT;
 exports.optionalJWT = optionalJWT;
 exports.requireRole = requireRole;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const mongodb_1 = require("../db/mongodb");
+const store_1 = require("../db/store");
 const JWT_SECRET = process.env.JWT_SECRET || 'sikchakhub-super-secret-jwt-key-2025';
-function authenticateJWT(req, res, next) {
+async function authenticateJWT(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ success: false, message: 'Authentication required. No token provided.' });
@@ -16,6 +18,25 @@ function authenticateJWT(req, res, next) {
     const token = authHeader.split(' ')[1];
     try {
         const decoded = jsonwebtoken_1.default.verify(token, JWT_SECRET);
+        // Verify account active status to prevent revoked/suspended users from unauthorized access
+        try {
+            const liveUser = await mongodb_1.UserModel.findOne({ id: decoded.id }).select('status').lean();
+            if (liveUser && (liveUser.status === 'SUSPENDED' || liveUser.status === 'DEACTIVATED')) {
+                return res.status(403).json({
+                    success: false,
+                    message: `Access denied. Your account is currently ${liveUser.status.toLowerCase()}. Please contact support@sikchakhub.ai.`,
+                });
+            }
+        }
+        catch (e) {
+            const fallbackUser = store_1.dbStore.getUserById(decoded.id);
+            if (fallbackUser && (fallbackUser.status === 'SUSPENDED' || fallbackUser.status === 'DEACTIVATED')) {
+                return res.status(403).json({
+                    success: false,
+                    message: `Access denied. Your account is currently ${fallbackUser.status.toLowerCase()}. Please contact support@sikchakhub.ai.`,
+                });
+            }
+        }
         req.user = decoded;
         next();
     }

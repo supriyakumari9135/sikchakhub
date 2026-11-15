@@ -75,7 +75,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 Recruitment Stage Transition
               </span>
               <h3 className="text-lg font-bold text-slate-900 mt-1 font-serif">Schedule Interview Round</h3>
-              <p className="text-xs text-slate-500">Candidate: {application.teacher?.fullName}</p>
+              <p className="text-xs text-slate-500">Candidate: {application.teacher?.fullName || (application as any).candidateName || 'Educator'}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">

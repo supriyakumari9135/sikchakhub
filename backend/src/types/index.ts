@@ -40,6 +40,7 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   isVerified: boolean;
+  status?: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | string;
 }
 
 export interface TeacherProfile {
@@ -213,8 +214,47 @@ export interface JobApplication {
   customAnswers: Record<string, any>;
   matchResult?: ApplicationMatchResult;
   recruiterNotes?: string;
+  isLocked?: boolean;
+  lockReason?: string;
+  applicantIndex?: number;
   appliedAt: string;
   updatedAt: string;
+}
+
+export type SubscriptionPlan = 'FREE' | 'PRO_MONTHLY' | 'ANNUAL_ENTERPRISE' | 'CUSTOM_ADMIN';
+export type SubscriptionStatus = 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'SUSPENDED';
+
+export interface JobPosterSubscription {
+  id: string;
+  userId: string;
+  institutionId?: string;
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+  freeLimitPerJob: number;
+  hasUnlimitedAccess: boolean;
+  startDate: string;
+  endDate: string;
+  amountPaid: number;
+  paymentStatus: 'PAID' | 'PENDING' | 'FAILED' | 'N/A';
+  lastPaymentId?: string;
+  grantedByAdmin?: boolean;
+  adminNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentRecord {
+  id: string;
+  subscriptionId?: string;
+  userId: string;
+  institutionId?: string;
+  plan: SubscriptionPlan;
+  amount: number;
+  currency: string;
+  paymentGateway: 'DIRECT_PAY' | 'RAZORPAY_SANDBOX' | 'MANUAL_ADMIN';
+  paymentId: string;
+  status: 'SUCCESS' | 'PENDING' | 'FAILED';
+  createdAt: string;
 }
 
 export interface Interview {

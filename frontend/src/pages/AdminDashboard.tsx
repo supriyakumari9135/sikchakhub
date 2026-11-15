@@ -40,7 +40,10 @@ import {
   Sliders,
   Check,
   Menu,
-  Layers
+  Layers,
+  UserCheck,
+  Calendar,
+  CreditCard
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -62,17 +65,20 @@ import { TeacherDossierModal, TeacherEditModal } from '../components/admin/Admin
 import { EmployerDossierModal, EmployerEditModal, VerificationActionModal } from '../components/admin/AdminEmployerModals';
 import { JobDetailsModal, JobEditModal } from '../components/admin/AdminJobModals';
 import { ApplicationDossierModal, StageCorrectionModal } from '../components/admin/AdminAppModals';
+import { ScheduleInterviewModal } from '../components/ScheduleInterviewModal';
 import { AddMasterDataModal, EditMasterDataModal } from '../components/admin/AdminMasterDataModals';
 import { AddStaffModal, AddHrModal } from '../components/admin/AdminStaffModals';
 import { AdminNotificationsManager } from '../components/admin/AdminNotificationsManager';
 import { ReviewReportModal } from '../components/admin/AdminReportModals';
 import { AdminCvScreeningVault } from '../components/admin/AdminCvScreeningVault';
 import { AdminCandidateGroupsManager } from '../components/admin/AdminCandidateGroupsManager';
+import { AdminSubscriptionManager } from '../components/admin/AdminSubscriptionManager';
 
 type AdminTab = 
   | 'DASHBOARD'
   | 'TEACHERS'
   | 'EMPLOYERS'
+  | 'SUBSCRIPTIONS'
   | 'VERIFICATION'
   | 'JOBS'
   | 'APPLICATIONS'
@@ -148,6 +154,7 @@ export const AdminDashboard: React.FC = () => {
   // Application Modals
   const [selectedAppForDossier, setSelectedAppForDossier] = useState<any | null>(null);
   const [selectedAppForStageCorrection, setSelectedAppForStageCorrection] = useState<any | null>(null);
+  const [selectedAppForInterview, setSelectedAppForInterview] = useState<any | null>(null);
 
   // Master Data Modals
   const [isAddMasterDataOpen, setIsAddMasterDataOpen] = useState(false);
@@ -738,6 +745,7 @@ export const AdminDashboard: React.FC = () => {
       items: [
         { id: 'TEACHERS' as AdminTab, label: 'Teachers / Job Seekers', icon: Users, count: kpis.totalTeachers },
         { id: 'EMPLOYERS' as AdminTab, label: 'Employers / Institutions', icon: Building2, count: kpis.totalEmployers },
+        { id: 'SUBSCRIPTIONS' as AdminTab, label: 'Subscription & Access', icon: CreditCard },
         { id: 'VERIFICATION' as AdminTab, label: 'Institution Approvals', icon: CheckCircle2, badge: pendingVerificationInstitutions.length },
       ],
     },
@@ -1539,6 +1547,16 @@ export const AdminDashboard: React.FC = () => {
           )}
 
           {/* ========================================================= */}
+          {/* TAB: SUBSCRIPTION & APPLICATION ACCESS MANAGEMENT */}
+          {/* ========================================================= */}
+          {activeTab === 'SUBSCRIPTIONS' && (
+            <AdminSubscriptionManager
+              token={token}
+              showToast={showToast}
+            />
+          )}
+
+          {/* ========================================================= */}
           {/* TAB 4: INSTITUTION VERIFICATION QUEUE */}
           {/* ========================================================= */}
           {activeTab === 'VERIFICATION' && (
@@ -1930,6 +1948,26 @@ export const AdminDashboard: React.FC = () => {
                               </td>
                               <td className="py-3 px-4 text-right">
                                 <div className="flex items-center justify-end gap-1.5">
+                                  {/* Quick Shortlist Button */}
+                                  {app.stage !== 'SHORTLISTED' && (
+                                    <button
+                                      onClick={() => handleSaveAppStage(app.id, 'SHORTLISTED', 'Directly shortlisted by HR/Admin')}
+                                      className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition cursor-pointer active:scale-95"
+                                      title="Shortlist Candidate for this Post"
+                                    >
+                                      <UserCheck className="w-4 h-4" />
+                                    </button>
+                                  )}
+
+                                  {/* Schedule Interview Button */}
+                                  <button
+                                    onClick={() => setSelectedAppForInterview(app)}
+                                    className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 transition cursor-pointer active:scale-95"
+                                    title="Schedule Interview Round"
+                                  >
+                                    <Calendar className="w-4 h-4" />
+                                  </button>
+
                                   {app.resumeUrl && (
                                     <button
                                       onClick={() => setPreviewCvDoc({
@@ -1940,7 +1978,7 @@ export const AdminDashboard: React.FC = () => {
                                         jobTitle: app.jobTitle,
                                         atsScore: score,
                                       })}
-                                      className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition"
+                                      className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition cursor-pointer"
                                       title="Preview Candidate Resume / CV"
                                     >
                                       <FileText className="w-4 h-4" />
@@ -1948,20 +1986,18 @@ export const AdminDashboard: React.FC = () => {
                                   )}
                                   <button
                                     onClick={() => setSelectedAppForDossier(app)}
-                                    className="p-1.5 rounded-lg text-brand-600 hover:bg-brand-50 transition"
+                                    className="p-1.5 rounded-lg text-brand-600 hover:bg-brand-50 transition cursor-pointer"
                                     title="View Application Details"
                                   >
                                     <Eye className="w-4 h-4" />
                                   </button>
-                                  {!isHrMode && (
-                                    <button
-                                      onClick={() => setSelectedAppForStageCorrection(app)}
-                                      className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 transition"
-                                      title="Exceptional Stage Override"
-                                    >
-                                      <ShieldAlert className="w-4 h-4" />
-                                    </button>
-                                  )}
+                                  <button
+                                    onClick={() => setSelectedAppForStageCorrection(app)}
+                                    className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 transition cursor-pointer"
+                                    title="Stage Override"
+                                  >
+                                    <ShieldAlert className="w-4 h-4" />
+                                  </button>
                                 </div>
                               </td>
                             </tr>
@@ -2774,7 +2810,22 @@ export const AdminDashboard: React.FC = () => {
         application={selectedAppForDossier}
         onOpenStageCorrection={(app) => setSelectedAppForStageCorrection(app)}
         onPreviewCv={(doc) => setPreviewCvDoc(doc)}
+        onShortlist={(app) => handleSaveAppStage(app.id, 'SHORTLISTED', 'Candidate shortlisted by HR/Admin')}
+        onScheduleInterview={(app) => setSelectedAppForInterview(app)}
       />
+
+      {/* Schedule Interview Modal for Admin & HR */}
+      {selectedAppForInterview && (
+        <ScheduleInterviewModal
+          application={selectedAppForInterview}
+          onClose={() => setSelectedAppForInterview(null)}
+          onSuccess={() => {
+            showToast('Interview round scheduled successfully! Candidate can now view this in their dashboard.', 'success');
+            refetchApplications();
+            refetchKpis();
+          }}
+        />
+      )}
 
       {/* Stage Correction Modal */}
       <StageCorrectionModal

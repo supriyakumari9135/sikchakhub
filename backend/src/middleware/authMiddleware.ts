@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { UserRole } from '@sikchakhub/shared-types';
+import { UserModel } from '../db/mongodb';
+import { dbStore } from '../db/store';
 
 export interface AuthenticatedUser {
   id: string;
@@ -9,6 +11,7 @@ export interface AuthenticatedUser {
   fullName: string;
   adminRole?: string;
   institutionId?: string;
+  status?: string;
 }
 
 declare global {
@@ -21,7 +24,7 @@ declare global {
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sikchakhub-super-secret-jwt-key-2025';
 
-export function authenticateJWT(req: Request, res: Response, next: NextFunction) {
+export async function authenticateJWT(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ success: false, message: 'Authentication required. No token provided.' });
@@ -30,6 +33,26 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as AuthenticatedUser;
+
+    // Verify account active status to prevent revoked/suspended users from unauthorized access
+    try {
+      const liveUser = await UserModel.findOne({ id: decoded.id }).select('status').lean() as any;
+      if (liveUser && (liveUser.status === 'SUSPENDED' || liveUser.status === 'DEACTIVATED')) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied. Your account is currently ${liveUser.status.toLowerCase()}. Please contact support@sikchakhub.ai.`,
+        });
+      }
+    } catch (e) {
+      const fallbackUser: any = dbStore.getUserById(decoded.id);
+      if (fallbackUser && (fallbackUser.status === 'SUSPENDED' || fallbackUser.status === 'DEACTIVATED')) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied. Your account is currently ${fallbackUser.status.toLowerCase()}. Please contact support@sikchakhub.ai.`,
+        });
+      }
+    }
+
     req.user = decoded;
     next();
   } catch (error) {

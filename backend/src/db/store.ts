@@ -5,7 +5,9 @@ import {
   JobVacancy, 
   JobApplication, 
   Interview,
-  AuditLog
+  AuditLog,
+  JobPosterSubscription,
+  PaymentRecord
 } from '@sikchakhub/shared-types';
 import { inMemoryAuditLogs } from '../middleware/auditLogger';
 
@@ -18,6 +20,8 @@ class DataStore {
   public interviews: Interview[] = [];
   public auditLogs: AuditLog[] = inMemoryAuditLogs;
   public savedJobs: { userId: string; jobId: string; createdAt: string }[] = [];
+  public subscriptions: JobPosterSubscription[] = [];
+  public payments: PaymentRecord[] = [];
 
   // Helper getters
   getUserById(id: string) {

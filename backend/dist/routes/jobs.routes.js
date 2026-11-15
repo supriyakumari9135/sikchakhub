@@ -49,20 +49,31 @@ router.get('/', authMiddleware_1.optionalJWT, async (req, res) => {
             mongoJobs = store_1.dbStore.jobs;
         }
         const combined = mongoJobs;
-        // Attach real institutions and count real applications
-        let results = await Promise.all(combined.map(async (j) => {
-            let inst = null;
-            try {
-                inst = await mongodb_1.InstitutionModel.findOne({ id: j.institutionId }).lean();
-            }
-            catch (e) { }
+        // Batch resolve institutions and application counts in O(1) database queries (Eliminates N+1 bottleneck)
+        const uniqueInstIds = Array.from(new Set(combined.map((j) => j.institutionId).filter(Boolean)));
+        const allJobIds = combined.map((j) => j.id);
+        let institutionsList = [];
+        try {
+            institutionsList = await mongodb_1.InstitutionModel.find({ id: { $in: uniqueInstIds } }).lean();
+        }
+        catch (e) { }
+        const instMap = new Map();
+        institutionsList.forEach(inst => instMap.set(inst.id, inst));
+        // Batch aggregate applicant counts per job
+        const appCountMap = new Map();
+        try {
+            const counts = await mongodb_1.JobApplicationModel.aggregate([
+                { $match: { jobId: { $in: allJobIds } } },
+                { $group: { _id: '$jobId', count: { $sum: 1 } } }
+            ]);
+            counts.forEach((c) => appCountMap.set(c._id, c.count));
+        }
+        catch (e) { }
+        let results = combined.map((j) => {
+            let inst = instMap.get(j.institutionId);
             if (!inst)
                 inst = store_1.dbStore.getInstitutionById(j.institutionId) || null;
-            let appCount = 0;
-            try {
-                appCount = await mongodb_1.JobApplicationModel.countDocuments({ jobId: j.id });
-            }
-            catch (e) { }
+            let appCount = appCountMap.get(j.id) || 0;
             if (appCount === 0 && store_1.dbStore.applications.length > 0) {
                 appCount = store_1.dbStore.applications.filter(a => a.jobId === j.id).length;
             }
@@ -71,7 +82,7 @@ router.get('/', authMiddleware_1.optionalJWT, async (req, res) => {
                 institution: inst,
                 totalApplicants: appCount,
             };
-        }));
+        });
         // Moderation & Approval Filter:
         // Only approved vacancies ('ACTIVE') from verified institutions ('VERIFIED') show on the public portal.
         // Super Admin and HR can view all jobs.

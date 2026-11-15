@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { JobVacancy } from '@sikchakhub/shared-types';
 import { ApplyJobModal } from '../components/ApplyJobModal';
+import { AuthRequiredModal } from '../components/AuthRequiredModal';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../config/api';
 
@@ -210,6 +211,18 @@ export const JobsPage: React.FC = () => {
   const [activeJobDetail, setActiveJobDetail] = useState<JobVacancy | null>(null);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [toastNotice, setToastNotice] = useState<string | null>(null);
+  const [authPromptJob, setAuthPromptJob] = useState<JobVacancy | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  // Authentication check before applying
+  const handleApplyClick = (job: JobVacancy) => {
+    if (!token || !user || user.role !== 'TEACHER') {
+      setAuthPromptJob(job);
+      setIsAuthModalOpen(true);
+      return;
+    }
+    setSelectedJobForApply(job);
+  };
 
   // Saved Jobs persisted in localStorage
   const [savedJobIds, setSavedJobIds] = useState<string[]>(() => {
@@ -1035,7 +1048,7 @@ export const JobsPage: React.FC = () => {
                         ) : (
                           <button
                             type="button"
-                            onClick={() => setSelectedJobForApply(job)}
+                            onClick={() => handleApplyClick(job)}
                             className={`cursor-pointer flex-1 sm:flex-none px-6 py-2 rounded-full text-white font-bold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 ${cardTheme.applyBtn}`}
                           >
                             <span>Apply Now</span>
@@ -1155,7 +1168,7 @@ export const JobsPage: React.FC = () => {
                     onClick={() => {
                       const j = activeJobDetail;
                       setActiveJobDetail(null);
-                      setSelectedJobForApply(j);
+                      handleApplyClick(j);
                     }}
                     className="cursor-pointer px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-full shadow-md shadow-orange-500/25 transition active:scale-95"
                   >
@@ -1170,7 +1183,20 @@ export const JobsPage: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* 5. APPLY JOB MODAL                                                        */}
+      {/* 5. AUTHENTICATION REQUIRED MODAL                                          */}
+      {/* ========================================================================= */}
+      <AuthRequiredModal
+        isOpen={isAuthModalOpen}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          setAuthPromptJob(null);
+        }}
+        jobTitle={authPromptJob?.title}
+        institutionName="SikchaKhub"
+      />
+
+      {/* ========================================================================= */}
+      {/* 6. APPLY JOB MODAL                                                        */}
       {/* ========================================================================= */}
       {selectedJobForApply && (
         <ApplyJobModal

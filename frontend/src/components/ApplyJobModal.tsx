@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiUrl } from '../config/api';
+import { AuthRequiredModal } from './AuthRequiredModal';
 
 interface ApplyJobModalProps {
   job: JobVacancy;
@@ -28,6 +29,18 @@ interface ApplyJobModalProps {
 export const ApplyJobModal: React.FC<ApplyJobModalProps> = ({ job, onClose, onAppliedSuccess }) => {
   const { user, profile, token, uploadResume } = useAuth();
   const queryClient = useQueryClient();
+
+  // If user is not authenticated as an educator, show the auth required prompt
+  if (!token || !user || user.role !== 'TEACHER') {
+    return (
+      <AuthRequiredModal
+        isOpen={true}
+        onClose={onClose}
+        jobTitle={job.title}
+        institutionName="SikchaKhub"
+      />
+    );
+  }
 
   // Check if educator already applied for this opening
   const { data: myAppsData } = useQuery({

@@ -267,16 +267,30 @@ router.get('/teachers', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.r
         catch (e) {
             teachers = store_1.dbStore.users.filter(u => u.role === 'TEACHER');
         }
-        // Populate profile and applications count for each teacher
-        const populated = await Promise.all(teachers.map(async (t) => {
-            let profile = null;
-            let appCount = 0;
-            try {
-                profile = await mongodb_1.TeacherProfileModel.findOne({ userId: t.id }).lean();
-                appCount = await mongodb_1.JobApplicationModel.countDocuments({ teacherId: t.id });
-            }
-            catch (err) {
+        // Batch resolve teacher profiles and applications count in O(1) queries (Eliminates N+1 bottleneck)
+        const teacherIds = teachers.map((t) => t.id);
+        let profilesList = [];
+        try {
+            profilesList = await mongodb_1.TeacherProfileModel.find({ userId: { $in: teacherIds } }).lean();
+        }
+        catch (e) { }
+        const profilesMap = new Map();
+        profilesList.forEach(p => profilesMap.set(p.userId, p));
+        const appCountMap = new Map();
+        try {
+            const counts = await mongodb_1.JobApplicationModel.aggregate([
+                { $match: { teacherId: { $in: teacherIds } } },
+                { $group: { _id: '$teacherId', count: { $sum: 1 } } }
+            ]);
+            counts.forEach((c) => appCountMap.set(c._id, c.count));
+        }
+        catch (e) { }
+        const populated = teachers.map((t) => {
+            let profile = profilesMap.get(t.id);
+            if (!profile)
                 profile = store_1.dbStore.getProfileByUserId(t.id);
+            let appCount = appCountMap.get(t.id) || 0;
+            if (appCount === 0 && store_1.dbStore.applications.length > 0) {
                 appCount = store_1.dbStore.getApplicationsByTeacherId(t.id).length;
             }
             return {
@@ -301,7 +315,7 @@ router.get('/teachers', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.r
                 } : null,
                 totalApplications: appCount,
             };
-        }));
+        });
         // In-memory filter on populated fields if requested
         let result = populated;
         if (subject && subject !== 'ALL') {
@@ -613,17 +627,32 @@ router.get('/jobs', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requi
         catch (e) {
             jobs = store_1.dbStore.jobs;
         }
-        const populated = await Promise.all(jobs.map(async (job) => {
-            let institution = null;
-            let totalApplicants = job.totalApplicants || 0;
-            try {
-                institution = await mongodb_1.InstitutionModel.findOne({ id: job.institutionId }).lean();
-                if (!totalApplicants) {
-                    totalApplicants = await mongodb_1.JobApplicationModel.countDocuments({ jobId: job.id });
-                }
-            }
-            catch (e) {
+        // Batch resolve institutions and application counts in O(1) queries (Eliminates N+1 bottleneck)
+        const uniqueInstIds = Array.from(new Set(jobs.map((j) => j.institutionId).filter(Boolean)));
+        const allJobIds = jobs.map((j) => j.id);
+        let institutionsList = [];
+        try {
+            institutionsList = await mongodb_1.InstitutionModel.find({ id: { $in: uniqueInstIds } }).lean();
+        }
+        catch (e) { }
+        const instMap = new Map();
+        institutionsList.forEach(inst => instMap.set(inst.id, inst));
+        const appCountMap = new Map();
+        try {
+            const counts = await mongodb_1.JobApplicationModel.aggregate([
+                { $match: { jobId: { $in: allJobIds } } },
+                { $group: { _id: '$jobId', count: { $sum: 1 } } }
+            ]);
+            counts.forEach((c) => appCountMap.set(c._id, c.count));
+        }
+        catch (e) { }
+        const populated = jobs.map((job) => {
+            let institution = instMap.get(job.institutionId);
+            if (!institution)
                 institution = store_1.dbStore.getInstitutionById(job.institutionId);
+            let totalApplicants = job.totalApplicants || appCountMap.get(job.id) || 0;
+            if (totalApplicants === 0 && store_1.dbStore.applications.length > 0) {
+                totalApplicants = store_1.dbStore.applications.filter(a => a.jobId === job.id).length;
             }
             return {
                 ...job,
@@ -631,7 +660,7 @@ router.get('/jobs', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requi
                 institutionLogo: institution?.logoUrl || '/logo.jpeg',
                 totalApplicants,
             };
-        }));
+        });
         return res.json({
             success: true,
             total: populated.length,
@@ -709,18 +738,44 @@ router.get('/applications', authMiddleware_1.authenticateJWT, (0, authMiddleware
         catch (e) {
             apps = store_1.dbStore.applications;
         }
-        const populated = await Promise.all(apps.map(async (app) => {
-            let teacher = null;
-            let job = null;
+        // Batch resolve teachers, jobs, and institutions in O(1) queries (Eliminates N+1 bottleneck)
+        const teacherIds = Array.from(new Set(apps.map((a) => a.teacherId).filter(Boolean)));
+        const jobIds = Array.from(new Set(apps.map((a) => a.jobId).filter(Boolean)));
+        let teachersList = [];
+        try {
+            teachersList = await mongodb_1.UserModel.find({ id: { $in: teacherIds } }).lean();
+        }
+        catch (e) { }
+        const teachersMap = new Map();
+        teachersList.forEach(t => teachersMap.set(t.id, t));
+        let jobsList = [];
+        try {
+            jobsList = await mongodb_1.JobVacancyModel.find({ id: { $in: jobIds } }).lean();
+        }
+        catch (e) { }
+        const jobsMap = new Map();
+        jobsList.forEach(j => jobsMap.set(j.id, j));
+        const instIds = Array.from(new Set(jobsList.map(j => j.institutionId).filter(Boolean)));
+        let institutionsList = [];
+        try {
+            institutionsList = await mongodb_1.InstitutionModel.find({ id: { $in: instIds } }).lean();
+        }
+        catch (e) { }
+        const instMap = new Map();
+        institutionsList.forEach(i => instMap.set(i.id, i));
+        const populated = apps.map((app) => {
+            let teacher = teachersMap.get(app.teacherId);
+            if (!teacher)
+                teacher = store_1.dbStore.getUserById(app.teacherId);
+            let job = jobsMap.get(app.jobId);
+            if (!job)
+                job = store_1.dbStore.getJobById(app.jobId);
             let institution = null;
-            try {
-                teacher = await mongodb_1.UserModel.findOne({ id: app.teacherId }).lean();
-                job = await mongodb_1.JobVacancyModel.findOne({ id: app.jobId }).lean();
-                if (job) {
-                    institution = await mongodb_1.InstitutionModel.findOne({ id: job.institutionId }).lean();
-                }
+            if (job) {
+                institution = instMap.get(job.institutionId);
+                if (!institution)
+                    institution = store_1.dbStore.getInstitutionById(job.institutionId);
             }
-            catch (e) { }
             return {
                 id: app.id,
                 candidateName: teacher?.fullName || 'Educator Applicant',
@@ -735,7 +790,7 @@ router.get('/applications', authMiddleware_1.authenticateJWT, (0, authMiddleware
                 resumeUrl: app.resumeUrl,
                 resumeFileName: app.resumeFileName || 'Resume.pdf',
             };
-        }));
+        });
         return res.json({
             success: true,
             total: populated.length,
@@ -747,7 +802,7 @@ router.get('/applications', authMiddleware_1.authenticateJWT, (0, authMiddleware
     }
 });
 // PATCH /api/v1/admin/applications/:id/stage - Exceptional stage correction with reason
-router.patch('/applications/:id/stage', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['ADMIN']), async (req, res) => {
+router.patch('/applications/:id/stage', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['ADMIN', 'HR']), async (req, res) => {
     const { stage, reason } = req.body;
     if (!reason) {
         return res.status(400).json({ success: false, message: 'Administrative reason is required for exceptional stage corrections.' });
@@ -1814,6 +1869,419 @@ router.delete('/hr-accounts/:id', authMiddleware_1.authenticateJWT, (0, authMidd
     }
     catch (err) {
         return res.status(500).json({ success: false, message: 'Failed to delete HR account' });
+    }
+});
+// =========================================================================
+// SUBSCRIPTION & ACCESS MANAGEMENT (SUPER ADMIN)
+// =========================================================================
+// GET /api/v1/admin/subscriptions/summary - Overview KPI statistics
+router.get('/subscriptions/summary', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['ADMIN', 'HR']), async (_req, res) => {
+    try {
+        const totalPosters = await mongodb_1.UserModel.countDocuments({ role: 'EMPLOYER' });
+        const globalFreeLimit = await (0, mongodb_1.getGlobalFreeApplicantLimit)();
+        let allSubscriptions = [];
+        try {
+            allSubscriptions = await mongodb_1.SubscriptionModel.find().lean();
+        }
+        catch (e) {
+            allSubscriptions = store_1.dbStore.subscriptions;
+        }
+        let premiumActiveCount = 0;
+        let freeTierCount = 0;
+        let totalRevenue = 0;
+        allSubscriptions.forEach(sub => {
+            if (sub.hasUnlimitedAccess === true && sub.status === 'ACTIVE') {
+                premiumActiveCount++;
+            }
+            else {
+                freeTierCount++;
+            }
+        });
+        // Calculate posters without a subscription record yet as Free tier
+        if (totalPosters > (premiumActiveCount + freeTierCount)) {
+            freeTierCount += (totalPosters - (premiumActiveCount + freeTierCount));
+        }
+        try {
+            const payments = await mongodb_1.PaymentRecordModel.find({ status: 'SUCCESS' }).lean();
+            totalRevenue = payments.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+        }
+        catch (e) {
+            totalRevenue = store_1.dbStore.payments
+                .filter(p => p.status === 'SUCCESS')
+                .reduce((acc, curr) => acc + (curr.amount || 0), 0);
+        }
+        return res.json({
+            success: true,
+            summary: {
+                totalPosters,
+                premiumActiveCount,
+                freeTierCount,
+                totalRevenue,
+                globalFreeLimit,
+            }
+        });
+    }
+    catch (err) {
+        console.error('Subscription summary fetch error:', err);
+        return res.status(500).json({ success: false, message: 'Failed to retrieve subscription summary.' });
+    }
+});
+// GET /api/v1/admin/subscriptions/posters - List all job posters with subscription status & applicant access counts
+router.get('/subscriptions/posters', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['ADMIN', 'HR']), async (req, res) => {
+    try {
+        const { q, plan, status } = req.query;
+        const globalFreeLimit = await (0, mongodb_1.getGlobalFreeApplicantLimit)();
+        // 1. Fetch all employers
+        let employers = [];
+        try {
+            employers = await mongodb_1.UserModel.find({ role: 'EMPLOYER' }).sort({ createdAt: -1 }).lean();
+        }
+        catch (e) {
+            employers = store_1.dbStore.users.filter(u => u.role === 'EMPLOYER');
+        }
+        // 2. Fetch institutions
+        let institutions = [];
+        try {
+            institutions = await mongodb_1.InstitutionModel.find().lean();
+        }
+        catch (e) {
+            institutions = store_1.dbStore.institutions;
+        }
+        const instMap = new Map();
+        institutions.forEach(inst => instMap.set(inst.ownerId, inst));
+        // 3. For each employer, construct subscription & access profile
+        const posterList = await Promise.all(employers.map(async (emp) => {
+            const inst = instMap.get(emp.id);
+            const sub = await (0, mongodb_1.getOrInitEmployerSubscription)(emp.id, inst?.id);
+            let jobsCount = 0;
+            let totalApplicants = 0;
+            let targetJobIds = [];
+            if (inst) {
+                try {
+                    const jobs = await mongodb_1.JobVacancyModel.find({ institutionId: inst.id }).select('id').lean();
+                    jobsCount = jobs.length;
+                    targetJobIds = jobs.map(j => j.id);
+                }
+                catch (e) {
+                    const jobs = store_1.dbStore.jobs.filter(j => j.institutionId === inst.id);
+                    jobsCount = jobs.length;
+                    targetJobIds = jobs.map(j => j.id);
+                }
+                if (targetJobIds.length > 0) {
+                    try {
+                        totalApplicants = await mongodb_1.JobApplicationModel.countDocuments({ jobId: { $in: targetJobIds } });
+                    }
+                    catch (e) {
+                        totalApplicants = store_1.dbStore.applications.filter(a => targetJobIds.includes(a.jobId)).length;
+                    }
+                }
+            }
+            const isUnlimited = sub.hasUnlimitedAccess === true && sub.status === 'ACTIVE';
+            const freeLimit = sub.freeLimitPerJob || globalFreeLimit;
+            const accessibleApplicants = isUnlimited ? 'Unlimited (All)' : `${freeLimit} per vacancy`;
+            return {
+                id: emp.id,
+                fullName: emp.fullName,
+                email: emp.email,
+                phone: emp.phone || 'N/A',
+                userStatus: emp.status,
+                institutionName: inst?.name || 'Institution Pending',
+                institutionCity: inst?.city || 'N/A',
+                institutionVerified: inst?.verificationStatus === 'VERIFIED',
+                jobsCount,
+                totalApplicants,
+                subscription: {
+                    id: sub.id,
+                    plan: sub.plan,
+                    status: sub.status,
+                    freeLimitPerJob: freeLimit,
+                    hasUnlimitedAccess: isUnlimited,
+                    startDate: sub.startDate,
+                    endDate: sub.endDate,
+                    amountPaid: sub.amountPaid,
+                    paymentStatus: sub.paymentStatus,
+                    lastPaymentId: sub.lastPaymentId,
+                    grantedByAdmin: sub.grantedByAdmin,
+                    adminNotes: sub.adminNotes,
+                    accessibleApplicants,
+                }
+            };
+        }));
+        // 4. Apply filtering
+        let filtered = posterList;
+        if (q && typeof q === 'string') {
+            const query = q.toLowerCase();
+            filtered = filtered.filter(p => p.fullName?.toLowerCase().includes(query) ||
+                p.email?.toLowerCase().includes(query) ||
+                p.institutionName?.toLowerCase().includes(query) ||
+                p.phone?.toLowerCase().includes(query));
+        }
+        if (plan && plan !== 'ALL') {
+            filtered = filtered.filter(p => p.subscription.plan === plan);
+        }
+        if (status && status !== 'ALL') {
+            if (status === 'PREMIUM_ACTIVE') {
+                filtered = filtered.filter(p => p.subscription.hasUnlimitedAccess === true);
+            }
+            else if (status === 'FREE') {
+                filtered = filtered.filter(p => !p.subscription.hasUnlimitedAccess);
+            }
+            else {
+                filtered = filtered.filter(p => p.subscription.status === status);
+            }
+        }
+        return res.json({
+            success: true,
+            total: filtered.length,
+            posters: filtered,
+        });
+    }
+    catch (err) {
+        console.error('Fetch posters subscriptions error:', err);
+        return res.status(500).json({ success: false, message: 'Failed to retrieve job poster subscriptions.' });
+    }
+});
+// PATCH /api/v1/admin/subscriptions/:userId/grant-access - Manually grant or revoke full application access
+router.patch('/subscriptions/:userId/grant-access', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['ADMIN']), async (req, res) => {
+    const { userId } = req.params;
+    const { hasUnlimitedAccess, adminNotes } = req.body;
+    if (typeof hasUnlimitedAccess !== 'boolean') {
+        return res.status(400).json({ success: false, message: 'hasUnlimitedAccess (boolean) is required.' });
+    }
+    try {
+        const user = await mongodb_1.UserModel.findOne({ id: userId });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Job poster user not found.' });
+        }
+        const newPlan = hasUnlimitedAccess ? 'CUSTOM_ADMIN' : 'FREE';
+        const newStatus = 'ACTIVE';
+        const now = new Date();
+        const expiry = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+        const updateDoc = {
+            plan: newPlan,
+            status: newStatus,
+            hasUnlimitedAccess,
+            grantedByAdmin: hasUnlimitedAccess,
+            startDate: now.toISOString(),
+            endDate: hasUnlimitedAccess ? expiry.toISOString() : new Date(now.getTime() + 10 * 365 * 24 * 3600 * 1000).toISOString(),
+            adminNotes: adminNotes || (hasUnlimitedAccess ? 'Full access granted by Super Admin' : 'Full access revoked by Super Admin'),
+            paymentStatus: hasUnlimitedAccess ? 'PAID' : 'N/A',
+        };
+        let updatedSub = await mongodb_1.SubscriptionModel.findOneAndUpdate({ userId }, {
+            $set: updateDoc,
+            $setOnInsert: { id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`, userId }
+        }, { new: true, upsert: true }).lean();
+        (0, auditLogger_1.logAuditEvent)(req, hasUnlimitedAccess ? 'ADMIN_ACCESS_GRANTED' : 'ADMIN_ACCESS_REVOKED', 'Subscription', updatedSub?.id || userId, {
+            userId,
+            userEmail: user.email,
+            hasUnlimitedAccess,
+            adminNotes,
+        });
+        return res.json({
+            success: true,
+            message: hasUnlimitedAccess
+                ? `Full application access granted to ${user.fullName}. All candidates unlocked.`
+                : `Full application access revoked for ${user.fullName}. Reverted to Free tier.`,
+            subscription: updatedSub,
+        });
+    }
+    catch (err) {
+        return res.status(500).json({ success: false, message: 'Failed to update access permissions.' });
+    }
+});
+// PATCH /api/v1/admin/subscriptions/:userId/plan - Upgrade or downgrade a Job Poster's plan
+router.patch('/subscriptions/:userId/plan', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['ADMIN']), async (req, res) => {
+    const { userId } = req.params;
+    const { plan, durationDays, adminNotes } = req.body;
+    if (!plan || !['FREE', 'PRO_MONTHLY', 'ANNUAL_ENTERPRISE', 'CUSTOM_ADMIN'].includes(plan)) {
+        return res.status(400).json({ success: false, message: 'Valid plan (FREE, PRO_MONTHLY, ANNUAL_ENTERPRISE, CUSTOM_ADMIN) is required.' });
+    }
+    try {
+        const user = await mongodb_1.UserModel.findOne({ id: userId });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Job poster not found.' });
+        }
+        const hasUnlimitedAccess = plan !== 'FREE';
+        const days = durationDays || (plan === 'ANNUAL_ENTERPRISE' ? 365 : (plan === 'PRO_MONTHLY' ? 30 : 365));
+        const now = new Date();
+        const expiry = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+        const updateDoc = {
+            plan,
+            status: 'ACTIVE',
+            hasUnlimitedAccess,
+            grantedByAdmin: true,
+            startDate: now.toISOString(),
+            endDate: hasUnlimitedAccess ? expiry.toISOString() : new Date(now.getTime() + 10 * 365 * 24 * 3600 * 1000).toISOString(),
+            adminNotes: adminNotes || `Plan modified to ${plan} by Admin`,
+            paymentStatus: hasUnlimitedAccess ? 'PAID' : 'N/A',
+        };
+        const updatedSub = await mongodb_1.SubscriptionModel.findOneAndUpdate({ userId }, {
+            $set: updateDoc,
+            $setOnInsert: { id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`, userId }
+        }, { new: true, upsert: true }).lean();
+        (0, auditLogger_1.logAuditEvent)(req, 'ADMIN_SUBSCRIPTION_PLAN_CHANGED', 'Subscription', updatedSub?.id || userId, {
+            userId,
+            userEmail: user.email,
+            plan,
+            adminNotes,
+        });
+        return res.json({
+            success: true,
+            message: `Job poster ${user.fullName} successfully updated to ${plan}.`,
+            subscription: updatedSub,
+        });
+    }
+    catch (err) {
+        return res.status(500).json({ success: false, message: 'Failed to update subscription plan.' });
+    }
+});
+// PATCH /api/v1/admin/subscriptions/:userId/free-limit - Custom free limit for specific poster
+router.patch('/subscriptions/:userId/free-limit', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['ADMIN']), async (req, res) => {
+    const { userId } = req.params;
+    const { freeLimitPerJob } = req.body;
+    if (typeof freeLimitPerJob !== 'number' || freeLimitPerJob < 0) {
+        return res.status(400).json({ success: false, message: 'freeLimitPerJob must be a non-negative number.' });
+    }
+    try {
+        const updatedSub = await mongodb_1.SubscriptionModel.findOneAndUpdate({ userId }, { $set: { freeLimitPerJob } }, { new: true, upsert: true }).lean();
+        (0, auditLogger_1.logAuditEvent)(req, 'ADMIN_FREE_LIMIT_UPDATED', 'Subscription', updatedSub?.id || userId, {
+            userId,
+            freeLimitPerJob,
+        });
+        return res.json({
+            success: true,
+            message: `Free application limit updated to ${freeLimitPerJob} per vacancy for this user.`,
+            subscription: updatedSub,
+        });
+    }
+    catch (err) {
+        return res.status(500).json({ success: false, message: 'Failed to update free applicant limit.' });
+    }
+});
+// PATCH /api/v1/admin/subscriptions/:userId/status - Enable, suspend, or activate access
+router.patch('/subscriptions/:userId/status', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['ADMIN']), async (req, res) => {
+    const { userId } = req.params;
+    const { status } = req.body;
+    if (!status || !['ACTIVE', 'SUSPENDED', 'EXPIRED'].includes(status)) {
+        return res.status(400).json({ success: false, message: 'Invalid status. Choose ACTIVE, SUSPENDED, or EXPIRED.' });
+    }
+    try {
+        const currentSub = await mongodb_1.SubscriptionModel.findOne({ userId });
+        const hasUnlimited = (status === 'ACTIVE') && (currentSub ? currentSub.plan !== 'FREE' : false);
+        const updatedSub = await mongodb_1.SubscriptionModel.findOneAndUpdate({ userId }, {
+            $set: {
+                status,
+                hasUnlimitedAccess: hasUnlimited,
+                updatedAt: new Date()
+            }
+        }, { new: true }).lean();
+        (0, auditLogger_1.logAuditEvent)(req, 'ADMIN_SUBSCRIPTION_STATUS_CHANGED', 'Subscription', updatedSub?.id || userId, {
+            userId,
+            status,
+        });
+        return res.json({
+            success: true,
+            message: `Subscription access set to ${status}.`,
+            subscription: updatedSub,
+        });
+    }
+    catch (err) {
+        return res.status(500).json({ success: false, message: 'Failed to update subscription status.' });
+    }
+});
+// GET & PUT /api/v1/admin/subscriptions/settings/free-limit - Platform-wide default free application limit
+router.get('/subscriptions/settings/free-limit', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['ADMIN']), async (_req, res) => {
+    try {
+        const limit = await (0, mongodb_1.getGlobalFreeApplicantLimit)();
+        return res.json({ success: true, freeLimitPerJob: limit });
+    }
+    catch (err) {
+        return res.status(500).json({ success: false, message: 'Failed to retrieve limit setting.' });
+    }
+});
+router.put('/subscriptions/settings/free-limit', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['ADMIN']), async (req, res) => {
+    const { freeLimitPerJob } = req.body;
+    if (typeof freeLimitPerJob !== 'number' || freeLimitPerJob < 1) {
+        return res.status(400).json({ success: false, message: 'freeLimitPerJob must be at least 1.' });
+    }
+    try {
+        await mongodb_1.PlatformSettingModel.findOneAndUpdate({ key: 'freeApplicantLimitPerJob' }, {
+            $set: {
+                value: freeLimitPerJob,
+                description: 'Default free application view limit per job vacancy',
+                category: 'SUBSCRIPTION',
+                updatedBy: req.user.email,
+                updatedAt: new Date()
+            },
+            $setOnInsert: { id: `set-free-limit-${Date.now()}`, key: 'freeApplicantLimitPerJob' }
+        }, { upsert: true });
+        (0, auditLogger_1.logAuditEvent)(req, 'GLOBAL_FREE_LIMIT_UPDATED', 'PlatformSetting', 'freeApplicantLimitPerJob', {
+            freeLimitPerJob,
+        });
+        return res.json({
+            success: true,
+            message: `Platform default free applicant limit updated to ${freeLimitPerJob} applications per vacancy.`,
+            freeLimitPerJob,
+        });
+    }
+    catch (err) {
+        return res.status(500).json({ success: false, message: 'Failed to save global free applicant limit.' });
+    }
+});
+// GET /api/v1/admin/subscriptions/payments - View all subscription payments & transactions
+router.get('/subscriptions/payments', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['ADMIN', 'HR']), async (req, res) => {
+    try {
+        const { q } = req.query;
+        let payments = [];
+        try {
+            payments = await mongodb_1.PaymentRecordModel.find().sort({ createdAt: -1 }).lean();
+        }
+        catch (e) {
+            payments = store_1.dbStore.payments;
+        }
+        // Populate user and institution details
+        const populated = await Promise.all(payments.map(async (p) => {
+            let user = null;
+            try {
+                user = await mongodb_1.UserModel.findOne({ id: p.userId }).select('fullName email phone').lean();
+            }
+            catch (e) { }
+            if (!user)
+                user = store_1.dbStore.getUserById(p.userId);
+            let inst = null;
+            if (p.institutionId) {
+                try {
+                    inst = await mongodb_1.InstitutionModel.findOne({ id: p.institutionId }).select('name city').lean();
+                }
+                catch (e) { }
+                if (!inst)
+                    inst = store_1.dbStore.getInstitutionById(p.institutionId);
+            }
+            return {
+                ...p,
+                userName: user?.fullName || 'Job Poster',
+                userEmail: user?.email || 'N/A',
+                userPhone: user?.phone || 'N/A',
+                institutionName: inst?.name || 'N/A',
+            };
+        }));
+        let results = populated;
+        if (q && typeof q === 'string') {
+            const query = q.toLowerCase();
+            results = results.filter(r => r.paymentId?.toLowerCase().includes(query) ||
+                r.userName?.toLowerCase().includes(query) ||
+                r.userEmail?.toLowerCase().includes(query) ||
+                r.plan?.toLowerCase().includes(query) ||
+                r.institutionName?.toLowerCase().includes(query));
+        }
+        return res.json({
+            success: true,
+            total: results.length,
+            payments: results,
+        });
+    }
+    catch (err) {
+        return res.status(500).json({ success: false, message: 'Failed to retrieve payment records.' });
     }
 });
 exports.default = router;

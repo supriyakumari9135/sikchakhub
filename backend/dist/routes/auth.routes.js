@@ -159,7 +159,7 @@ router.post('/register', async (req, res) => {
                 const cleanName = (resumeFileName || 'resume.pdf').replace(/[^a-zA-Z0-9.-]/g, '_');
                 const storedFileName = `cv-${userId}-${Date.now()}-${cleanName}`;
                 const filePath = path_1.default.join(uploadsDir, storedFileName);
-                fs_1.default.writeFileSync(filePath, buffer);
+                await fs_1.default.promises.writeFile(filePath, buffer);
                 finalResumeUrl = `/uploads/resumes/${storedFileName}`;
                 finalResumeFileName = resumeFileName;
             }
@@ -277,7 +277,7 @@ router.post('/register', async (req, res) => {
                     const cleanName = certFileName.replace(/[^a-zA-Z0-9.-]/g, '_');
                     const storedFileName = `cert-${userId}-${Date.now()}-${cleanName}`;
                     const filePath = path_1.default.join(certsDir, storedFileName);
-                    fs_1.default.writeFileSync(filePath, buffer);
+                    await fs_1.default.promises.writeFile(filePath, buffer);
                     finalCertificateUrl = `/uploads/certificates/${storedFileName}`;
                     finalCertificateFileName = certFileName;
                 }
@@ -299,7 +299,7 @@ router.post('/register', async (req, res) => {
                     const cleanLogoName = (req.body.logoFileName || 'logo.png').replace(/[^a-zA-Z0-9.-]/g, '_');
                     const storedLogoName = `logo-${userId}-${Date.now()}-${cleanLogoName}`;
                     const filePath = path_1.default.join(logosDir, storedLogoName);
-                    fs_1.default.writeFileSync(filePath, buffer);
+                    await fs_1.default.promises.writeFile(filePath, buffer);
                     finalLogoUrl = `/uploads/logos/${storedLogoName}`;
                 }
                 catch (logoErr) {
@@ -886,7 +886,15 @@ router.post('/upload-resume', authMiddleware_1.authenticateJWT, (0, authMiddlewa
                 message: `File size (${(sizeBytes / (1024 * 1024)).toFixed(2)} MB) exceeds the 5MB size limit. Please upload a PDF under 5MB.`,
             });
         }
-        // 3. Save to local storage (Free Setup)
+        // 3. Validate PDF magic bytes signature (%PDF)
+        const magic = buffer.slice(0, 4).toString('ascii');
+        if (!magic.startsWith('%PDF')) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid document signature. Only valid PDF files are accepted.',
+            });
+        }
+        // 4. Save to local storage asynchronously
         const uploadsDir = path_1.default.join(__dirname, '../../uploads/resumes');
         if (!fs_1.default.existsSync(uploadsDir)) {
             fs_1.default.mkdirSync(uploadsDir, { recursive: true });
@@ -894,7 +902,7 @@ router.post('/upload-resume', authMiddleware_1.authenticateJWT, (0, authMiddlewa
         const cleanName = (fileName || 'resume.pdf').replace(/[^a-zA-Z0-9.-]/g, '_');
         const storedFileName = `cv-${userId}-${Date.now()}-${cleanName}`;
         const filePath = path_1.default.join(uploadsDir, storedFileName);
-        fs_1.default.writeFileSync(filePath, buffer);
+        await fs_1.default.promises.writeFile(filePath, buffer);
         const resumeUrl = `/uploads/resumes/${storedFileName}`;
         // 4. Update Teacher Profile in MongoDB Atlas & in-memory store
         try {

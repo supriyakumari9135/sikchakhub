@@ -11,6 +11,8 @@ class DataStore {
     interviews = [];
     auditLogs = auditLogger_1.inMemoryAuditLogs;
     savedJobs = [];
+    subscriptions = [];
+    payments = [];
     // Helper getters
     getUserById(id) {
         return this.users.find(u => u.id === id);

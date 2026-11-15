@@ -10,7 +10,8 @@ import {
   ShieldAlert, 
   ArrowRight,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  UserCheck
 } from 'lucide-react';
 
 interface ApplicationDossierModalProps {
@@ -19,6 +20,8 @@ interface ApplicationDossierModalProps {
   application: any | null;
   onOpenStageCorrection: (app: any) => void;
   onPreviewCv: (doc: any) => void;
+  onShortlist?: (app: any) => void;
+  onScheduleInterview?: (app: any) => void;
 }
 
 export const ApplicationDossierModal: React.FC<ApplicationDossierModalProps> = ({
@@ -27,6 +30,8 @@ export const ApplicationDossierModal: React.FC<ApplicationDossierModalProps> = (
   application,
   onOpenStageCorrection,
   onPreviewCv,
+  onShortlist,
+  onScheduleInterview,
 }) => {
   if (!isOpen || !application) return null;
 
@@ -127,21 +132,49 @@ export const ApplicationDossierModal: React.FC<ApplicationDossierModalProps> = (
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
-          <button
-            onClick={() => {
-              onClose();
-              onOpenStageCorrection(application);
-            }}
-            className="px-4 py-2 text-xs font-bold rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition flex items-center gap-1.5"
-          >
-            <ShieldAlert className="w-4 h-4" />
-            <span>Exceptional Stage Override</span>
-          </button>
+        <div className="p-4 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
+            {onShortlist && application.stage !== 'SHORTLISTED' && (
+              <button
+                onClick={() => {
+                  onShortlist(application);
+                  onClose();
+                }}
+                className="px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>Shortlist Candidate</span>
+              </button>
+            )}
+
+            {onScheduleInterview && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onScheduleInterview(application);
+                }}
+                className="px-3.5 py-2 text-xs font-bold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+              >
+                <Calendar className="w-4 h-4" />
+                <span>Schedule Interview</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => {
+                onClose();
+                onOpenStageCorrection(application);
+              }}
+              className="px-3.5 py-2 text-xs font-bold rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+            >
+              <ShieldAlert className="w-4 h-4" />
+              <span>Stage Override</span>
+            </button>
+          </div>
 
           <button
             onClick={onClose}
-            className="px-5 py-2 text-xs font-semibold rounded-xl bg-slate-200 text-slate-700 hover:bg-slate-300 transition"
+            className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-200 text-slate-700 hover:bg-slate-300 transition cursor-pointer"
           >
             Close
           </button>

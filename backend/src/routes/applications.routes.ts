@@ -7,7 +7,11 @@ import {
   JobVacancyModel, 
   UserModel, 
   TeacherProfileModel, 
-  InstitutionModel 
+  InstitutionModel,
+  InterviewModel,
+  SubscriptionModel,
+  getOrInitEmployerSubscription,
+  getGlobalFreeApplicantLimit
 } from '../db/mongodb';
 import { authenticateJWT, requireRole } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
@@ -101,6 +105,8 @@ router.get('/stats/employer', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']
     }
 
     const activeOpenings = jobs.filter(j => j.status === 'ACTIVE').length;
+    const subscription: any = await getOrInitEmployerSubscription(userId, institution.id);
+    const globalFreeLimit = await getGlobalFreeApplicantLimit();
 
     return res.json({
       success: true,
@@ -117,6 +123,15 @@ router.get('/stats/employer', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']
           INTERVIEW_SCHEDULED: interviewsCount,
           SELECTED: stageCounts.SELECTED,
           REJECTED: stageCounts.REJECTED,
+        },
+        subscription: {
+          plan: subscription.plan,
+          status: subscription.status,
+          hasUnlimitedAccess: subscription.hasUnlimitedAccess === true && subscription.status === 'ACTIVE',
+          freeLimitPerJob: subscription.freeLimitPerJob || globalFreeLimit,
+          startDate: subscription.startDate,
+          endDate: subscription.endDate,
+          isPremium: subscription.hasUnlimitedAccess === true && subscription.status === 'ACTIVE',
         }
       }
     });
@@ -291,24 +306,54 @@ router.get('/my-applications', authenticateJWT, async (req: Request, res: Respon
       }
     }
 
-    // Populate job and institution
-    const populated = await Promise.all(apps.map(async (app: any) => {
-      let job: any = null;
-      try {
-        job = await JobVacancyModel.findOne({ id: app.jobId }).lean();
-      } catch (e) {}
+    // Batch resolve jobs, institutions, and interviews in 3 single queries (eliminates N+1 bottleneck)
+    const appJobIds = Array.from(new Set(apps.map((a: any) => a.jobId).filter(Boolean)));
+    const appIds = apps.map((a: any) => a.id);
+
+    let jobsList: any[] = [];
+    try {
+      jobsList = await JobVacancyModel.find({ id: { $in: appJobIds } }).lean();
+    } catch (e) {}
+    const jobsMap = new Map<string, any>();
+    jobsList.forEach(j => jobsMap.set(j.id, j));
+
+    const instIds = Array.from(new Set(jobsList.map(j => j.institutionId).filter(Boolean)));
+    let institutionsList: any[] = [];
+    try {
+      institutionsList = await InstitutionModel.find({ id: { $in: instIds } }).lean();
+    } catch (e) {}
+    const instMap = new Map<string, any>();
+    institutionsList.forEach(i => instMap.set(i.id, i));
+
+    let interviewsList: any[] = [];
+    try {
+      interviewsList = await InterviewModel.find({ applicationId: { $in: appIds } }).sort({ scheduledTime: -1 }).lean();
+    } catch (e) {}
+    const interviewMap = new Map<string, any>();
+    interviewsList.forEach(i => {
+      if (!interviewMap.has(i.applicationId)) {
+        interviewMap.set(i.applicationId, i);
+      }
+    });
+
+    const populated = apps.map((app: any) => {
+      let job = jobsMap.get(app.jobId);
       if (!job) job = dbStore.getJobById(app.jobId);
 
       let institution: any = null;
       if (job) {
-        try {
-          institution = await InstitutionModel.findOne({ id: job.institutionId }).lean();
-        } catch (e) {}
+        institution = instMap.get(job.institutionId);
         if (!institution) institution = dbStore.getInstitutionById(job.institutionId);
+      }
+
+      let interview = interviewMap.get(app.id);
+      if (!interview) {
+        interview = dbStore.interviews.find(i => i.applicationId === app.id);
       }
 
       return {
         ...app,
+        interview: interview || undefined,
         institutionName: 'SikchaKhub',
         job: job ? {
           ...job,
@@ -323,7 +368,7 @@ router.get('/my-applications', authenticateJWT, async (req: Request, res: Respon
           institutionName: 'SikchaKhub',
         } : undefined,
       };
-    }));
+    });
 
     return res.json({ success: true, applications: populated });
   } catch (err: any) {
@@ -397,18 +442,28 @@ router.get('/job/:jobId', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), a
       }
     }
 
-    // 3. Populate complete teacher profiles & jobs
-    let candidates = await Promise.all(apps.map(async (app: any) => {
-      let teacher: any = null;
-      try {
-        teacher = await UserModel.findOne({ id: app.teacherId }).lean();
-      } catch (e) {}
+    // 3. Batch resolve complete teacher accounts & teacher profiles in O(1) queries (Eliminates N+1 bottleneck)
+    const teacherIds = Array.from(new Set(apps.map((a: any) => a.teacherId).filter(Boolean)));
+    
+    let teachersList: any[] = [];
+    try {
+      teachersList = await UserModel.find({ id: { $in: teacherIds } }).lean();
+    } catch (e) {}
+    const teachersMap = new Map<string, any>();
+    teachersList.forEach(t => teachersMap.set(t.id, t));
+
+    let profilesList: any[] = [];
+    try {
+      profilesList = await TeacherProfileModel.find({ userId: { $in: teacherIds } }).lean();
+    } catch (e) {}
+    const profilesMap = new Map<string, any>();
+    profilesList.forEach(p => profilesMap.set(p.userId, p));
+
+    let candidates = apps.map((app: any) => {
+      let teacher = teachersMap.get(app.teacherId);
       if (!teacher) teacher = dbStore.getUserById(app.teacherId);
 
-      let profile: any = null;
-      try {
-        profile = await TeacherProfileModel.findOne({ userId: app.teacherId }).lean();
-      } catch (e) {}
+      let profile = profilesMap.get(app.teacherId);
       if (!profile) profile = dbStore.getProfileByUserId(app.teacherId);
 
       const relJob = jobsMap.get(app.jobId);
@@ -434,7 +489,7 @@ router.get('/job/:jobId', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), a
           profile: profile || undefined,
         } : undefined,
       };
-    }));
+    });
 
     // Filtering by minimum score
     if (minScore) {
@@ -470,6 +525,81 @@ router.get('/job/:jobId', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), a
     // Sort strictly by ATS match score descending (highest ATS score first)
     candidates.sort((a, b) => (b.matchResult?.overallScore || 0) - (a.matchResult?.overallScore || 0));
 
+    // 4. Subscription & Access Management enforcement (Free = first 5 applicants per vacancy; Pro = 100% access)
+    let hasUnlimitedAccess = true;
+    let freeLimit = 5;
+    const isEmployer = req.user!.role === 'EMPLOYER';
+
+    if (isEmployer) {
+      const sub: any = await getOrInitEmployerSubscription(req.user!.id, employerInst?.id);
+      hasUnlimitedAccess = sub.hasUnlimitedAccess === true && sub.status === 'ACTIVE';
+      freeLimit = sub.freeLimitPerJob || await getGlobalFreeApplicantLimit();
+    }
+
+    // Determine 1-based chronological application rank within each specific job vacancy
+    const appIdToRank = new Map<string, number>();
+    for (const targetJId of targetJobIds) {
+      let vacancyApps: any[] = [];
+      try {
+        vacancyApps = await JobApplicationModel.find({ jobId: targetJId })
+          .sort({ appliedAt: 1, createdAt: 1 })
+          .select('id appliedAt')
+          .lean();
+      } catch (e) {}
+      if (vacancyApps.length === 0) {
+        vacancyApps = dbStore.applications
+          .filter(a => a.jobId === targetJId)
+          .sort((a, b) => new Date(a.appliedAt || 0).getTime() - new Date(b.appliedAt || 0).getTime());
+      }
+      vacancyApps.forEach((va: any, idx: number) => {
+        appIdToRank.set(va.id, idx + 1);
+      });
+    }
+
+    candidates = candidates.map(candidate => {
+      const rank = appIdToRank.get(candidate.id) || 1;
+      const isLocked = isEmployer && !hasUnlimitedAccess && (rank > freeLimit);
+
+      if (isLocked) {
+        const maskedTeacher = candidate.teacher ? {
+          ...candidate.teacher,
+          fullName: `Candidate #${rank} (Locked)`,
+          email: `applicant${rank}@sikchakhub.com`,
+          phone: '+91 ••••• •••••',
+          profile: candidate.teacher.profile ? {
+            ...candidate.teacher.profile,
+            resumeUrl: '',
+            resumeFileName: '',
+            previousSchool: 'Confidential Institution',
+            currentSalaryLPA: undefined,
+            expectedSalaryLPA: undefined,
+            bio: 'Profile details locked. Upgrade your subscription to access all applicants.',
+          } : undefined,
+        } : undefined;
+
+        return {
+          ...candidate,
+          isLocked: true,
+          applicantIndex: rank,
+          freeLimit,
+          lockReason: 'Upgrade your subscription to access all applicants.',
+          resumeUrl: '',
+          resumeFileName: '',
+          coverLetter: 'Locked applicant cover letter. Upgrade to Pro to view full application.',
+          customAnswers: {},
+          recruiterNotes: '',
+          teacher: maskedTeacher,
+        };
+      }
+
+      return {
+        ...candidate,
+        isLocked: false,
+        applicantIndex: rank,
+        freeLimit,
+      };
+    });
+
     // Limit top results if requested (e.g. top 50 or top 60)
     const topLimit = limit ? Number(limit) : undefined;
     const returnedCandidates = topLimit ? candidates.slice(0, topLimit) : candidates;
@@ -478,6 +608,11 @@ router.get('/job/:jobId', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), a
       success: true,
       total: candidates.length,
       candidates: returnedCandidates,
+      accessControl: {
+        isPremium: hasUnlimitedAccess,
+        freeLimit,
+        hasUnlimitedAccess,
+      }
     });
   } catch (error: any) {
     console.error('Job applicants fetch error:', error);
@@ -513,8 +648,14 @@ router.post('/upload-candidate', authenticateJWT, requireRole(['EMPLOYER', 'ADMI
       const base64String = matches && matches.length === 3 ? matches[2] : base64Data;
       const buffer = Buffer.from(base64String, 'base64');
 
-      if (buffer.length > 1024 * 1024) {
-        return res.status(400).json({ success: false, message: 'Uploaded CV exceeds the 1MB limit. Please upload a PDF under 1MB.' });
+      if (buffer.length > 5 * 1024 * 1024) {
+        return res.status(400).json({ success: false, message: 'Uploaded CV exceeds the 5MB limit. Please upload a PDF under 5MB.' });
+      }
+
+      // Validate PDF magic bytes signature (%PDF)
+      const magic = buffer.subarray(0, 4).toString('ascii');
+      if (!magic.startsWith('%PDF')) {
+        return res.status(400).json({ success: false, message: 'Invalid document signature. Only valid PDF files are accepted.' });
       }
 
       const uploadDir = path.join(process.cwd(), 'uploads', 'resumes');
@@ -524,7 +665,7 @@ router.post('/upload-candidate', authenticateJWT, requireRole(['EMPLOYER', 'ADMI
 
       const uniqueFileName = `cv-${Date.now()}-${Math.random().toString(36).substring(2, 7)}-${safeFileName}`;
       const filePath = path.join(uploadDir, uniqueFileName);
-      fs.writeFileSync(filePath, buffer);
+      await fs.promises.writeFile(filePath, buffer);
       resumeUrl = `/uploads/resumes/${uniqueFileName}`;
     }
 
@@ -682,6 +823,37 @@ router.get('/:id', authenticateJWT, async (req: Request, res: Response) => {
 
       if (job && employerInst && job.institutionId !== employerInst.id) {
         return res.status(403).json({ success: false, message: 'Forbidden: Unauthorized to access candidate profiles for this vacancy.' });
+      }
+
+      // Check subscription tier access limit
+      const sub: any = await getOrInitEmployerSubscription(req.user!.id, employerInst?.id);
+      const hasUnlimited = sub.hasUnlimitedAccess === true && sub.status === 'ACTIVE';
+      const freeLimit = sub.freeLimitPerJob || await getGlobalFreeApplicantLimit();
+
+      if (!hasUnlimited) {
+        let vacancyApps: any[] = [];
+        try {
+          vacancyApps = await JobApplicationModel.find({ jobId: app.jobId })
+            .sort({ appliedAt: 1, createdAt: 1 })
+            .select('id')
+            .lean();
+        } catch (e) {}
+        if (vacancyApps.length === 0) {
+          vacancyApps = dbStore.applications
+            .filter(a => a.jobId === app.jobId)
+            .sort((a, b) => new Date(a.appliedAt || 0).getTime() - new Date(b.appliedAt || 0).getTime());
+        }
+        const appIndex = vacancyApps.findIndex(a => a.id === app.id);
+        const rank = appIndex >= 0 ? appIndex + 1 : 1;
+        if (rank > freeLimit) {
+          return res.status(403).json({
+            success: false,
+            isLocked: true,
+            applicantIndex: rank,
+            freeLimit,
+            message: 'Upgrade your subscription to access all applicants.',
+          });
+        }
       }
     }
 
@@ -841,6 +1013,37 @@ router.get('/:id/resume', authenticateJWT, async (req: Request, res: Response) =
       if (job && employerInst && job.institutionId !== employerInst.id) {
         return res.status(403).json({ success: false, message: 'Forbidden: Unauthorized to access CV for this vacancy.' });
       }
+
+      // Check subscription tier access limit
+      const sub: any = await getOrInitEmployerSubscription(req.user!.id, employerInst?.id);
+      const hasUnlimited = sub.hasUnlimitedAccess === true && sub.status === 'ACTIVE';
+      const freeLimit = sub.freeLimitPerJob || await getGlobalFreeApplicantLimit();
+
+      if (!hasUnlimited) {
+        let vacancyApps: any[] = [];
+        try {
+          vacancyApps = await JobApplicationModel.find({ jobId: app.jobId })
+            .sort({ appliedAt: 1, createdAt: 1 })
+            .select('id')
+            .lean();
+        } catch (e) {}
+        if (vacancyApps.length === 0) {
+          vacancyApps = dbStore.applications
+            .filter(a => a.jobId === app.jobId)
+            .sort((a, b) => new Date(a.appliedAt || 0).getTime() - new Date(b.appliedAt || 0).getTime());
+        }
+        const appIndex = vacancyApps.findIndex(a => a.id === app.id);
+        const rank = appIndex >= 0 ? appIndex + 1 : 1;
+        if (rank > freeLimit) {
+          return res.status(403).json({
+            success: false,
+            isLocked: true,
+            applicantIndex: rank,
+            freeLimit,
+            message: 'Upgrade your subscription to access candidate CV documents.',
+          });
+        }
+      }
     }
 
     return res.json({
@@ -853,7 +1056,7 @@ router.get('/:id/resume', authenticateJWT, async (req: Request, res: Response) =
 });
 
 // PATCH /api/v1/applications/:id/stage - Update recruitment stage in database with verification
-router.patch('/:id/stage', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
+router.patch('/:id/stage', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN', 'HR']), async (req: Request, res: Response) => {
   const { stage } = req.body;
   if (!stage) {
     return res.status(400).json({ success: false, message: 'Stage value is required.' });
@@ -904,6 +1107,37 @@ router.patch('/:id/stage', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), 
 
       if (job && employerInst && job.institutionId !== employerInst.id) {
         return res.status(403).json({ success: false, message: 'Forbidden: Unauthorized to update applications for this vacancy.' });
+      }
+
+      // Check subscription tier access limit
+      const sub: any = await getOrInitEmployerSubscription(req.user!.id, employerInst?.id);
+      const hasUnlimited = sub.hasUnlimitedAccess === true && sub.status === 'ACTIVE';
+      const freeLimit = sub.freeLimitPerJob || await getGlobalFreeApplicantLimit();
+
+      if (!hasUnlimited) {
+        let vacancyApps: any[] = [];
+        try {
+          vacancyApps = await JobApplicationModel.find({ jobId: targetApp.jobId })
+            .sort({ appliedAt: 1, createdAt: 1 })
+            .select('id')
+            .lean();
+        } catch (e) {}
+        if (vacancyApps.length === 0) {
+          vacancyApps = dbStore.applications
+            .filter(a => a.jobId === targetApp.jobId)
+            .sort((a, b) => new Date(a.appliedAt || 0).getTime() - new Date(b.appliedAt || 0).getTime());
+        }
+        const appIndex = vacancyApps.findIndex(a => a.id === targetApp.id);
+        const rank = appIndex >= 0 ? appIndex + 1 : 1;
+        if (rank > freeLimit) {
+          return res.status(403).json({
+            success: false,
+            isLocked: true,
+            applicantIndex: rank,
+            freeLimit,
+            message: 'Upgrade your subscription to manage this applicant.',
+          });
+        }
       }
     }
 

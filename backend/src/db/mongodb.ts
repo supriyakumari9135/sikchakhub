@@ -18,6 +18,9 @@ const UserSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: true },
 }, { timestamps: true });
 
+UserSchema.index({ role: 1, status: 1 });
+UserSchema.index({ createdAt: -1 });
+
 // Teacher Profile Schema
 const TeacherProfileSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
@@ -51,6 +54,9 @@ const TeacherProfileSchema = new mongoose.Schema({
   streakDays: { type: Number, default: 1 },
 }, { timestamps: true });
 
+TeacherProfileSchema.index({ currentCity: 1 });
+TeacherProfileSchema.index({ experienceYears: 1 });
+
 // Institution Schema
 const InstitutionSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
@@ -78,6 +84,10 @@ const InstitutionSchema = new mongoose.Schema({
   pincode: { type: String },
   establishedYear: { type: Number },
 }, { timestamps: true });
+
+InstitutionSchema.index({ ownerId: 1 });
+InstitutionSchema.index({ verificationStatus: 1 });
+InstitutionSchema.index({ city: 1, type: 1 });
 
 // Job Vacancy Schema
 const JobVacancySchema = new mongoose.Schema({
@@ -111,6 +121,11 @@ const JobVacancySchema = new mongoose.Schema({
   totalApplicants: { type: Number, default: 0 },
 }, { timestamps: true });
 
+JobVacancySchema.index({ status: 1, createdAt: -1 });
+JobVacancySchema.index({ institutionId: 1, status: 1 });
+JobVacancySchema.index({ status: 1, subject: 1, city: 1 });
+JobVacancySchema.index({ deadline: 1 });
+
 // Job Application Schema
 const JobApplicationSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
@@ -130,6 +145,11 @@ const JobApplicationSchema = new mongoose.Schema({
   appliedAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 
+JobApplicationSchema.index({ jobId: 1, appliedAt: 1 });
+JobApplicationSchema.index({ teacherId: 1, appliedAt: -1 });
+JobApplicationSchema.index({ jobId: 1, stage: 1 });
+JobApplicationSchema.index({ jobId: 1, teacherId: 1 });
+
 // Interview Schema
 const InterviewSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
@@ -147,6 +167,10 @@ const InterviewSchema = new mongoose.Schema({
   rating: { type: Number },
 }, { timestamps: true });
 
+InterviewSchema.index({ applicationId: 1 });
+InterviewSchema.index({ teacherId: 1, scheduledTime: 1 });
+InterviewSchema.index({ institutionId: 1, scheduledTime: 1 });
+
 // Audit Log Schema
 const AuditLogSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
@@ -159,6 +183,9 @@ const AuditLogSchema = new mongoose.Schema({
   userAgent: { type: String },
   details: { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true });
+
+AuditLogSchema.index({ createdAt: -1 });
+AuditLogSchema.index({ userId: 1, createdAt: -1 });
 
 // Master Data Schema
 const MasterDataSchema = new mongoose.Schema({
@@ -174,6 +201,8 @@ const MasterDataSchema = new mongoose.Schema({
   order: { type: Number, default: 0 },
   metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true });
+
+MasterDataSchema.index({ category: 1, isActive: 1, order: 1 });
 
 // Platform Notification Schema (Upgraded for Location-Based & Smart Push System)
 const PlatformNotificationSchema = new mongoose.Schema({
@@ -204,6 +233,9 @@ const PlatformNotificationSchema = new mongoose.Schema({
   status: { type: String, enum: ['SENT', 'DELIVERED', 'PARTIAL', 'FAILED', 'SCHEDULED', 'DRAFT'], default: 'DELIVERED' },
 }, { timestamps: true });
 
+PlatformNotificationSchema.index({ createdAt: -1 });
+PlatformNotificationSchema.index({ targetAudience: 1, status: 1 });
+
 // Device FCM Token Schema (Store device FCM tokens, platform, active status)
 const DeviceTokenSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
@@ -216,6 +248,8 @@ const DeviceTokenSchema = new mongoose.Schema({
   lastSeenAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 
+DeviceTokenSchema.index({ userId: 1, isActive: 1 });
+
 // User Inbox Notification Schema (In-app delivery for teachers/job seekers)
 const UserInboxNotificationSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
@@ -227,6 +261,8 @@ const UserInboxNotificationSchema = new mongoose.Schema({
   isRead: { type: Boolean, default: false },
   readAt: { type: Date },
 }, { timestamps: true });
+
+UserInboxNotificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 });
 
 // User Reports & Moderation Schema
 const UserReportSchema = new mongoose.Schema({
@@ -241,6 +277,8 @@ const UserReportSchema = new mongoose.Schema({
   resolutionNotes: { type: String },
   resolvedBy: { type: String },
 }, { timestamps: true });
+
+UserReportSchema.index({ status: 1, createdAt: -1 });
 
 // Platform Settings Schema
 const PlatformSettingSchema = new mongoose.Schema({
@@ -271,6 +309,58 @@ const CandidateGroupSchema = new mongoose.Schema({
   tags: [{ type: String }],
 }, { timestamps: true });
 
+CandidateGroupSchema.index({ createdBy: 1, status: 1 });
+
+// Job Poster Subscription Schema
+const SubscriptionSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  userId: { type: String, required: true, index: true },
+  institutionId: { type: String },
+  plan: { 
+    type: String, 
+    enum: ['FREE', 'PRO_MONTHLY', 'ANNUAL_ENTERPRISE', 'CUSTOM_ADMIN'], 
+    default: 'FREE' 
+  },
+  status: { 
+    type: String, 
+    enum: ['ACTIVE', 'EXPIRED', 'CANCELLED', 'SUSPENDED'], 
+    default: 'ACTIVE' 
+  },
+  freeLimitPerJob: { type: Number, default: 5 },
+  hasUnlimitedAccess: { type: Boolean, default: false },
+  startDate: { type: String, default: () => new Date().toISOString() },
+  endDate: { type: String, default: () => new Date(Date.now() + 10 * 365 * 24 * 3600 * 1000).toISOString() },
+  amountPaid: { type: Number, default: 0 },
+  paymentStatus: { type: String, enum: ['PAID', 'PENDING', 'FAILED', 'N/A'], default: 'N/A' },
+  lastPaymentId: { type: String },
+  grantedByAdmin: { type: Boolean, default: false },
+  adminNotes: { type: String },
+}, { timestamps: true });
+
+SubscriptionSchema.index({ userId: 1, status: 1 });
+SubscriptionSchema.index({ status: 1, hasUnlimitedAccess: 1 });
+
+// Payment Record Schema
+const PaymentRecordSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  subscriptionId: { type: String },
+  userId: { type: String, required: true, index: true },
+  institutionId: { type: String },
+  plan: { type: String, required: true },
+  amount: { type: Number, required: true },
+  currency: { type: String, default: 'INR' },
+  paymentGateway: { 
+    type: String, 
+    enum: ['DIRECT_PAY', 'RAZORPAY_SANDBOX', 'MANUAL_ADMIN'], 
+    default: 'DIRECT_PAY' 
+  },
+  paymentId: { type: String, required: true },
+  status: { type: String, enum: ['SUCCESS', 'PENDING', 'FAILED'], default: 'SUCCESS' },
+}, { timestamps: true });
+
+PaymentRecordSchema.index({ userId: 1, createdAt: -1 });
+PaymentRecordSchema.index({ status: 1 });
+
 export const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
 export const TeacherProfileModel = mongoose.models.TeacherProfile || mongoose.model('TeacherProfile', TeacherProfileSchema);
 export const InstitutionModel = mongoose.models.Institution || mongoose.model('Institution', InstitutionSchema);
@@ -285,6 +375,80 @@ export const UserInboxNotificationModel = mongoose.models.UserInboxNotification 
 export const UserReportModel = mongoose.models.UserReport || mongoose.model('UserReport', UserReportSchema);
 export const PlatformSettingModel = mongoose.models.PlatformSetting || mongoose.model('PlatformSetting', PlatformSettingSchema);
 export const CandidateGroupModel = mongoose.models.CandidateGroup || mongoose.model('CandidateGroup', CandidateGroupSchema);
+export const SubscriptionModel = mongoose.models.Subscription || mongoose.model('Subscription', SubscriptionSchema);
+export const PaymentRecordModel = mongoose.models.PaymentRecord || mongoose.model('PaymentRecord', PaymentRecordSchema);
+
+export async function getGlobalFreeApplicantLimit(): Promise<number> {
+  try {
+    const setting: any = await PlatformSettingModel.findOne({ key: 'freeApplicantLimitPerJob' }).lean();
+    if (setting && typeof setting.value === 'number') {
+      return setting.value;
+    }
+  } catch (err) {}
+  return 5;
+}
+
+export async function getOrInitEmployerSubscription(userId: string, institutionId?: string): Promise<any> {
+  try {
+    let sub: any = await SubscriptionModel.findOne({ userId }).lean();
+    const globalLimit = await getGlobalFreeApplicantLimit();
+
+    if (sub) {
+      // Check expiration if paid
+      if (sub.status === 'ACTIVE' && sub.plan !== 'FREE' && !sub.grantedByAdmin) {
+        const isExpired = new Date(sub.endDate).getTime() < Date.now();
+        if (isExpired) {
+          await SubscriptionModel.updateOne(
+            { id: sub.id },
+            { 
+              $set: { 
+                status: 'EXPIRED', 
+                hasUnlimitedAccess: false 
+              } 
+            }
+          );
+          sub = { ...sub, status: 'EXPIRED', hasUnlimitedAccess: false };
+        }
+      }
+      return sub;
+    }
+
+    // Initialize default free subscription
+    const defaultSub = {
+      id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      userId,
+      institutionId: institutionId || undefined,
+      plan: 'FREE',
+      status: 'ACTIVE',
+      freeLimitPerJob: globalLimit,
+      hasUnlimitedAccess: false,
+      startDate: new Date().toISOString(),
+      endDate: new Date(Date.now() + 10 * 365 * 24 * 3600 * 1000).toISOString(),
+      amountPaid: 0,
+      paymentStatus: 'N/A',
+      grantedByAdmin: false,
+    };
+
+    await SubscriptionModel.create(defaultSub);
+    return defaultSub;
+  } catch (err) {
+    console.error('Error fetching/initializing subscription:', err);
+    return {
+      id: `sub_mem_${userId}`,
+      userId,
+      institutionId,
+      plan: 'FREE',
+      status: 'ACTIVE',
+      freeLimitPerJob: 5,
+      hasUnlimitedAccess: false,
+      startDate: new Date().toISOString(),
+      endDate: new Date(Date.now() + 10 * 365 * 24 * 3600 * 1000).toISOString(),
+      amountPaid: 0,
+      paymentStatus: 'N/A',
+      grantedByAdmin: false,
+    };
+  }
+}
 
 export async function seedDefaultAdminIfNeeded() {
   try {
@@ -385,11 +549,22 @@ export async function seedDefaultAdminIfNeeded() {
         { id: 'set-4', key: 'maxCvUploadSizeMB', value: 1, description: 'Maximum allowed candidate PDF CV size in Megabytes', category: 'UPLOADS' },
         { id: 'set-5', key: 'maintenanceMode', value: false, description: 'Toggle platform maintenance mode', category: 'SYSTEM' },
         { id: 'set-6', key: 'autoApproveJobs', value: true, description: 'Automatically publish vacancies without moderation queue', category: 'MODERATION' },
+        { id: 'set-7', key: 'freeApplicantLimitPerJob', value: 5, description: 'Default free application view limit per job vacancy', category: 'SUBSCRIPTION' },
       ];
       await PlatformSettingModel.insertMany(initialSettings);
       console.log('✅ Initial Platform Settings seeded in MongoDB.');
     } else {
       await PlatformSettingModel.updateMany({ value: { $in: ['SikchaKhub.AI', 'SikchaKhub.AI'] } }, { $set: { value: 'SikchaKhub.AI' } });
+      const freeLimitSetting = await PlatformSettingModel.findOne({ key: 'freeApplicantLimitPerJob' });
+      if (!freeLimitSetting) {
+        await PlatformSettingModel.create({
+          id: `set-free-limit-${Date.now()}`,
+          key: 'freeApplicantLimitPerJob',
+          value: 5,
+          description: 'Default free application view limit per job vacancy',
+          category: 'SUBSCRIPTION',
+        });
+      }
     }
   } catch (err: any) {
     console.warn('Admin seed notice:', err.message);
@@ -407,8 +582,20 @@ export async function connectMongoDB() {
     console.log('🔄 Connecting to MongoDB Atlas cluster...');
     await mongoose.connect(uri, {
       serverSelectionTimeoutMS: 8000,
+      maxPoolSize: 50,
+      minPoolSize: 10,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 10000,
     });
-    console.log('✅ Connected to MongoDB Atlas successfully!');
+    console.log('✅ Connected to MongoDB Atlas successfully with connection pool (min: 10, max: 50)!');
+    
+    mongoose.connection.on('disconnected', () => {
+      console.warn('⚠️ MongoDB connection lost. Reconnection in progress...');
+    });
+    mongoose.connection.on('reconnected', () => {
+      console.log('🔄 MongoDB Atlas reconnected successfully.');
+    });
+
     await seedDefaultAdminIfNeeded();
     return true;
   } catch (error: any) {

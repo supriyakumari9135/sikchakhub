@@ -66,18 +66,33 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
 
     const combined = mongoJobs;
 
-    // Attach real institutions and count real applications
-    let results = await Promise.all(combined.map(async (j: any) => {
-      let inst: any = null;
-      try {
-        inst = await InstitutionModel.findOne({ id: j.institutionId }).lean();
-      } catch (e) {}
+    // Batch resolve institutions and application counts in O(1) database queries (Eliminates N+1 bottleneck)
+    const uniqueInstIds = Array.from(new Set(combined.map((j: any) => j.institutionId).filter(Boolean)));
+    const allJobIds = combined.map((j: any) => j.id);
+
+    let institutionsList: any[] = [];
+    try {
+      institutionsList = await InstitutionModel.find({ id: { $in: uniqueInstIds } }).lean();
+    } catch (e) {}
+
+    const instMap = new Map<string, any>();
+    institutionsList.forEach(inst => instMap.set(inst.id, inst));
+
+    // Batch aggregate applicant counts per job
+    const appCountMap = new Map<string, number>();
+    try {
+      const counts = await JobApplicationModel.aggregate([
+        { $match: { jobId: { $in: allJobIds } } },
+        { $group: { _id: '$jobId', count: { $sum: 1 } } }
+      ]);
+      counts.forEach((c: any) => appCountMap.set(c._id, c.count));
+    } catch (e) {}
+
+    let results = combined.map((j: any) => {
+      let inst = instMap.get(j.institutionId);
       if (!inst) inst = dbStore.getInstitutionById(j.institutionId) || null;
 
-      let appCount = 0;
-      try {
-        appCount = await JobApplicationModel.countDocuments({ jobId: j.id });
-      } catch (e) {}
+      let appCount = appCountMap.get(j.id) || 0;
       if (appCount === 0 && dbStore.applications.length > 0) {
         appCount = dbStore.applications.filter(a => a.jobId === j.id).length;
       }
@@ -87,7 +102,7 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
         institution: inst,
         totalApplicants: appCount,
       };
-    }));
+    });
 
     // Moderation & Approval Filter:
     // Only approved vacancies ('ACTIVE') from verified institutions ('VERIFIED') show on the public portal.

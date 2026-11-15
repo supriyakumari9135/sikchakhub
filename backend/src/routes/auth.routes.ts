@@ -178,7 +178,7 @@ router.post('/register', async (req: Request, res: Response) => {
         const cleanName = (resumeFileName || 'resume.pdf').replace(/[^a-zA-Z0-9.-]/g, '_');
         const storedFileName = `cv-${userId}-${Date.now()}-${cleanName}`;
         const filePath = path.join(uploadsDir, storedFileName);
-        fs.writeFileSync(filePath, buffer);
+        await fs.promises.writeFile(filePath, buffer);
 
         finalResumeUrl = `/uploads/resumes/${storedFileName}`;
         finalResumeFileName = resumeFileName;
@@ -311,7 +311,7 @@ router.post('/register', async (req: Request, res: Response) => {
           const cleanName = certFileName.replace(/[^a-zA-Z0-9.-]/g, '_');
           const storedFileName = `cert-${userId}-${Date.now()}-${cleanName}`;
           const filePath = path.join(certsDir, storedFileName);
-          fs.writeFileSync(filePath, buffer);
+          await fs.promises.writeFile(filePath, buffer);
 
           finalCertificateUrl = `/uploads/certificates/${storedFileName}`;
           finalCertificateFileName = certFileName;
@@ -335,7 +335,7 @@ router.post('/register', async (req: Request, res: Response) => {
           const cleanLogoName = (req.body.logoFileName || 'logo.png').replace(/[^a-zA-Z0-9.-]/g, '_');
           const storedLogoName = `logo-${userId}-${Date.now()}-${cleanLogoName}`;
           const filePath = path.join(logosDir, storedLogoName);
-          fs.writeFileSync(filePath, buffer);
+          await fs.promises.writeFile(filePath, buffer);
           finalLogoUrl = `/uploads/logos/${storedLogoName}`;
         } catch (logoErr) {
           console.warn('Error saving logo image:', logoErr);
@@ -956,7 +956,16 @@ router.post('/upload-resume', authenticateJWT, requireRole(['TEACHER', 'ADMIN'])
       });
     }
 
-    // 3. Save to local storage (Free Setup)
+    // 3. Validate PDF magic bytes signature (%PDF)
+    const magic = buffer.slice(0, 4).toString('ascii');
+    if (!magic.startsWith('%PDF')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid document signature. Only valid PDF files are accepted.',
+      });
+    }
+
+    // 4. Save to local storage asynchronously
     const uploadsDir = path.join(__dirname, '../../uploads/resumes');
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
@@ -965,7 +974,7 @@ router.post('/upload-resume', authenticateJWT, requireRole(['TEACHER', 'ADMIN'])
     const cleanName = (fileName || 'resume.pdf').replace(/[^a-zA-Z0-9.-]/g, '_');
     const storedFileName = `cv-${userId}-${Date.now()}-${cleanName}`;
     const filePath = path.join(uploadsDir, storedFileName);
-    fs.writeFileSync(filePath, buffer);
+    await fs.promises.writeFile(filePath, buffer);
 
     const resumeUrl = `/uploads/resumes/${storedFileName}`;
 

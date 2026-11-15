@@ -21,10 +21,13 @@ import {
   CheckCircle,
   School,
   Flame,
-  AlertCircle
+  AlertCircle,
+  Eye
 } from 'lucide-react';
 import { JobVacancy } from '../types';
 import { ApplyJobModal } from '../components/ApplyJobModal';
+import { JobDetailModal } from '../components/JobDetailModal';
+import { AuthRequiredModal } from '../components/AuthRequiredModal';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../config/api';
 
@@ -36,6 +39,19 @@ export const HomePage: React.FC = () => {
   const [city, setCity] = useState('');
   const [selectedCityTab, setSelectedCityTab] = useState('All');
   const [selectedJobForApply, setSelectedJobForApply] = useState<JobVacancy | null>(null);
+  const [selectedJobForDetails, setSelectedJobForDetails] = useState<JobVacancy | null>(null);
+  const [authPromptJob, setAuthPromptJob] = useState<JobVacancy | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  // Authentication check before applying
+  const handleApplyClick = (job: JobVacancy) => {
+    if (!token || !user || user.role !== 'TEACHER') {
+      setAuthPromptJob(job);
+      setIsAuthModalOpen(true);
+      return;
+    }
+    setSelectedJobForApply(job);
+  };
 
   // Fetch logged-in educator's existing applications
   const { data: myAppsData } = useQuery({
@@ -523,10 +539,10 @@ export const HomePage: React.FC = () => {
                   key={job.id}
                   className="bg-white rounded-2xl p-6 border border-sky-100/90 hover:border-sky-300 hover:shadow-xl hover:shadow-sky-100/70 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between group shadow-xs cursor-pointer focus-visible:ring-2 focus-visible:ring-sky-500"
                   tabIndex={0}
-                  onClick={() => setSelectedJobForApply(job)}
+                  onClick={() => setSelectedJobForDetails(job)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      setSelectedJobForApply(job);
+                      setSelectedJobForDetails(job);
                     }
                   }}
                 >
@@ -579,31 +595,45 @@ export const HomePage: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* Card Footer: Offered CTC + Apply Button */}
-                  <div className="pt-4 mt-5 border-t border-sky-100 flex items-center justify-between">
+                  {/* Card Footer: Offered CTC + Details & Apply Buttons */}
+                  <div className="pt-4 mt-5 border-t border-sky-100 flex items-center justify-between gap-2">
                     <div>
                       <span className="text-[10px] text-slate-400 block font-semibold uppercase">Offered CTC</span>
-                      <span className="text-sm font-black text-emerald-600">
+                      <span className="text-sm font-black text-emerald-600 whitespace-nowrap">
                         ₹{job.minSalaryLPA} - ₹{job.maxSalaryLPA} LPA
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {/* View Details Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedJobForDetails(job);
+                        }}
+                        className="cursor-pointer px-3 py-2 rounded-xl border border-sky-200 bg-white hover:bg-sky-50 text-sky-700 font-bold text-xs transition-all duration-200 hover:-translate-y-0.5 active:scale-95 shadow-2xs flex items-center gap-1"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-sky-600" />
+                        <span>Details</span>
+                      </button>
+
                       {appliedJobIds.has(job.id) ? (
-                        <span className="px-3.5 py-2 bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl flex items-center gap-1 cursor-default shadow-2xs">
+                        <span className="px-3 py-2 bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl flex items-center gap-1 cursor-default shadow-2xs">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Already Applied ✓</span>
+                          <span>Applied ✓</span>
                         </span>
                       ) : (
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedJobForApply(job);
+                            handleApplyClick(job);
                           }}
-                          className="cursor-pointer px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white text-xs font-bold rounded-xl shadow-xs hover:shadow-md hover:shadow-sky-500/25 transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
+                          className="cursor-pointer px-3.5 py-2 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white text-xs font-bold rounded-xl shadow-xs hover:shadow-md hover:shadow-sky-500/25 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 flex items-center gap-1"
                         >
-                          Quick Apply
+                          <span>Quick Apply</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
@@ -858,7 +888,30 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Dynamic Application Modal */}
+      {/* Vacancy Full Details Popup Card Modal */}
+      <JobDetailModal
+        job={selectedJobForDetails}
+        isOpen={Boolean(selectedJobForDetails)}
+        onClose={() => setSelectedJobForDetails(null)}
+        onApply={(job) => {
+          setSelectedJobForDetails(null);
+          handleApplyClick(job);
+        }}
+        isApplied={Boolean(selectedJobForDetails && appliedJobIds.has(selectedJobForDetails.id))}
+      />
+
+      {/* Authentication Required Modal */}
+      <AuthRequiredModal
+        isOpen={isAuthModalOpen}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          setAuthPromptJob(null);
+        }}
+        jobTitle={authPromptJob?.title}
+        institutionName="SikchaKhub"
+      />
+
+      {/* Dynamic Application Modal (Educators only) */}
       {selectedJobForApply && (
         <ApplyJobModal
           job={selectedJobForApply}

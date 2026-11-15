@@ -41,7 +41,8 @@ import {
   Eye,
   Loader2,
   Bell,
-  Zap
+  Zap,
+  ArrowRight
 } from 'lucide-react';
 import { JobVacancy } from '@sikchakhub/shared-types';
 import { apiUrl } from '../config/api';
@@ -189,21 +190,31 @@ export const TeacherDashboard: React.FC = () => {
   const interviewsList: any[] = interviewsData?.interviews || [];
   const appliedJobIds = new Set(liveApplications.map(la => la.jobId || la.job?.id));
 
-  const mappedApplications = liveApplications.map(la => ({
-    id: la.id,
-    jobTitle: la.job?.title || 'Teaching Vacancy',
-    institutionName: 'SikchaKhub',
-    institutionLogo: '/logo.jpeg',
-    subject: la.job?.subject || 'General Teaching',
-    level: la.job?.teachingLevel || 'PGT',
-    salary: la.job?.minSalaryLPA ? `₹${la.job?.minSalaryLPA} - ${la.job?.maxSalaryLPA} LPA` : 'As per norms',
-    location: `${la.job?.city || 'Location not specified'}${la.job?.state ? `, ${la.job.state}` : ''}`,
-    matchScore: la.matchResult?.overallScore || 85,
-    stage: la.stage || 'APPLIED',
-    appliedDate: la.appliedAt ? new Date(la.appliedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent',
-    meetingLink: la.interview?.meetingLink || '',
-    interviewDate: la.interview?.scheduledTime ? new Date(la.interview.scheduledTime).toLocaleString() : '',
-  }));
+  const mappedApplications = liveApplications.map(la => {
+    // Correlate interview from interviewsList or la.interview
+    const linkedInterview = la.interview || interviewsList.find(iv => iv.applicationId === la.id || iv.jobId === la.jobId);
+
+    return {
+      id: la.id,
+      jobId: la.jobId,
+      jobTitle: la.job?.title || 'Teaching Vacancy',
+      institutionName: 'SikchaKhub',
+      institutionLogo: '/logo.jpeg',
+      subject: la.job?.subject || 'General Teaching',
+      level: la.job?.teachingLevel || 'PGT',
+      salary: la.job?.minSalaryLPA ? `₹${la.job?.minSalaryLPA} - ${la.job?.maxSalaryLPA} LPA` : 'As per norms',
+      location: `${la.job?.city || 'Location not specified'}${la.job?.state ? `, ${la.job.state}` : ''}`,
+      matchScore: la.matchResult?.overallScore || 85,
+      stage: la.stage || 'APPLIED',
+      appliedDate: la.appliedAt ? new Date(la.appliedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent',
+      interview: linkedInterview,
+      meetingLink: linkedInterview?.meetingLink || '',
+      interviewDate: linkedInterview?.scheduledTime ? new Date(linkedInterview.scheduledTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '',
+      interviewType: linkedInterview?.interviewType || 'Video Demo Round',
+      durationMinutes: linkedInterview?.durationMinutes || 45,
+      locationDetails: linkedInterview?.locationDetails || '',
+    };
+  });
 
   // Filtering applications
   const filteredApps = mappedApplications.filter(app => {
@@ -419,9 +430,9 @@ export const TeacherDashboard: React.FC = () => {
     switch (stage) {
       case 'SHORTLISTED':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <Check className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Shortlisted</span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Shortlisted ✓</span>
           </span>
         );
       case 'SCREENING':
@@ -433,8 +444,8 @@ export const TeacherDashboard: React.FC = () => {
         );
       case 'INTERVIEW_SCHEDULED':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-            <Calendar className="w-3.5 h-3.5 text-amber-600" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+            <Video className="w-3.5 h-3.5 text-amber-700 animate-pulse" />
             <span>Interview Scheduled</span>
           </span>
         );
@@ -908,6 +919,147 @@ export const TeacherDashboard: React.FC = () => {
             {activeSidebarNav === 'Overview' && (
               <div className="space-y-6">
                 
+                {/* 1. SHORTLISTED CANDIDATE ALERT BANNER (If any application is shortlisted) */}
+                {mappedApplications.filter(a => a.stage === 'SHORTLISTED').length > 0 && (
+                  <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-700 rounded-3xl p-5 sm:p-6 text-white shadow-xl shadow-emerald-600/20 relative overflow-hidden border border-emerald-400/30">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-white text-[11px] font-extrabold uppercase tracking-wider backdrop-blur-xs">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                          <span>Candidate Shortlisted</span>
+                        </div>
+                        <h3 className="text-lg sm:text-xl font-bold font-serif">
+                          🎉 Congratulations! You have been shortlisted for {mappedApplications.filter(a => a.stage === 'SHORTLISTED').length} teaching {mappedApplications.filter(a => a.stage === 'SHORTLISTED').length > 1 ? 'positions' : 'position'}!
+                        </h3>
+                        <p className="text-xs text-emerald-100 max-w-xl leading-relaxed">
+                          The HR and Academic Selection Committee have reviewed your profile and shortlisted you for the opening(s) below.
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setActiveSidebarNav('My Applications');
+                          setSelectedStageFilter('SHORTLISTED');
+                        }}
+                        className="cursor-pointer px-4 py-2.5 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl font-bold text-xs shadow-md transition shrink-0 active:scale-95 flex items-center gap-1.5"
+                      >
+                        <span>View All Shortlisted</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Shortlisted Posts Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 pt-4 border-t border-white/20">
+                      {mappedApplications
+                        .filter(a => a.stage === 'SHORTLISTED')
+                        .slice(0, 4)
+                        .map(app => (
+                          <div key={app.id} className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 flex flex-col justify-between gap-2.5 text-xs">
+                            <div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[10px] uppercase font-bold text-emerald-200">
+                                  Shortlisted Post
+                                </span>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-400/20 text-white border border-emerald-300/40">
+                                  {app.level} • {app.subject}
+                                </span>
+                              </div>
+                              <h4 className="font-bold text-white text-sm sm:text-base mt-0.5">{app.jobTitle}</h4>
+                              <p className="text-emerald-100 text-xs flex items-center gap-1 mt-1">
+                                <MapPin className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
+                                <span>{app.institutionName} • {app.location}</span>
+                              </p>
+                              <p className="text-amber-200 text-xs font-semibold mt-1">
+                                Offered CTC: {app.salary}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                              <span className="text-[11px] text-emerald-100">
+                                Status: <strong>Vetted for Interview</strong>
+                              </span>
+                              <button
+                                onClick={() => setViewingAppDetail(app)}
+                                className="cursor-pointer px-3 py-1.5 bg-white text-emerald-900 hover:bg-emerald-50 rounded-lg font-bold text-xs transition active:scale-95 shadow-xs"
+                              >
+                                View Details
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. SCHEDULED INTERVIEWS ALERT BANNER (If any interview is scheduled) */}
+                {interviewsList.length > 0 && (
+                  <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 rounded-3xl p-5 sm:p-6 text-white shadow-xl shadow-orange-500/20 relative overflow-hidden border border-amber-300/30">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-white text-[11px] font-extrabold uppercase tracking-wider backdrop-blur-xs">
+                          <Video className="w-3.5 h-3.5 text-white animate-pulse" />
+                          <span>Interview / Demo Round Confirmed</span>
+                        </div>
+                        <h3 className="text-lg sm:text-xl font-bold font-serif">
+                          📅 You have {interviewsList.length} Scheduled Interview{interviewsList.length > 1 ? 's' : ''}!
+                        </h3>
+                        <p className="text-xs text-amber-100 max-w-xl leading-relaxed">
+                          Your live demonstration and faculty interview rounds are confirmed. Join links and calendar times are below.
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => setActiveSidebarNav('Interview Calls')}
+                        className="cursor-pointer px-4 py-2.5 bg-white text-amber-900 hover:bg-amber-50 rounded-xl font-bold text-xs shadow-md transition shrink-0 active:scale-95 flex items-center gap-1.5"
+                      >
+                        <span>View All Interviews</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Upcoming Interview Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 pt-4 border-t border-white/20">
+                      {interviewsList.slice(0, 2).map((iv: any) => (
+                        <div key={iv.id} className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 flex flex-col justify-between gap-2.5 text-xs">
+                          <div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] uppercase font-bold text-amber-200">
+                                {iv.interviewType || 'Demo Round'}
+                              </span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white">
+                                {iv.durationMinutes || 45} mins
+                              </span>
+                            </div>
+                            <h4 className="font-bold text-white text-sm sm:text-base mt-0.5">
+                              {iv.job?.title || 'Faculty Interview'}
+                            </h4>
+                            <p className="text-amber-100 text-xs flex items-center gap-1 mt-1">
+                              <MapPin className="w-3.5 h-3.5 text-amber-200 shrink-0" />
+                              <span>{iv.institution?.name || 'SikchaKhub'} • {iv.job?.city || 'Online Call'}</span>
+                            </p>
+                            <p className="text-white text-xs font-semibold mt-1">
+                              🕒 Scheduled: {new Date(iv.scheduledTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                            </p>
+                          </div>
+
+                          {iv.meetingLink && (
+                            <a
+                              href={iv.meetingLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="w-full py-2 px-3 bg-white hover:bg-amber-50 text-amber-900 font-bold rounded-xl transition flex items-center justify-center gap-1.5 text-xs shadow-xs"
+                            >
+                              <Video className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Join Google Meet Demo</span>
+                              <ExternalLink className="w-3 h-3 text-slate-500" />
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Recent Applications Pipeline Summary */}
                 <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-2xs space-y-4">
                   <div className="flex items-center justify-between">
@@ -1160,7 +1312,13 @@ export const TeacherDashboard: React.FC = () => {
                     filteredApps.map((app) => (
                       <div 
                         key={app.id} 
-                        className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs space-y-3"
+                        className={`bg-white rounded-2xl border p-4 shadow-2xs space-y-3 ${
+                          app.stage === 'SHORTLISTED' 
+                            ? 'border-emerald-300 ring-2 ring-emerald-500/10' 
+                            : app.stage === 'INTERVIEW_SCHEDULED'
+                            ? 'border-amber-300 ring-2 ring-amber-500/10'
+                            : 'border-slate-200/80'
+                        }`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
@@ -1171,10 +1329,11 @@ export const TeacherDashboard: React.FC = () => {
                             />
                             <div className="min-w-0">
                               <h4 className="font-bold text-slate-900 text-xs sm:text-sm leading-tight truncate">
-                                {app.institutionName}
-                              </h4>
-                              <p className="text-[11px] text-slate-500 truncate">
                                 {app.jobTitle}
+                              </h4>
+                              <p className="text-[11px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                                <MapPin className="w-3 h-3 text-sky-500 shrink-0" />
+                                <span>{app.institutionName} • {app.location}</span>
                               </p>
                             </div>
                           </div>
@@ -1182,6 +1341,35 @@ export const TeacherDashboard: React.FC = () => {
                             {getStageBadge(app.stage)}
                           </div>
                         </div>
+
+                        {/* Shortlisted Highlight for Mobile */}
+                        {app.stage === 'SHORTLISTED' && (
+                          <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-semibold flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span>Shortlisted for <strong>{app.jobTitle}</strong> at <strong>{app.institutionName} ({app.location})</strong>!</span>
+                          </div>
+                        )}
+
+                        {/* Interview Highlight for Mobile */}
+                        {app.interviewDate && (
+                          <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-semibold flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Video className="w-4 h-4 text-amber-600 shrink-0" />
+                              <span className="truncate">Interview: <strong>{app.interviewDate}</strong></span>
+                            </div>
+                            {app.meetingLink && (
+                              <a
+                                href={app.meetingLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 flex items-center gap-1 text-[10px]"
+                              >
+                                <span>Join</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
                           <div>
@@ -1294,11 +1482,23 @@ export const TeacherDashboard: React.FC = () => {
                                   />
                                   <div>
                                     <p className="font-bold text-slate-900 leading-tight">
-                                      {app.institutionName}
-                                    </p>
-                                    <p className="text-[11px] text-slate-500 font-normal">
                                       {app.jobTitle}
                                     </p>
+                                    <p className="text-[11px] text-slate-500 font-normal">
+                                      {app.institutionName} • {app.location}
+                                    </p>
+                                    {app.stage === 'SHORTLISTED' && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 mt-1">
+                                        <Sparkles className="w-3 h-3 text-emerald-600" />
+                                        <span>Shortlisted Candidate</span>
+                                      </span>
+                                    )}
+                                    {app.interviewDate && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 mt-1">
+                                        <Video className="w-3 h-3 text-amber-600" />
+                                        <span>Interview: {app.interviewDate}</span>
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               </td>
@@ -1394,37 +1594,52 @@ export const TeacherDashboard: React.FC = () => {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {interviewsList.map((iv: any) => (
-                      <div key={iv.id} className="p-5 rounded-2xl border border-amber-200 bg-amber-50/30 space-y-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
+                      <div key={iv.id} className="p-5 rounded-2xl border border-amber-200 bg-amber-50/40 space-y-3.5 shadow-2xs hover:shadow-xs transition">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
                             <img
-                              src={iv.institution?.logoUrl || '/logo.jpeg'}
-                              alt={iv.institution?.name}
-                              className="w-10 h-10 rounded-xl object-cover border border-amber-300/40 bg-white"
+                              src="/logo.jpeg"
+                              alt="SikchaKhub"
+                              className="w-11 h-11 rounded-xl object-cover border border-amber-300/40 bg-white shrink-0 shadow-2xs"
                             />
-                            <div>
-                              <h3 className="text-sm font-bold text-slate-900">{iv.job?.title || 'Faculty Interview'}</h3>
-                              <p className="text-xs text-slate-600 font-medium">{iv.institution?.name}</p>
+                            <div className="min-w-0">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
+                                {iv.interviewType || 'Interview Round'}
+                              </span>
+                              <h3 className="text-base font-bold text-slate-900 mt-0.5 font-serif leading-tight truncate">
+                                {iv.job?.title || 'Faculty Interview'}
+                              </h3>
+                              <p className="text-xs text-slate-600 font-medium flex items-center gap-1 truncate">
+                                <MapPin className="w-3 h-3 text-sky-600 shrink-0" />
+                                <span>SikchaKhub • {iv.job?.city ? `${iv.job.city}, ${iv.job.state || ''}` : 'Academic Campus'}</span>
+                              </p>
                             </div>
                           </div>
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                            {iv.status}
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
+                            {iv.status || 'SCHEDULED'}
                           </span>
                         </div>
 
-                        <div className="bg-white p-3 rounded-xl border border-amber-200/80 text-xs space-y-1">
-                          <div className="flex items-center justify-between text-slate-600">
-                            <span>Format / Round:</span>
-                            <strong className="text-slate-900">{iv.interviewType || 'Video Call Demo'}</strong>
+                        <div className="bg-white p-3.5 rounded-xl border border-amber-200/80 text-xs space-y-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Date & Time</span>
+                              <strong className="text-slate-900 text-xs sm:text-sm">
+                                {new Date(iv.scheduledTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                              </strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Duration</span>
+                              <strong className="text-slate-900 text-xs sm:text-sm">{iv.durationMinutes || 45} mins</strong>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between text-slate-600">
-                            <span>Date & Time:</span>
-                            <strong className="text-slate-900">{new Date(iv.scheduledTime).toLocaleString()}</strong>
-                          </div>
-                          <div className="flex items-center justify-between text-slate-600">
-                            <span>Duration:</span>
-                            <strong className="text-slate-900">{iv.durationMinutes || 45} mins</strong>
-                          </div>
+
+                          {iv.locationDetails && (
+                            <div className="pt-2 border-t border-slate-100 text-slate-700">
+                              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Venue / Instructions</span>
+                              <p className="text-xs mt-0.5">{iv.locationDetails}</p>
+                            </div>
+                          )}
                         </div>
 
                         {iv.meetingLink && (
@@ -1432,10 +1647,10 @@ export const TeacherDashboard: React.FC = () => {
                             href={iv.meetingLink}
                             target="_blank"
                             rel="noreferrer"
-                            className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2"
+                            className="cursor-pointer w-full py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2 active:scale-95"
                           >
                             <Video className="w-4 h-4" />
-                            <span>Join Google Meet Demo</span>
+                            <span>Join Scheduled Interview / Demo Call</span>
                             <ExternalLink className="w-3.5 h-3.5" />
                           </a>
                         )}
@@ -1967,19 +2182,23 @@ export const TeacherDashboard: React.FC = () => {
                 <img
                   src={viewingAppDetail.institutionLogo || '/logo.jpeg'}
                   alt={viewingAppDetail.institutionName}
-                  className="w-12 h-12 rounded-xl object-cover border border-amber-300/40 bg-white"
+                  className="w-12 h-12 rounded-xl object-cover border border-amber-300/40 bg-white shadow-2xs shrink-0"
                 />
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 leading-tight">
-                    {viewingAppDetail.institutionName}
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight font-serif">
+                    {viewingAppDetail.jobTitle}
                   </h3>
-                  <p className="text-xs text-slate-600 font-medium">{viewingAppDetail.jobTitle}</p>
-                  <p className="text-[11px] text-slate-400">{viewingAppDetail.location}</p>
+                  <p className="text-xs text-slate-600 font-medium">
+                    {viewingAppDetail.institutionName} • {viewingAppDetail.location}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    {viewingAppDetail.subject} • {viewingAppDetail.level}
+                  </p>
                 </div>
               </div>
               <button
                 onClick={() => setViewingAppDetail(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg"
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1997,31 +2216,72 @@ export const TeacherDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {viewingAppDetail.meetingLink && (
-                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+              {/* Shortlist Notification Detail */}
+              {viewingAppDetail.stage === 'SHORTLISTED' && (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200 space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs">
+                    <Sparkles className="w-4 h-4 text-emerald-600" />
+                    <span>Candidate Shortlisted by Academic Committee / HR!</span>
+                  </div>
+                  <p className="text-xs text-emerald-800 leading-relaxed">
+                    Congratulations! You have been shortlisted for the post of <strong>{viewingAppDetail.jobTitle}</strong> at <strong>{viewingAppDetail.institutionName} ({viewingAppDetail.location})</strong>.
+                  </p>
+                  <div className="text-[11px] text-emerald-800 bg-white/80 p-2.5 rounded-xl border border-emerald-200 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Your profile meets syllabus qualifications. An interview or classroom demo call will be scheduled shortly.</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Scheduled Interview Details */}
+              {(viewingAppDetail.meetingLink || viewingAppDetail.interviewDate) && (
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2.5">
                   <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
                     <Video className="w-4 h-4 text-amber-700" />
-                    <span>Scheduled Demo & Interview Call</span>
+                    <span>Scheduled Demo & Faculty Interview Call</span>
                   </div>
-                  <p className="text-xs text-amber-800">
-                    Date & Time: <strong>{viewingAppDetail.interviewDate}</strong>
-                  </p>
-                  <a
-                    href={viewingAppDetail.meetingLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition"
-                  >
-                    <span>Join Google Meet Demo</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-white p-3 rounded-xl border border-amber-200/80">
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold block">Post / Vacancy</span>
+                      <strong className="text-slate-900 text-xs">{viewingAppDetail.jobTitle}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold block">Round Type</span>
+                      <strong className="text-slate-900 text-xs">{viewingAppDetail.interviewType || 'Video Demo Round'}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold block">Date & Time</span>
+                      <strong className="text-slate-900 text-xs">{viewingAppDetail.interviewDate}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold block">Duration</span>
+                      <strong className="text-slate-900 text-xs">{viewingAppDetail.durationMinutes || 45} mins</strong>
+                    </div>
+                  </div>
+                  {viewingAppDetail.locationDetails && (
+                    <div className="p-2 rounded-xl bg-white/70 border border-amber-200/60 text-xs text-amber-900">
+                      <strong>Venue / Note:</strong> {viewingAppDetail.locationDetails}
+                    </div>
+                  )}
+                  {viewingAppDetail.meetingLink && (
+                    <a
+                      href={viewingAppDetail.meetingLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="cursor-pointer w-full py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <Video className="w-4 h-4" />
+                      <span>Join Scheduled Google Meet / Demo</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
                 </div>
               )}
 
               <div className="pt-2 flex justify-end">
                 <button
                   onClick={() => setViewingAppDetail(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
                 >
                   Close
                 </button>
