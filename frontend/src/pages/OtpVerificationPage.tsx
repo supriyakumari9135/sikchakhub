@@ -360,11 +360,11 @@ export const OtpVerificationPage: React.FC = () => {
         globalRecaptchaVerifier = verifier;
         window.recaptchaVerifier = verifier;
 
-        // Defensive guard: Ensure exactly one widget element exists in container
+        // Defensive guard: Ensure exactly one widget element exists in container by trimming any older orphaned elements
         const currentContainer = document.getElementById("recaptcha-container");
         if (currentContainer && currentContainer.children.length > 1) {
           while (currentContainer.children.length > 1) {
-            currentContainer.removeChild(currentContainer.lastChild!);
+            currentContainer.removeChild(currentContainer.firstChild!);
           }
         }
 
@@ -1113,8 +1113,8 @@ export const OtpVerificationPage: React.FC = () => {
                     </p>
 
                     {/* Single Dedicated Auto-Appearing reCAPTCHA Container */}
-                    <div className="flex justify-center items-center my-1 min-h-[78px]">
-                      <div id="recaptcha-container"></div>
+                    <div className="flex justify-center items-center my-1 min-h-[78px] overflow-hidden">
+                      <div id="recaptcha-container" className="flex justify-center items-center w-[304px] min-h-[78px] max-w-full overflow-hidden"></div>
                     </div>
                   </div>
 
