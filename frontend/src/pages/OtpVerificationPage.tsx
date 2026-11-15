@@ -316,8 +316,9 @@ export const OtpVerificationPage: React.FC = () => {
     const container = document.getElementById("recaptcha-container");
     if (!container) return null;
 
-    // Check if widget is already rendered inside the DOM container
-    if (container.children.length > 0 && (globalRecaptchaVerifier || recaptchaVerifierRef.current)) {
+    // Check if a live, functional widget is already rendered inside the DOM container
+    const hasIframe = container.querySelector("iframe");
+    if (hasIframe && (globalRecaptchaVerifier || recaptchaVerifierRef.current)) {
       const activeVerifier = globalRecaptchaVerifier || recaptchaVerifierRef.current;
       recaptchaVerifierRef.current = activeVerifier;
       window.recaptchaVerifier = activeVerifier || undefined;
@@ -337,9 +338,13 @@ export const OtpVerificationPage: React.FC = () => {
 
     globalRecaptchaPromise = (async () => {
       try {
+        const freshContainer = document.getElementById("recaptcha-container");
+        if (!freshContainer) return null;
+        freshContainer.innerHTML = "";
+
         const verifier = new RecaptchaVerifier(
           firebaseAuth,
-          "recaptcha-container",
+          freshContainer,
           {
             size: "normal",
             callback: (response: any) => {
@@ -361,10 +366,9 @@ export const OtpVerificationPage: React.FC = () => {
         window.recaptchaVerifier = verifier;
 
         // Defensive guard: Ensure exactly one widget element exists in container by trimming any older orphaned elements
-        const currentContainer = document.getElementById("recaptcha-container");
-        if (currentContainer && currentContainer.children.length > 1) {
-          while (currentContainer.children.length > 1) {
-            currentContainer.removeChild(currentContainer.firstChild!);
+        if (freshContainer && freshContainer.children.length > 1) {
+          while (freshContainer.children.length > 1) {
+            freshContainer.removeChild(freshContainer.firstChild!);
           }
         }
 
@@ -396,12 +400,31 @@ export const OtpVerificationPage: React.FC = () => {
     };
   }, []);
 
+  // MutationObserver to guarantee strictly ONE single reCAPTCHA widget child inside recaptcha-container
+  useEffect(() => {
+    const container = document.getElementById("recaptcha-container");
+    if (!container) return;
+
+    const enforceSingleChild = () => {
+      if (container.children.length > 1) {
+        while (container.children.length > 1) {
+          container.removeChild(container.firstChild!);
+        }
+      }
+    };
+
+    enforceSingleChild();
+    const observer = new MutationObserver(enforceSingleChild);
+    observer.observe(container, { childList: true });
+    return () => observer.disconnect();
+  }, [isEmailDone, isPhoneDone, smsSent]);
+
   // Auto-appear reCAPTCHA exactly once whenever Mobile OTP verification is active
   useEffect(() => {
     if (isEmailDone && !isPhoneDone && !smsSent && !allVerified) {
       const timer = setTimeout(() => {
         initRecaptchaVerifier();
-      }, 150);
+      }, 100);
       return () => clearTimeout(timer);
     }
   }, [isEmailDone, isPhoneDone, smsSent, allVerified]);
@@ -455,7 +478,7 @@ export const OtpVerificationPage: React.FC = () => {
       const formattedPhone = `+91${digitsOnly.slice(-10)}`;
       let verifier = recaptchaVerifierRef.current || globalRecaptchaVerifier;
       const containerEl = document.getElementById("recaptcha-container");
-      if (!verifier || !containerEl || containerEl.children.length === 0) {
+      if (!verifier || !containerEl || !containerEl.querySelector("iframe")) {
         verifier = await initRecaptchaVerifier();
       }
 
@@ -1114,7 +1137,11 @@ export const OtpVerificationPage: React.FC = () => {
 
                     {/* Single Dedicated Auto-Appearing reCAPTCHA Container */}
                     <div className="flex justify-center items-center my-1 min-h-[78px] overflow-hidden">
-                      <div id="recaptcha-container" className="flex justify-center items-center w-[304px] min-h-[78px] max-w-full overflow-hidden"></div>
+                      <div
+                        id="recaptcha-container"
+                        className="flex justify-center items-center w-[304px] min-h-[78px] max-w-full overflow-hidden [&>div:nth-child(n+2)]:!hidden"
+                        style={{ width: "304px", minHeight: "78px", maxWidth: "100%", overflow: "hidden" }}
+                      ></div>
                     </div>
                   </div>
 
