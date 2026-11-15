@@ -48,7 +48,7 @@ interface AuthPageProps {
 export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: propInitialPortal }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, register, loginWithGoogle, user } = useAuth();
+  const { login, register, user } = useAuth();
 
   // Parse query params (e.g. /login?role=EMPLOYER or /signup?role=TEACHER)
   const searchParams = new URLSearchParams(location.search);
@@ -544,435 +544,488 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setError(null);
-    const mockEmail = selectedPortal === 'TEACHER' ? 'educator.google@sikchakhub.ai' : 'recruiter.google@sikchakhub.ai';
-    const mockName = selectedPortal === 'TEACHER' ? 'Google Verified Educator' : 'Google Verified Institution';
-    
-    setLoading(true);
-    const res = await loginWithGoogle(selectedPortal, {
-      email: mockEmail,
-      fullName: mockName,
-      avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(mockName)}`
-    });
-    setLoading(false);
-
-    if (res.success) {
-      setSuccessMsg('Google verification successful! Redirecting...');
-      setTimeout(() => {
-        navigateToRoleDashboard(selectedPortal);
-      }, 600);
-    } else {
-      setError(res.message || 'Google authentication failed.');
-    }
-  };
-
   return (
-    <div className="min-h-[calc(100vh-140px)] bg-gradient-to-b from-sky-50/70 via-white to-sky-50/40 py-8 sm:py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center selection:bg-sky-500 selection:text-white">
-      <div className={`w-full ${selectedPortal === 'TEACHER' && mode === 'REGISTER' ? 'max-w-6xl' : 'max-w-5xl'} bg-white rounded-3xl border border-sky-100 shadow-xl shadow-sky-100/60 overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[620px]`}>
-        
-        {/* Left Hero Sidebar (Brand Value & Trust) - Visible on lg screens */}
-        <div className="hidden lg:flex lg:col-span-5 bg-gradient-to-br from-sky-50/90 via-blue-50/50 to-indigo-50/60 p-8 flex-col justify-between border-r border-sky-100 relative overflow-hidden">
-          {/* Subtle Background Glow */}
-          <div className="absolute -top-24 -left-24 w-72 h-72 bg-sky-200/40 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-blue-200/30 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-[calc(100vh-140px)] bg-gradient-to-br from-[#eef4fe] via-[#f7faff] to-[#edf4fe] relative overflow-hidden py-10 px-4 sm:px-6 lg:px-8 flex items-center justify-center selection:bg-indigo-500 selection:text-white">
+      {/* Dynamic Ambient Background Glows */}
+      <div className="absolute top-10 left-10 w-96 h-96 bg-gradient-to-tr from-blue-400/25 to-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-10 right-10 w-96 h-96 bg-gradient-to-bl from-purple-400/25 to-pink-500/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 left-1/3 -translate-y-1/2 w-80 h-80 bg-gradient-to-br from-emerald-400/15 to-teal-400/15 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="space-y-6 relative z-10">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-100 text-sky-700 border border-sky-200 shadow-2xs">
-              <Sparkles className="w-3.5 h-3.5 text-sky-600" />
-              <span>Next-Gen Educator Hiring</span>
-            </span>
+      {/* Main Container Card with Subtle Gradient Ring */}
+      <div className={`w-full ${selectedPortal === 'TEACHER' && mode === 'REGISTER' ? 'max-w-6xl' : 'max-w-5xl'} p-[2px] rounded-3xl bg-gradient-to-br from-indigo-500/25 via-sky-400/30 to-purple-500/25 shadow-2xl shadow-indigo-500/10 relative z-10`}>
+        <div className="bg-white/95 backdrop-blur-xl rounded-[22px] overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[640px]">
+          
+          {/* Left Hero Sidebar (Brand Value & Trust) - Visible on lg screens */}
+          <div className={`hidden lg:flex lg:col-span-5 p-8 flex-col justify-between relative overflow-hidden transition-all duration-500 text-white ${
+            selectedPortal === 'TEACHER'
+              ? 'bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700'
+              : selectedPortal === 'EMPLOYER'
+              ? 'bg-gradient-to-br from-emerald-600 via-teal-700 to-cyan-900'
+              : selectedPortal === 'HR'
+              ? 'bg-gradient-to-br from-amber-600 via-orange-600 to-rose-700'
+              : 'bg-gradient-to-br from-purple-700 via-fuchsia-800 to-indigo-950'
+          }`}>
+            {/* Subtle Glowing Spheres inside Sidebar */}
+            <div className="absolute -top-20 -left-20 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-white/15 rounded-full blur-2xl pointer-events-none" />
 
-            <div>
-              <h2 className="text-2xl font-black text-slate-900 font-serif leading-tight">
-                Connect With Top Schools & Expert Faculty Across India
-              </h2>
-              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                Direct recruiter-teacher matchmaking with automated ATS score ranking, free resume hosting, and structured demo scheduling.
-              </p>
-            </div>
+            <div className="space-y-6 relative z-10">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-white/15 backdrop-blur-md border border-white/20 text-white shadow-xs">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300 drop-shadow" />
+                <span>
+                  {selectedPortal === 'TEACHER' ? 'Next-Gen Educator Platform' :
+                   selectedPortal === 'EMPLOYER' ? 'Institutional Hiring Suite' :
+                   selectedPortal === 'HR' ? 'Advanced HR Screening Hub' :
+                   'Super Admin Governance Console'}
+                </span>
+              </div>
 
-            {/* Dynamic Feature List according to selected portal */}
-            <div className="space-y-3 pt-2">
-              {selectedPortal === 'TEACHER' ? (
-                <>
-                  <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-white border border-sky-100 shadow-2xs">
-                    <GraduationCap className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">Direct School Applications</h4>
-                      <p className="text-[11px] text-slate-500">Zero agency mediation fees. Directly apply to verified CBSE, ICSE, and coaching institutes.</p>
+              <div>
+                <h2 className="text-2xl sm:text-[28px] font-black tracking-tight leading-tight drop-shadow-xs">
+                  {selectedPortal === 'TEACHER' ? 'Connect With Top Schools & Institutes Across India' :
+                   selectedPortal === 'EMPLOYER' ? 'Hire Verified Teachers & Coaching Faculty Fast' :
+                   selectedPortal === 'HR' ? 'Precision Multi-Criteria Educator Screening' :
+                   'Super Admin Governance & Audit Desk'}
+                </h2>
+                <p className="text-xs text-white/80 mt-2.5 leading-relaxed">
+                  {selectedPortal === 'TEACHER' ? 'Zero agency mediation fees. Directly apply to verified CBSE, ICSE, and IIT-JEE/NEET institutions with instant ATS resume matching.' :
+                   selectedPortal === 'EMPLOYER' ? 'Publish teaching openings in seconds. Automatically rank candidate CVs by syllabus match, view verified credentials, and schedule virtual demo classes.' :
+                   selectedPortal === 'HR' ? 'Dedicated recruitment desk to screen educators across 12 dimensions, create customized candidate groups, and export applicant dossiers.' :
+                   'Centralized governance console for institutional approvals, job moderation, platform telemetry, and verification enforcement.'}
+                </p>
+              </div>
+
+              {/* Dynamic Feature Cards tailored to selected portal */}
+              <div className="space-y-3 pt-2">
+                {selectedPortal === 'TEACHER' ? (
+                  <>
+                    <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-xs">
+                      <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                        <GraduationCap className="w-5 h-5 text-cyan-300" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white">Direct School Applications</h4>
+                        <p className="text-[11px] text-white/75 mt-0.5">Direct recruiter access with no agents or commission fees ever charged.</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-white border border-sky-100 shadow-2xs">
-                    <Sparkles className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">Automated ATS Resume Match</h4>
-                      <p className="text-[11px] text-slate-500">Instant resume score analysis comparing your experience and credentials to the job syllabus.</p>
+                    <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-xs">
+                      <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                        <Sparkles className="w-5 h-5 text-amber-300" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white">AI-Powered ATS Match</h4>
+                        <p className="text-[11px] text-white/75 mt-0.5">Automated resume match percentage highlighting syllabus strengths and qualifications.</p>
+                      </div>
                     </div>
-                  </div>
-                </>
-              ) : selectedPortal === 'EMPLOYER' ? (
-                <>
-                  <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-white border border-sky-100 shadow-2xs">
-                    <Building2 className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">Institutional Recruiter Suite</h4>
-                      <p className="text-[11px] text-slate-500">Screen candidate CVs with one click, rank applicants by ATS percentage, and schedule demo classes.</p>
+                  </>
+                ) : selectedPortal === 'EMPLOYER' ? (
+                  <>
+                    <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-xs">
+                      <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                        <Building2 className="w-5 h-5 text-emerald-300" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white">Institutional Recruiter Suite</h4>
+                        <p className="text-[11px] text-white/75 mt-0.5">Screen candidate CVs with 1-click downloads, view ATS matches, and coordinate interview demos.</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-white border border-sky-100 shadow-2xs">
-                    <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">Verified School Network</h4>
-                      <p className="text-[11px] text-slate-500">Super Admin verification ensures authentic job postings and verified applicant backgrounds.</p>
+                    <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-xs">
+                      <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                        <ShieldCheck className="w-5 h-5 text-cyan-300" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white">Verified School Network</h4>
+                        <p className="text-[11px] text-white/75 mt-0.5">Government UDISE+ and board affiliation verification ensures trusted recruitment.</p>
+                      </div>
                     </div>
-                  </div>
-                </>
-              ) : selectedPortal === 'HR' ? (
-                <>
-                  <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-white border border-amber-200/90 shadow-2xs">
-                    <UserCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">Multi-Criteria CV Screening Vault</h4>
-                      <p className="text-[11px] text-slate-500">Filter educator profiles across 12 dimensions: Location, Salary, Level, Subjects, Experience, Boards & Certifications.</p>
+                  </>
+                ) : selectedPortal === 'HR' ? (
+                  <>
+                    <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-xs">
+                      <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                        <UserCheck className="w-5 h-5 text-amber-300" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white">Multi-Dimensional Screening</h4>
+                        <p className="text-[11px] text-white/75 mt-0.5">Filter educator profiles across 12 dimensions including teaching levels and board experience.</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-white border border-amber-200/90 shadow-2xs">
-                    <Briefcase className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">Candidate Shortlist Groups</h4>
-                      <p className="text-[11px] text-slate-500">Curate customized candidate groups for institutional vacancies and export candidate dossiers directly.</p>
+                    <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-xs">
+                      <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                        <Briefcase className="w-5 h-5 text-orange-300" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white">Candidate Shortlist Groups</h4>
+                        <p className="text-[11px] text-white/75 mt-0.5">Curate tailored candidate clusters for client institutions and export ready candidate dossiers.</p>
+                      </div>
                     </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-white border border-purple-100 shadow-2xs">
-                    <ShieldAlert className="w-5 h-5 text-purple-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">Super Admin Governance</h4>
-                      <p className="text-[11px] text-slate-500">Centralized governance for school approvals, job posting moderation, and audit compliance.</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-xs">
+                      <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                        <ShieldAlert className="w-5 h-5 text-fuchsia-300" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white">Super Admin Governance</h4>
+                        <p className="text-[11px] text-white/75 mt-0.5">Full ecosystem governance for institution verification, fraud monitoring, and audit trails.</p>
+                      </div>
                     </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Bottom Key Stats */}
-          <div className="pt-6 border-t border-sky-100 grid grid-cols-3 gap-2 text-center relative z-10">
-            <div>
-              <p className="text-lg font-black text-slate-900 font-mono">5,500+</p>
-              <p className="text-[10px] text-slate-500">Institutions</p>
-            </div>
-            <div>
-              <p className="text-lg font-black text-sky-600 font-mono">1.8M+</p>
-              <p className="text-[10px] text-slate-500">Teachers</p>
-            </div>
-            <div>
-              <p className="text-lg font-black text-emerald-600 font-mono">0%</p>
-              <p className="text-[10px] text-slate-500">Commission</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Main Authentication Card */}
-        <div className={`lg:col-span-7 p-6 sm:p-8 lg:p-10 flex flex-col justify-between bg-white ${selectedPortal === 'TEACHER' && mode === 'REGISTER' ? 'max-h-[85vh] overflow-y-auto' : ''}`}>
-          <div>
-            {/* 1. PORTAL SELECTOR: Job Seeker | Job Poster | HR Login | Admin Login */}
-            <div className="mb-6">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2.5">
-                Select Your Access Portal:
-              </span>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
-                {/* Job Seeker Option */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedPortal('TEACHER');
-                    setError(null);
-                  }}
-                  className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between ${
-                    selectedPortal === 'TEACHER'
-                      ? 'border-sky-500 bg-sky-50 text-sky-950 ring-1 ring-sky-500 shadow-xs'
-                      : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/80 text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <GraduationCap className={`w-4 h-4 ${selectedPortal === 'TEACHER' ? 'text-sky-600' : 'text-slate-400'}`} />
-                    {selectedPortal === 'TEACHER' && (
-                      <span className="w-2 h-2 rounded-full bg-sky-500" />
-                    )}
-                  </div>
-                  <div className="mt-2">
-                    <p className="text-xs font-bold leading-tight">Job Seeker</p>
-                    <p className="text-[10px] text-slate-500 truncate">Teachers & Faculty</p>
-                  </div>
-                </button>
-
-                {/* Job Poster Option */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedPortal('EMPLOYER');
-                    setError(null);
-                  }}
-                  className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between ${
-                    selectedPortal === 'EMPLOYER'
-                      ? 'border-sky-500 bg-sky-50 text-sky-950 ring-1 ring-sky-500 shadow-xs'
-                      : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/80 text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <Building2 className={`w-4 h-4 ${selectedPortal === 'EMPLOYER' ? 'text-sky-600' : 'text-slate-400'}`} />
-                    {selectedPortal === 'EMPLOYER' && (
-                      <span className="w-2 h-2 rounded-full bg-sky-500" />
-                    )}
-                  </div>
-                  <div className="mt-2">
-                    <p className="text-xs font-bold leading-tight">Job Poster</p>
-                    <p className="text-[10px] text-slate-500 truncate">Schools & Institutes</p>
-                  </div>
-                </button>
-
-                {/* HR Login Option */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedPortal('HR');
-                    setMode('LOGIN'); // HR only logs in
-                    setError(null);
-                  }}
-                  className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between ${
-                    selectedPortal === 'HR'
-                      ? 'border-amber-500 bg-amber-50 text-amber-950 ring-1 ring-amber-500 shadow-xs'
-                      : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/80 text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <UserCheck className={`w-4 h-4 ${selectedPortal === 'HR' ? 'text-amber-600' : 'text-slate-400'}`} />
-                    {selectedPortal === 'HR' && (
-                      <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    )}
-                  </div>
-                  <div className="mt-2">
-                    <p className="text-xs font-bold leading-tight">HR Login</p>
-                    <p className="text-[10px] text-slate-500 truncate">Screening & Shortlist</p>
-                  </div>
-                </button>
-
-                {/* Admin Login Option */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedPortal('ADMIN');
-                    setMode('LOGIN'); // Admins only log in
-                    setError(null);
-                  }}
-                  className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between ${
-                    selectedPortal === 'ADMIN'
-                      ? 'border-purple-500 bg-purple-50 text-purple-950 ring-1 ring-purple-500 shadow-xs'
-                      : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/80 text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <ShieldAlert className={`w-4 h-4 ${selectedPortal === 'ADMIN' ? 'text-purple-600' : 'text-slate-400'}`} />
-                    {selectedPortal === 'ADMIN' && (
-                      <span className="w-2 h-2 rounded-full bg-purple-500" />
-                    )}
-                  </div>
-                  <div className="mt-2">
-                    <p className="text-xs font-bold leading-tight">Admin Login</p>
-                    <p className="text-[10px] text-slate-500 truncate">Governance Desk</p>
-                  </div>
-                </button>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* 2. MODE TOGGLE: Sign In vs Sign Up (Hidden for Admin & HR) */}
-            {selectedPortal !== 'ADMIN' && selectedPortal !== 'HR' ? (
-              <div className="flex border-b border-slate-200 mb-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('LOGIN');
-                    setError(null);
-                  }}
-                  className={`flex-1 pb-3 text-xs sm:text-sm font-bold text-center border-b-2 transition ${
-                    mode === 'LOGIN'
-                      ? 'border-sky-500 text-sky-600'
-                      : 'border-transparent text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('REGISTER');
-                    setError(null);
-                  }}
-                  className={`flex-1 pb-3 text-xs sm:text-sm font-bold text-center border-b-2 transition ${
-                    mode === 'REGISTER'
-                      ? 'border-sky-500 text-sky-600'
-                      : 'border-transparent text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  Sign Up ({selectedPortal === 'TEACHER' ? 'Job Seeker' : 'Job Poster'})
-                </button>
+            {/* Bottom Key Stats */}
+            <div className="pt-6 border-t border-white/15 grid grid-cols-3 gap-2 text-center relative z-10">
+              <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm">
+                <p className="text-lg font-black font-mono">5,500+</p>
+                <p className="text-[10px] text-white/75">Institutions</p>
               </div>
-            ) : selectedPortal === 'HR' ? (
-              <div className="mb-5 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-3">
-                <UserCheck className="w-5 h-5 text-amber-600 shrink-0" />
+              <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm">
+                <p className="text-lg font-black font-mono text-cyan-300">1.8M+</p>
+                <p className="text-[10px] text-white/75">Teachers</p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm">
+                <p className="text-lg font-black font-mono text-emerald-300">0%</p>
+                <p className="text-[10px] text-white/75">Commission</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Main Authentication Card */}
+          <div className={`lg:col-span-7 p-6 sm:p-8 lg:p-10 flex flex-col justify-between bg-white ${selectedPortal === 'TEACHER' && mode === 'REGISTER' ? 'max-h-[85vh] overflow-y-auto' : ''}`}>
+            <div>
+              {/* Header Branding */}
+              <div className="mb-6 flex items-center justify-between">
                 <div>
-                  <p className="font-bold text-amber-950">HR Candidate Screening Clearance</p>
-                  <p className="text-[11px] text-amber-800">
-                    Restricted recruitment desk. Please sign in with the official Email ID and Password provided by your Super Administrator.
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    <span>Welcome to</span>
+                    <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                      SikchaKhub
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    AI-Powered Teacher & Faculty Recruitment Network
                   </p>
                 </div>
-              </div>
-            ) : (
-              <div className="mb-5 p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-800 text-xs flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-purple-600 shrink-0" />
-                <span>Administrative Authorization Console. Use provisioned credentials.</span>
-              </div>
-            )}
 
-            {/* Error & Success Toasts */}
-            {error && (
-              <div className="mb-4 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5 animate-in fade-in duration-150">
-                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                <span>{error}</span>
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/25">
+                  <BookOpen className="w-5 h-5" />
+                </div>
               </div>
-            )}
 
-            {successMsg && (
-              <div className="mb-4 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2.5 animate-in fade-in duration-150">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span>{successMsg}</span>
+              {/* 1. PORTAL SELECTOR: Job Seeker | Job Poster | HR Login | Admin Login */}
+              <div className="mb-6">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2.5">
+                  Select Your Access Portal:
+                </span>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
+                  {/* Job Seeker Option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPortal('TEACHER');
+                      setError(null);
+                    }}
+                    className={`p-3 rounded-2xl border-2 text-left transition-all duration-200 flex flex-col justify-between cursor-pointer ${
+                      selectedPortal === 'TEACHER'
+                        ? 'border-indigo-500 bg-gradient-to-br from-indigo-50/90 via-blue-50/70 to-sky-50/50 text-indigo-950 shadow-md shadow-indigo-500/10 ring-2 ring-indigo-500/20'
+                        : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/80 text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className={`w-7 h-7 rounded-xl flex items-center justify-center shadow-2xs ${
+                        selectedPortal === 'TEACHER' ? 'bg-gradient-to-tr from-blue-600 to-indigo-600 text-white' : 'bg-slate-200/80 text-slate-500'
+                      }`}>
+                        <GraduationCap className="w-4 h-4" />
+                      </div>
+                      {selectedPortal === 'TEACHER' && (
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 ring-2 ring-indigo-200" />
+                      )}
+                    </div>
+                    <div className="mt-2.5">
+                      <p className="text-xs font-bold leading-tight">Job Seeker</p>
+                      <p className="text-[10px] text-slate-500 truncate">Teachers & Faculty</p>
+                    </div>
+                  </button>
+
+                  {/* Job Poster Option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPortal('EMPLOYER');
+                      setError(null);
+                    }}
+                    className={`p-3 rounded-2xl border-2 text-left transition-all duration-200 flex flex-col justify-between cursor-pointer ${
+                      selectedPortal === 'EMPLOYER'
+                        ? 'border-emerald-500 bg-gradient-to-br from-emerald-50/90 via-teal-50/70 to-cyan-50/50 text-emerald-950 shadow-md shadow-emerald-500/10 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/80 text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className={`w-7 h-7 rounded-xl flex items-center justify-center shadow-2xs ${
+                        selectedPortal === 'EMPLOYER' ? 'bg-gradient-to-tr from-emerald-600 to-teal-600 text-white' : 'bg-slate-200/80 text-slate-500'
+                      }`}>
+                        <Building2 className="w-4 h-4" />
+                      </div>
+                      {selectedPortal === 'EMPLOYER' && (
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 ring-emerald-200" />
+                      )}
+                    </div>
+                    <div className="mt-2.5">
+                      <p className="text-xs font-bold leading-tight">Job Poster</p>
+                      <p className="text-[10px] text-slate-500 truncate">Schools & Colleges</p>
+                    </div>
+                  </button>
+
+                  {/* HR Login Option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPortal('HR');
+                      setMode('LOGIN'); // HR only logs in
+                      setError(null);
+                    }}
+                    className={`p-3 rounded-2xl border-2 text-left transition-all duration-200 flex flex-col justify-between cursor-pointer ${
+                      selectedPortal === 'HR'
+                        ? 'border-amber-500 bg-gradient-to-br from-amber-50/90 via-orange-50/70 to-yellow-50/50 text-amber-950 shadow-md shadow-amber-500/10 ring-2 ring-amber-500/20'
+                        : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/80 text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className={`w-7 h-7 rounded-xl flex items-center justify-center shadow-2xs ${
+                        selectedPortal === 'HR' ? 'bg-gradient-to-tr from-amber-600 to-orange-600 text-white' : 'bg-slate-200/80 text-slate-500'
+                      }`}>
+                        <UserCheck className="w-4 h-4" />
+                      </div>
+                      {selectedPortal === 'HR' && (
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-600 ring-2 ring-amber-200" />
+                      )}
+                    </div>
+                    <div className="mt-2.5">
+                      <p className="text-xs font-bold leading-tight">HR Login</p>
+                      <p className="text-[10px] text-slate-500 truncate">Recruiter Desk</p>
+                    </div>
+                  </button>
+
+                  {/* Admin Login Option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPortal('ADMIN');
+                      setMode('LOGIN'); // Admins only log in
+                      setError(null);
+                    }}
+                    className={`p-3 rounded-2xl border-2 text-left transition-all duration-200 flex flex-col justify-between cursor-pointer ${
+                      selectedPortal === 'ADMIN'
+                        ? 'border-purple-500 bg-gradient-to-br from-purple-50/90 via-fuchsia-50/70 to-pink-50/50 text-purple-950 shadow-md shadow-purple-500/10 ring-2 ring-purple-500/20'
+                        : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/80 text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className={`w-7 h-7 rounded-xl flex items-center justify-center shadow-2xs ${
+                        selectedPortal === 'ADMIN' ? 'bg-gradient-to-tr from-purple-600 to-fuchsia-600 text-white' : 'bg-slate-200/80 text-slate-500'
+                      }`}>
+                        <ShieldAlert className="w-4 h-4" />
+                      </div>
+                      {selectedPortal === 'ADMIN' && (
+                        <span className="w-2.5 h-2.5 rounded-full bg-purple-600 ring-2 ring-purple-200" />
+                      )}
+                    </div>
+                    <div className="mt-2.5">
+                      <p className="text-xs font-bold leading-tight">Admin Login</p>
+                      <p className="text-[10px] text-slate-500 truncate">Governance Desk</p>
+                    </div>
+                  </button>
+                </div>
               </div>
-            )}
 
-            {/* 3. AUTH FORMS */}
-            {mode === 'LOGIN' ? (
-              /* ======================== SIGN IN FORM ======================== */
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    {selectedPortal === 'EMPLOYER' ? 'Official Work / Institutional Email' : 
-                     selectedPortal === 'ADMIN' ? 'Super Admin Email Address' : 
-                     selectedPortal === 'HR' ? 'Assigned HR Email ID' :
-                     'Email / Gmail Address'}
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder={
-                        selectedPortal === 'ADMIN' ? 'sikchakhub@gmail.com' : 
-                        selectedPortal === 'HR' ? 'hr.recruiter@sikchakhub.ai' :
-                        selectedPortal === 'EMPLOYER' ? 'recruiter@institution.edu' : 
-                        'e.g. educator@gmail.com'
-                      }
-                      className="w-full text-xs pl-10 pr-3.5 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition shadow-2xs"
-                    />
+              {/* 2. MODE TOGGLE: Sign In vs Sign Up (Segmented Pill Controller) */}
+              {selectedPortal !== 'ADMIN' && selectedPortal !== 'HR' ? (
+                <div className="p-1 rounded-2xl bg-slate-100/90 border border-slate-200/90 flex gap-1 mb-6 shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('LOGIN');
+                      setError(null);
+                    }}
+                    className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all duration-200 cursor-pointer ${
+                      mode === 'LOGIN'
+                        ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/20'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('REGISTER');
+                      setError(null);
+                    }}
+                    className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all duration-200 cursor-pointer ${
+                      mode === 'REGISTER'
+                        ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/20'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Sign Up ({selectedPortal === 'TEACHER' ? 'Job Seeker' : 'Job Poster'})
+                  </button>
+                </div>
+              ) : selectedPortal === 'HR' ? (
+                <div className="mb-5 p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-3 shadow-2xs">
+                  <UserCheck className="w-5 h-5 text-amber-600 shrink-0" />
+                  <div>
+                    <p className="font-bold text-amber-950">HR Candidate Screening Clearance</p>
+                    <p className="text-[11px] text-amber-800">
+                      Restricted recruitment desk. Please sign in with the official Email ID and Password provided by your Super Administrator.
+                    </p>
                   </div>
                 </div>
+              ) : (
+                <div className="mb-5 p-3.5 rounded-2xl bg-gradient-to-r from-purple-50 to-fuchsia-50 border border-purple-200 text-purple-900 text-xs flex items-center gap-3 shadow-2xs">
+                  <ShieldAlert className="w-5 h-5 text-purple-600 shrink-0" />
+                  <div>
+                    <p className="font-bold text-purple-950">Super Administrator Console</p>
+                    <p className="text-[11px] text-purple-800">
+                      Administrative Authorization Console. Please use your provisioned master security credentials.
+                    </p>
+                  </div>
+                </div>
+              )}
 
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-bold text-slate-700">
-                      {selectedPortal === 'HR' ? 'Assigned HR Password' : 'Password'}
+              {/* Error & Success Toasts */}
+              {error && (
+                <div className="mb-4 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5 animate-in fade-in duration-150 shadow-xs">
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                  <span className="font-medium">{error}</span>
+                </div>
+              )}
+
+              {successMsg && (
+                <div className="mb-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2.5 animate-in fade-in duration-150 shadow-xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span className="font-medium">{successMsg}</span>
+                </div>
+              )}
+
+              {/* 3. AUTH FORMS */}
+              {mode === 'LOGIN' ? (
+                /* ======================== SIGN IN FORM ======================== */
+                <form onSubmit={handleLoginSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      {selectedPortal === 'EMPLOYER' ? 'Official Institutional Work Email' : 
+                       selectedPortal === 'ADMIN' ? 'Super Admin Email Address' : 
+                       selectedPortal === 'HR' ? 'Assigned HR Email ID' :
+                       'Email / Gmail Address'}
                     </label>
-                    {selectedPortal !== 'ADMIN' && selectedPortal !== 'HR' && (
+                    <div className="relative">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center absolute left-2.5 top-1/2 -translate-y-1/2">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder={
+                          selectedPortal === 'ADMIN' ? 'sikchakhub@gmail.com' : 
+                          selectedPortal === 'HR' ? 'hr.recruiter@sikchakhub.ai' :
+                          selectedPortal === 'EMPLOYER' ? 'recruiter@institution.edu' : 
+                          'e.g. educator@gmail.com'
+                        }
+                        className="w-full text-xs pl-12 pr-3.5 py-3 rounded-2xl bg-white border-2 border-slate-200/90 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100 transition shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700">
+                        {selectedPortal === 'HR' ? 'Assigned HR Password' : 'Password'}
+                      </label>
+                      {selectedPortal !== 'ADMIN' && selectedPortal !== 'HR' && (
+                        <button
+                          type="button"
+                          onClick={() => alert('Password reset instructions will be sent to your registered email address.')}
+                          className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+                        >
+                          Forgot Password?
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center absolute left-2.5 top-1/2 -translate-y-1/2">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder={selectedPortal === 'HR' ? 'Enter password provided by Super Admin' : 'Enter your account password'}
+                        className="w-full text-xs pl-12 pr-11 py-3 rounded-2xl bg-white border-2 border-slate-200/90 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100 transition shadow-2xs"
+                      />
                       <button
                         type="button"
-                        onClick={() => alert('Password reset link will be sent to your registered email address.')}
-                        className="text-[11px] font-semibold text-sky-600 hover:text-sky-700"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="p-2 text-slate-400 hover:text-indigo-600 transition-colors absolute right-2.5 top-1/2 -translate-y-1/2 cursor-pointer"
                       >
-                        Forgot?
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={`w-full py-4 px-6 rounded-2xl font-black text-xs sm:text-sm text-white transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:-translate-y-0.5 active:scale-98 mt-3 cursor-pointer ${
+                      selectedPortal === 'ADMIN'
+                        ? 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-indigo-700 hover:from-purple-700 hover:to-fuchsia-700 shadow-purple-500/25'
+                        : selectedPortal === 'HR'
+                        ? 'bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 hover:from-amber-700 hover:to-orange-700 shadow-amber-500/25'
+                        : selectedPortal === 'EMPLOYER'
+                        ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 hover:from-emerald-700 hover:to-teal-800 shadow-emerald-500/25'
+                        : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-indigo-500/25'
+                    }`}
+                  >
+                    {loading ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Verifying credentials...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <span>
+                          {selectedPortal === 'ADMIN' ? 'Sign In as Super Admin' :
+                           selectedPortal === 'HR' ? 'Sign In as HR Recruiter' :
+                           selectedPortal === 'EMPLOYER' ? 'Sign In as Job Poster' :
+                           'Sign In as Job Seeker'}
+                        </span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
                     )}
-                  </div>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder={selectedPortal === 'HR' ? 'Enter password provided by Super Admin' : 'Enter your account password'}
-                      className="w-full text-xs pl-10 pr-10 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition shadow-2xs"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="p-1.5 text-slate-400 hover:text-slate-600 absolute right-3 top-1/2 -translate-y-1/2"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
+                  </button>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`w-full py-3.5 rounded-xl font-bold text-xs sm:text-sm text-white transition flex items-center justify-center gap-2 shadow-md active:scale-[0.99] mt-2 ${
-                    selectedPortal === 'ADMIN'
-                      ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/25'
-                      : selectedPortal === 'HR'
-                      ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 shadow-amber-500/25'
-                      : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-sky-500/25'
-                  }`}
-                >
-                  {loading ? (
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Verifying credentials...</span>
-                    </div>
-                  ) : (
-                    <>
-                      <span>
-                        {selectedPortal === 'ADMIN' ? 'Sign In as Super Admin' :
-                         selectedPortal === 'HR' ? 'Sign In as HR Recruiter' :
-                         selectedPortal === 'EMPLOYER' ? 'Sign In as Job Poster' :
-                         'Sign In as Job Seeker'}
-                      </span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-
-                {/* Google OAuth Quick Login (Only for Teacher / Employer) */}
-                {selectedPortal !== 'ADMIN' && selectedPortal !== 'HR' && (
-                  <div className="pt-2">
-                    <div className="relative flex py-2 items-center">
-                      <div className="flex-grow border-t border-slate-200" />
-                      <span className="flex-shrink mx-3 text-[11px] text-slate-400 uppercase font-semibold">Or continue with</span>
-                      <div className="flex-grow border-t border-slate-200" />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleGoogleLogin}
-                      disabled={loading}
-                      className="w-full py-3 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition flex items-center justify-center gap-2.5 shadow-2xs"
-                    >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                      </svg>
-                      <span>Sign In with Google</span>
-                    </button>
+                  {/* Trust & Security Feature Strip */}
+                  <div className="pt-4 mt-4 border-t border-slate-100 flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-500">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Dual-Factor OTP Protected</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200 font-bold">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Direct Recruitment</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 text-purple-800 border border-purple-200 font-bold">
+                      <Lock className="w-3.5 h-3.5 text-purple-600" />
+                      <span>256-bit Encrypted</span>
+                    </span>
                   </div>
-                )}
-              </form>
-            ) : (
+                </form>
+              ) : (
               /* ======================== SIGN UP FORM ======================== */
               <form onSubmit={handleRegisterSubmit} className="space-y-4">
                 {selectedPortal === 'TEACHER' ? (
@@ -2105,6 +2158,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

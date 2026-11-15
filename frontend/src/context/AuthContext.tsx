@@ -14,7 +14,6 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, pass: string, expectedRole?: PortalRole) => Promise<{ success: boolean; message?: string; user?: any; userRole?: string }>;
   register: (data: any) => Promise<{ success: boolean; message?: string; user?: any }>;
-  loginWithGoogle: (role: PortalRole, googleData: { email: string; fullName?: string; avatarUrl?: string }) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   updateProfile: (profileData: Partial<TeacherProfile>) => Promise<void>;
   updateAccount: (accountData: any) => Promise<{ success: boolean; message?: string }>;
@@ -226,36 +225,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginWithGoogle = async (
-    role: PortalRole,
-    googleData: { email: string; fullName?: string; avatarUrl?: string }
-  ) => {
-    try {
-      if (!googleData?.email) {
-        return { success: false, message: 'Google account email is required' };
-      }
-
-      const res = await fetch(apiUrl('/api/v1/auth/google'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: googleData.email.trim().toLowerCase(),
-          fullName: googleData.fullName || googleData.email.split('@')[0],
-          avatarUrl: googleData.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(googleData.fullName || googleData.email)}`,
-          role,
-        }),
-      });
-      const data = await res.json();
-      if (data.success && data.token && data.user) {
-        saveSession(data.token, data.user, data.profile, data.institution);
-        return { success: true };
-      }
-      return { success: false, message: data.message || 'Google sign-in failed' };
-    } catch (err: any) {
-      return { success: false, message: err.message || 'Network connection error' };
-    }
-  };
-
   const logout = () => {
     clearSession();
     navigate('/');
@@ -422,7 +391,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login,
         register,
-        loginWithGoogle,
         logout,
         updateProfile,
         updateAccount,

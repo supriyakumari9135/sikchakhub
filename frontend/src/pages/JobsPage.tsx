@@ -29,148 +29,6 @@ import { AuthRequiredModal } from '../components/AuthRequiredModal';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../config/api';
 
-// Verified catalog vacancies matching the uploaded platform design
-const VERIFIED_OPENINGS: JobVacancy[] = [
-  {
-    id: 'job-verified-pgt-physics',
-    institutionId: 'inst-sikchakhub-official',
-    title: 'Physics Faculty',
-    department: 'Senior Secondary Wing',
-    subject: 'Physics',
-    additionalSubjects: ['JEE Advanced Physics'],
-    teachingLevel: 'PGT',
-    board: 'CBSE',
-    employmentType: 'FULL_TIME',
-    minExperienceYears: 3,
-    requiredQualification: 'Post Graduate with B.Ed',
-    description: 'Seeking passionate educator to teach senior secondary batches. Responsible for conceptual syllabus coverage, doubt resolution, and preparing students for competitive examinations.',
-    city: 'New Delhi',
-    state: 'Delhi',
-    minSalaryLPA: 6,
-    maxSalaryLPA: 10,
-    vacanciesCount: 2,
-    deadline: '2026-12-31',
-    status: 'ACTIVE',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'job-verified-tgt-math',
-    institutionId: 'inst-sikchakhub-official',
-    title: 'Mathematics Teacher',
-    department: 'Middle & Secondary School',
-    subject: 'Mathematics',
-    additionalSubjects: ['Foundation Math'],
-    teachingLevel: 'TGT',
-    board: 'CBSE',
-    employmentType: 'FULL_TIME',
-    minExperienceYears: 2,
-    requiredQualification: 'Graduate / Post Graduate',
-    description: 'Join our academic team to teach Mathematics for middle classes. Strong subject knowledge and classroom management skills required.',
-    city: 'Patna',
-    state: 'Bihar',
-    minSalaryLPA: 4,
-    maxSalaryLPA: 7,
-    vacanciesCount: 3,
-    deadline: '2026-12-25',
-    status: 'ACTIVE',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'job-verified-prt-general',
-    institutionId: 'inst-sikchakhub-official',
-    title: 'Primary Teacher',
-    department: 'Primary Section',
-    subject: 'General',
-    additionalSubjects: ['English', 'EVS'],
-    teachingLevel: 'PRT',
-    board: 'CBSE',
-    employmentType: 'FULL_TIME',
-    minExperienceYears: 1,
-    requiredQualification: 'Post Graduate with B.Ed',
-    description: 'Energetic and caring primary educator needed for grades 1–5. Focus on foundational numeracy, activity-based learning, and student mentorship.',
-    city: 'Jaipur',
-    state: 'Rajasthan',
-    minSalaryLPA: 3,
-    maxSalaryLPA: 5,
-    vacanciesCount: 4,
-    deadline: '2026-12-30',
-    status: 'ACTIVE',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'job-verified-jee-chem',
-    institutionId: 'inst-sikchakhub-official',
-    title: 'Senior Chemistry Faculty (IIT-JEE)',
-    department: 'Competitive Coaching Wing',
-    subject: 'Chemistry',
-    additionalSubjects: ['Organic Chemistry', 'Physical Chemistry'],
-    teachingLevel: 'COACHING_JEE',
-    board: 'OTHER',
-    employmentType: 'FULL_TIME',
-    minExperienceYears: 4,
-    requiredQualification: 'M.Sc / B.Tech / M.Tech',
-    description: 'Lead JEE Advanced Chemistry batches with proven record in top percentile ranks. Comprehensive DPP discussion and test analysis.',
-    city: 'Kota',
-    state: 'Rajasthan',
-    minSalaryLPA: 12,
-    maxSalaryLPA: 24,
-    vacanciesCount: 2,
-    deadline: '2027-01-15',
-    status: 'ACTIVE',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'job-verified-neet-bio',
-    institutionId: 'inst-sikchakhub-official',
-    title: 'NEET Medical Biology Faculty',
-    department: 'Pre-Medical Division',
-    subject: 'Biology',
-    additionalSubjects: ['Zoology', 'Botany'],
-    teachingLevel: 'COACHING_NEET',
-    board: 'CBSE',
-    employmentType: 'FULL_TIME',
-    minExperienceYears: 3,
-    requiredQualification: 'M.Sc / MBBS / BDS / M.Phil',
-    description: 'Conduct interactive NCERT-centric Biology lectures for NEET aspirants. Mentor students through mock tests and doubt clinics.',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-    minSalaryLPA: 8,
-    maxSalaryLPA: 16,
-    vacanciesCount: 3,
-    deadline: '2027-01-20',
-    status: 'ACTIVE',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'job-verified-tgt-english',
-    institutionId: 'inst-sikchakhub-official',
-    title: 'TGT English Educator',
-    department: 'Humanities & Languages',
-    subject: 'English',
-    additionalSubjects: ['English Literature', 'Grammar'],
-    teachingLevel: 'TGT',
-    board: 'ICSE',
-    employmentType: 'FULL_TIME',
-    minExperienceYears: 2,
-    requiredQualification: 'M.A English with B.Ed',
-    description: 'Foster communicative fluency, creative writing, and literature comprehension for secondary grade ICSE curriculum.',
-    city: 'Lucknow',
-    state: 'Uttar Pradesh',
-    minSalaryLPA: 4,
-    maxSalaryLPA: 6,
-    vacanciesCount: 2,
-    deadline: '2026-12-28',
-    status: 'ACTIVE',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }
-];
-
 export const JobsPage: React.FC = () => {
   const { user, token } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -263,60 +121,24 @@ export const JobsPage: React.FC = () => {
     },
   });
 
-  // Combine and deduplicate MongoDB jobs + Verified Mockup jobs
+  // Real MongoDB jobs from backend API
   const allJobs: JobVacancy[] = useMemo(() => {
-    const fromApi: JobVacancy[] = apiData?.jobs || [];
-    const seenTitles = new Set(fromApi.map(j => j.title.trim().toLowerCase()));
-    const merged = [...fromApi];
-
-    for (const v of VERIFIED_OPENINGS) {
-      if (!seenTitles.has(v.title.trim().toLowerCase())) {
-        // Apply client-side filters to verified openings
-        let match = true;
-        if (keyword) {
-          const q = keyword.toLowerCase();
-          const inTitle = v.title.toLowerCase().includes(q);
-          const inSub = v.subject.toLowerCase().includes(q);
-          const inDesc = v.description.toLowerCase().includes(q);
-          const inCity = v.city.toLowerCase().includes(q);
-          if (!inTitle && !inSub && !inDesc && !inCity) match = false;
-        }
-        if (selectedCity && !v.city.toLowerCase().includes(selectedCity.toLowerCase())) {
-          match = false;
-        }
-        if (selectedSubject && !v.subject.toLowerCase().includes(selectedSubject.toLowerCase())) {
-          match = false;
-        }
-        if (selectedLevel && v.teachingLevel !== selectedLevel) {
-          match = false;
-        }
-        if (selectedBoard && v.board !== selectedBoard) {
-          match = false;
-        }
-        if (minSalary && v.maxSalaryLPA < Number(minSalary)) {
-          match = false;
-        }
-
-        if (match) {
-          merged.push(v);
-        }
-      }
-    }
+    const jobsList: JobVacancy[] = [...(apiData?.jobs || [])];
 
     // Sort jobs
     if (sortBy === 'salary_desc') {
-      merged.sort((a, b) => b.maxSalaryLPA - a.maxSalaryLPA);
+      jobsList.sort((a, b) => b.maxSalaryLPA - a.maxSalaryLPA);
     } else if (sortBy === 'date_desc') {
-      merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      jobsList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } else if (sortBy === 'exp_asc') {
-      merged.sort((a, b) => a.minExperienceYears - b.minExperienceYears);
+      jobsList.sort((a, b) => a.minExperienceYears - b.minExperienceYears);
     }
 
-    return merged;
-  }, [apiData, keyword, selectedCity, selectedSubject, selectedLevel, selectedBoard, minSalary, sortBy]);
+    return jobsList;
+  }, [apiData, sortBy]);
 
   const hasActiveFilter = Boolean(keyword || selectedCity || selectedSubject || selectedLevel || selectedBoard || minSalary);
-  const displayCount = hasActiveFilter ? allJobs.length : 124;
+  const displayCount = allJobs.length;
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
