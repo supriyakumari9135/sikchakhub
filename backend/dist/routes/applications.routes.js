@@ -14,7 +14,7 @@ const screeningEngine_1 = require("../services/screeningEngine");
 const shared_validation_1 = require("@sikchakhub/shared-validation");
 const router = (0, express_1.Router)();
 // GET /api/v1/applications/stats/employer - Real database KPI metrics for logged-in employer
-router.get('/stats/employer', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
+router.get('/stats/employer', authMiddleware_1.authenticateJWT, authMiddleware_1.requireVerifiedAccount, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
     try {
         const userId = req.user.id;
         let institution = null;
@@ -135,7 +135,7 @@ router.get('/stats/employer', authMiddleware_1.authenticateJWT, (0, authMiddlewa
     }
 });
 // POST /api/v1/applications - Submit Job Application directly to MongoDB Atlas
-router.post('/', authMiddleware_1.authenticateJWT, async (req, res) => {
+router.post('/', authMiddleware_1.authenticateJWT, authMiddleware_1.requireVerifiedAccount, async (req, res) => {
     const parseResult = shared_validation_1.SubmitApplicationSchema.safeParse(req.body);
     if (!parseResult.success) {
         return res.status(400).json({ success: false, errors: parseResult.error.format() });
@@ -269,7 +269,7 @@ router.post('/', authMiddleware_1.authenticateJWT, async (req, res) => {
     }
 });
 // GET /api/v1/applications/my-applications - For logged in teacher
-router.get('/my-applications', authMiddleware_1.authenticateJWT, async (req, res) => {
+router.get('/my-applications', authMiddleware_1.authenticateJWT, authMiddleware_1.requireVerifiedAccount, async (req, res) => {
     const teacherId = req.user.id;
     try {
         let apps = [];
@@ -349,7 +349,7 @@ router.get('/my-applications', authMiddleware_1.authenticateJWT, async (req, res
     }
 });
 // GET /api/v1/applications/job/:jobId - Recruiter pipeline candidate list with authorization & auto ATS ranking
-router.get('/job/:jobId', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
+router.get('/job/:jobId', authMiddleware_1.authenticateJWT, authMiddleware_1.requireVerifiedAccount, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
     const { jobId } = req.params;
     const { stage, minScore, status, q, limit } = req.query;
     try {
@@ -975,7 +975,7 @@ router.get('/:id/resume', authMiddleware_1.authenticateJWT, async (req, res) => 
     }
 });
 // PATCH /api/v1/applications/:id/stage - Update recruitment stage in database with verification
-router.patch('/:id/stage', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN', 'HR']), async (req, res) => {
+router.patch('/:id/stage', authMiddleware_1.authenticateJWT, authMiddleware_1.requireVerifiedAccount, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN', 'HR']), async (req, res) => {
     const { stage } = req.body;
     if (!stage) {
         return res.status(400).json({ success: false, message: 'Stage value is required.' });
@@ -1093,7 +1093,7 @@ router.patch('/:id/stage', authMiddleware_1.authenticateJWT, (0, authMiddleware_
     }
 });
 // PATCH /api/v1/applications/:id/notes - Add internal recruiter notes in database
-router.patch('/:id/notes', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
+router.patch('/:id/notes', authMiddleware_1.authenticateJWT, authMiddleware_1.requireVerifiedAccount, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
     const { notes } = req.body;
     try {
         let updatedApp = null;

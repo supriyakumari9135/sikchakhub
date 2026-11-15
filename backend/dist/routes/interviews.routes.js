@@ -8,7 +8,7 @@ const auditLogger_1 = require("../middleware/auditLogger");
 const shared_validation_1 = require("@sikchakhub/shared-validation");
 const router = (0, express_1.Router)();
 // POST /api/v1/interviews - Schedule an interview directly in MongoDB Atlas
-router.post('/', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN', 'HR']), async (req, res) => {
+router.post('/', authMiddleware_1.authenticateJWT, authMiddleware_1.requireVerifiedAccount, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN', 'HR']), async (req, res) => {
     const parseResult = shared_validation_1.ScheduleInterviewSchema.safeParse(req.body);
     if (!parseResult.success) {
         return res.status(400).json({ success: false, errors: parseResult.error.format() });
@@ -125,7 +125,7 @@ router.post('/', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireR
     }
 });
 // GET /api/v1/interviews/my-interviews - For teacher or employer from MongoDB Atlas
-router.get('/my-interviews', authMiddleware_1.authenticateJWT, async (req, res) => {
+router.get('/my-interviews', authMiddleware_1.authenticateJWT, authMiddleware_1.requireVerifiedAccount, async (req, res) => {
     const userId = req.user.id;
     const role = req.user.role;
     try {

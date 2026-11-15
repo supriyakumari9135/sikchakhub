@@ -185,6 +185,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
   // Redirect if already authenticated
   useEffect(() => {
     if (user) {
+      const isUnverified = 
+        user.role !== 'ADMIN' && 
+        user.role !== 'HR' && 
+        (user.isVerified === false || (user.verificationStatus && user.verificationStatus !== 'FULLY_VERIFIED'));
+
+      if (isUnverified) {
+        navigate('/verify-otp');
+        return;
+      }
+
       if (user.role === 'ADMIN' || user.role === 'HR') navigate('/admin-dashboard');
       else if (user.role === 'EMPLOYER') navigate('/employer-dashboard');
       else navigate('/teacher-dashboard');
@@ -192,6 +202,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
   }, [user, navigate]);
 
   const navigateToRoleDashboard = (role: PortalRole) => {
+    const isUnverified = user && 
+      user.role !== 'ADMIN' && 
+      user.role !== 'HR' && 
+      (user.isVerified === false || (user.verificationStatus && user.verificationStatus !== 'FULLY_VERIFIED'));
+
+    if (isUnverified) {
+      navigate('/verify-otp');
+      return;
+    }
+
     if (role === 'TEACHER') {
       navigate('/teacher-dashboard');
     } else if (role === 'EMPLOYER') {
@@ -351,16 +371,29 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
     setLoading(true);
 
     try {
-      const res = await login(email, password, selectedPortal);
+      const res: any = await login(email, password, selectedPortal);
       if (res.success) {
-        setSuccessMsg(`Authentication verified. Redirecting to ${
-          selectedPortal === 'TEACHER' ? 'Job Seeker' : 
-          selectedPortal === 'EMPLOYER' ? 'Recruiter' : 
-          selectedPortal === 'HR' ? 'HR Candidate Screening' : 
-          'Super Admin'} console...`);
-        setTimeout(() => {
-          navigateToRoleDashboard(selectedPortal);
-        }, 600);
+        const loggedUser = res.user;
+        const isNotVerified = loggedUser && 
+          loggedUser.role !== 'ADMIN' && 
+          loggedUser.role !== 'HR' && 
+          (loggedUser.isVerified === false || (loggedUser.verificationStatus && loggedUser.verificationStatus !== 'FULLY_VERIFIED'));
+
+        if (isNotVerified) {
+          setSuccessMsg('Login successful. Please complete your email and mobile verification.');
+          setTimeout(() => {
+            navigate('/verify-otp');
+          }, 600);
+        } else {
+          setSuccessMsg(`Authentication verified. Redirecting to ${
+            selectedPortal === 'TEACHER' ? 'Job Seeker' : 
+            selectedPortal === 'EMPLOYER' ? 'Recruiter' : 
+            selectedPortal === 'HR' ? 'HR Candidate Screening' : 
+            'Super Admin'} console...`);
+          setTimeout(() => {
+            navigateToRoleDashboard(selectedPortal);
+          }, 600);
+        }
       } else {
         setError(res.message || 'Invalid credentials. Please verify your email and password.');
       }
@@ -383,6 +416,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
       }
       if (!cvBase64) {
         setError('CV/Resume PDF upload (maximum 5 MB) is compulsory to complete Job Seeker registration.');
+        return;
+      }
+      if (!phone.trim() || phone.replace(/\D/g, '').length < 10) {
+        setError('Please enter a valid 10-digit mobile number for mobile verification.');
         return;
       }
     }
@@ -493,14 +530,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
 
       const res = await register(registerPayload);
       if (res.success) {
-        if (selectedPortal === 'EMPLOYER') {
-          setSuccessMsg('Institution registered successfully! Verification profile and accreditation documents stored in database. Redirecting to Recruiter Portal...');
-        } else {
-          setSuccessMsg('Account registered and CV securely stored! Preparing your Job Seeker workspace...');
-        }
+        setSuccessMsg('Account registered successfully! Redirecting to email and mobile verification...');
         setTimeout(() => {
-          navigateToRoleDashboard(selectedPortal);
-        }, 700);
+          navigate('/verify-otp');
+        }, 600);
       } else {
         setError(res.message || 'Registration failed. Please check the provided information.');
       }

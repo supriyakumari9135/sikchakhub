@@ -148,7 +148,7 @@ router.get('/my-subscription', authMiddleware_1.authenticateJWT, (0, authMiddlew
     }
 });
 // POST /api/v1/subscriptions/subscribe - Purchase / Upgrade to Premium subscription
-router.post('/subscribe', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
+router.post('/subscribe', authMiddleware_1.authenticateJWT, authMiddleware_1.requireVerifiedAccount, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
     const { plan: targetPlan, paymentMethod } = req.body;
     if (!targetPlan || !['PRO_MONTHLY', 'ANNUAL_ENTERPRISE'].includes(targetPlan)) {
         return res.status(400).json({

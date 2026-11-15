@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { useAuth } from './context/AuthContext';
@@ -11,6 +11,7 @@ const AuthPage = React.lazy(() => import('./pages/AuthPage').then(m => ({ defaul
 const TeacherDashboard = React.lazy(() => import('./pages/TeacherDashboard').then(m => ({ default: m.TeacherDashboard })));
 const EmployerDashboard = React.lazy(() => import('./pages/EmployerDashboard').then(m => ({ default: m.EmployerDashboard })));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const OtpVerificationPage = React.lazy(() => import('./pages/OtpVerificationPage').then(m => ({ default: m.OtpVerificationPage })));
 
 // Enterprise loading skeleton matching SikchaKhub theme
 const PageLoadingSkeleton: React.FC = () => (
@@ -29,15 +30,36 @@ const PageLoadingSkeleton: React.FC = () => (
   </div>
 );
 
+// Protected Route Guard ensuring full dual verification before dashboard access
+const VerifiedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, token, isLoading } = useAuth();
+  if (isLoading) return <PageLoadingSkeleton />;
+  if (!user && !token && !localStorage.getItem('sikchakhub_token')) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const isUnverified = user && 
+    user.role !== 'ADMIN' && 
+    user.role !== 'HR' && 
+    (user.isVerified === false || (user.verificationStatus && user.verificationStatus !== 'FULLY_VERIFIED'));
+
+  if (isUnverified) {
+    return <Navigate to="/verify-otp" replace />;
+  }
+  return <>{children}</>;
+};
+
 export const App: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
 
-  // Hide upper navbar and footer exclusively on Super Admin & HR governance console
+  // Hide upper navbar and footer exclusively on Super Admin & HR governance console and OTP page
   const hideNavbarAndFooter = 
     user?.role === 'ADMIN' || 
     user?.role === 'HR' ||
-    location.pathname.startsWith('/admin-dashboard');
+    location.pathname.startsWith('/admin-dashboard') ||
+    location.pathname === '/verify-otp' ||
+    location.pathname === '/verify';
 
   return (
     <div className="flex flex-col min-h-screen overflow-x-hidden bg-white text-slate-900">
@@ -53,8 +75,24 @@ export const App: React.FC = () => {
             <Route path="/hr" element={<AuthPage initialMode="LOGIN" initialPortal="HR" />} />
             <Route path="/signup" element={<AuthPage initialMode="REGISTER" />} />
             <Route path="/register" element={<AuthPage initialMode="REGISTER" />} />
-            <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
-            <Route path="/employer-dashboard" element={<EmployerDashboard />} />
+            <Route path="/verify-otp" element={<OtpVerificationPage />} />
+            <Route path="/verify" element={<OtpVerificationPage />} />
+            <Route 
+              path="/teacher-dashboard" 
+              element={
+                <VerifiedRoute>
+                  <TeacherDashboard />
+                </VerifiedRoute>
+              } 
+            />
+            <Route 
+              path="/employer-dashboard" 
+              element={
+                <VerifiedRoute>
+                  <EmployerDashboard />
+                </VerifiedRoute>
+              } 
+            />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="*" element={<HomePage />} />
           </Routes>

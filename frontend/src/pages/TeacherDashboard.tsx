@@ -73,6 +73,16 @@ export const TeacherDashboard: React.FC = () => {
   const { user, profile, token, isLoading, updateProfile, updateAccount, changePassword, uploadResume } = useAuth();
   const navigate = useNavigate();
 
+  // Redirect unverified users to verify-otp
+  useEffect(() => {
+    if (!isLoading && user && user.role !== 'ADMIN' && user.role !== 'HR') {
+      const isUnverified = user.isVerified === false || (user.verificationStatus && user.verificationStatus !== 'FULLY_VERIFIED');
+      if (isUnverified) {
+        navigate('/verify-otp');
+      }
+    }
+  }, [user, isLoading, navigate]);
+
   // Active navigation tab
   const [activeSidebarNav, setActiveSidebarNav] = useState('Overview');
   const [selectedStageFilter, setSelectedStageFilter] = useState<string>('ALL');

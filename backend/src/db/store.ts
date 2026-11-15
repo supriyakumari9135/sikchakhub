@@ -22,6 +22,7 @@ class DataStore {
   public savedJobs: { userId: string; jobId: string; createdAt: string }[] = [];
   public subscriptions: JobPosterSubscription[] = [];
   public payments: PaymentRecord[] = [];
+  public otpRecords: any[] = [];
 
   // Helper getters
   getUserById(id: string) {

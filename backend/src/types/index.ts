@@ -28,6 +28,15 @@ export type ApplicationStage =
   | 'REJECTED' 
   | 'ON_HOLD';
 
+export type VerificationStatus = 
+  | 'PENDING_VERIFICATION' 
+  | 'EMAIL_VERIFIED' 
+  | 'PHONE_VERIFIED' 
+  | 'FULLY_VERIFIED' 
+  | 'TEMPORARILY_BLOCKED';
+
+export type OtpChannel = 'EMAIL' | 'PHONE';
+
 export interface User {
   id: string;
   email: string;
@@ -40,7 +49,50 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   isVerified: boolean;
+  verificationStatus?: VerificationStatus;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
+  emailVerifiedAt?: string;
+  phoneVerifiedAt?: string;
   status?: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | string;
+}
+
+export interface OtpRecord {
+  id: string;
+  userId: string;
+  channel: OtpChannel;
+  identifier: string;
+  otpHash: string;
+  expiresAt: string;
+  resendCooldownUntil?: string;
+  sendCount24h: number;
+  firstSendAt24h: string;
+  failedAttempts: number;
+  isBlocked: boolean;
+  blockedUntil?: string;
+  isConsumed: boolean;
+  consumedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OtpStatusResponse {
+  email: string;
+  phone?: string;
+  verificationStatus: VerificationStatus;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  isVerified: boolean;
+  emailCooldownRemaining: number;
+  phoneCooldownRemaining: number;
+  emailSendsRemaining: number;
+  phoneSendsRemaining: number;
+  isEmailBlocked: boolean;
+  isPhoneBlocked: boolean;
+  emailBlockRemainingSeconds: number;
+  phoneBlockRemainingSeconds: number;
+  emailFailedAttempts?: number;
+  phoneFailedAttempts?: number;
 }
 
 export interface TeacherProfile {

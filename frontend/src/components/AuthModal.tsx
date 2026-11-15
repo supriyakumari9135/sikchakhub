@@ -24,6 +24,7 @@ import {
 export const AuthModal: React.FC = () => {
   const navigate = useNavigate();
   const { 
+    user,
     isAuthModalOpen, 
     closeAuthModal, 
     authModalTab, 
@@ -67,6 +68,16 @@ export const AuthModal: React.FC = () => {
   if (!isAuthModalOpen) return null;
 
   const navigateToRoleDashboard = (role: PortalRole) => {
+    const isUnverified = user && 
+      user.role !== 'ADMIN' && 
+      user.role !== 'HR' && 
+      (user.isVerified === false || (user.verificationStatus && user.verificationStatus !== 'FULLY_VERIFIED'));
+
+    if (isUnverified) {
+      navigate('/verify-otp');
+      return;
+    }
+
     if (role === 'TEACHER') {
       navigate('/teacher-dashboard');
     } else if (role === 'EMPLOYER') {
@@ -82,15 +93,30 @@ export const AuthModal: React.FC = () => {
     setError(null);
     setLoading(true);
 
-    const res = await login(email, password, selectedPortal);
+    const res: any = await login(email, password, selectedPortal);
     setLoading(false);
     if (res.success) {
-      setSuccessMsg(`Welcome back! Logging into ${selectedPortal === 'TEACHER' ? 'Job Seeker' : selectedPortal === 'EMPLOYER' ? 'Job Poster' : 'Admin'} portal...`);
-      setTimeout(() => {
-        setSuccessMsg(null);
-        closeAuthModal();
-        navigateToRoleDashboard(selectedPortal);
-      }, 700);
+      const loggedUser = res.user;
+      const isUnverified = loggedUser && 
+        loggedUser.role !== 'ADMIN' && 
+        loggedUser.role !== 'HR' && 
+        (loggedUser.isVerified === false || (loggedUser.verificationStatus && loggedUser.verificationStatus !== 'FULLY_VERIFIED'));
+
+      if (isUnverified) {
+        setSuccessMsg('Login successful. Please complete your email and mobile verification.');
+        setTimeout(() => {
+          setSuccessMsg(null);
+          closeAuthModal();
+          navigate('/verify-otp');
+        }, 600);
+      } else {
+        setSuccessMsg(`Welcome back! Logging into ${selectedPortal === 'TEACHER' ? 'Job Seeker' : selectedPortal === 'EMPLOYER' ? 'Job Poster' : 'Admin'} portal...`);
+        setTimeout(() => {
+          setSuccessMsg(null);
+          closeAuthModal();
+          navigateToRoleDashboard(selectedPortal);
+        }, 700);
+      }
     } else {
       setError(res.message || 'Invalid credentials. Please verify your email and password.');
     }
@@ -127,11 +153,11 @@ export const AuthModal: React.FC = () => {
     const res = await register(registerPayload);
     setLoading(false);
     if (res.success) {
-      setSuccessMsg('Account created successfully in database! Redirecting...');
+      setSuccessMsg('Account created successfully! Redirecting to email and mobile verification...');
       setTimeout(() => {
         setSuccessMsg(null);
         closeAuthModal();
-        navigateToRoleDashboard(selectedPortal);
+        navigate('/verify-otp');
       }, 700);
     } else {
       setError(res.message || 'Registration failed. Please check the provided information.');

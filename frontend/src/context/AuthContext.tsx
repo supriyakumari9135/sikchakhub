@@ -12,14 +12,15 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, pass: string, expectedRole?: PortalRole) => Promise<{ success: boolean; message?: string }>;
-  register: (data: any) => Promise<{ success: boolean; message?: string }>;
+  login: (email: string, pass: string, expectedRole?: PortalRole) => Promise<{ success: boolean; message?: string; user?: any; userRole?: string }>;
+  register: (data: any) => Promise<{ success: boolean; message?: string; user?: any }>;
   loginWithGoogle: (role: PortalRole, googleData: { email: string; fullName?: string; avatarUrl?: string }) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   updateProfile: (profileData: Partial<TeacherProfile>) => Promise<void>;
   updateAccount: (accountData: any) => Promise<{ success: boolean; message?: string }>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message?: string }>;
   uploadResume: (file: File) => Promise<{ success: boolean; message?: string; resumeUrl?: string; resumeFileName?: string }>;
+  refreshUserStatus: () => Promise<void>;
   isAuthModalOpen: boolean;
   authModalTab: 'LOGIN' | 'REGISTER';
   authModalRole: PortalRole;
@@ -199,7 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.token && data.user) {
         saveSession(data.token, data.user, data.profile, data.institution);
-        return { success: true };
+        return { success: true, user: data.user };
       }
       return { success: false, message: data.message || 'Login failed' };
     } catch (err: any) {
@@ -394,6 +395,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const refreshUserStatus = async () => {
+    const currentToken = token || localStorage.getItem('sikchakhub_token');
+    if (!currentToken) return;
+    try {
+      const res = await fetch(apiUrl('/api/v1/auth/me'), {
+        headers: { Authorization: `Bearer ${currentToken}` },
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        saveSession(currentToken, data.user, data.profile, data.institution);
+      }
+    } catch (err) {
+      console.warn('Failed to refresh user status:', err);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -411,6 +428,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateAccount,
         changePassword,
         uploadResume,
+        refreshUserStatus,
         isAuthModalOpen,
         authModalTab,
         authModalRole,

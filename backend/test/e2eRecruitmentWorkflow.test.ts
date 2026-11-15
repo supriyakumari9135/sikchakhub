@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import path from 'path';
 import app from '../src/index';
+import { dbStore } from '../src/db/store';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -60,6 +61,7 @@ test('SikchaKhub End-to-End Real Recruitment Platform & Database Persistence Wor
     // 1. Register Real Teacher
     const teacherEmail = `e2e_teacher_${testTimestamp}@example.com`;
     const teacherPassword = 'Password123!@#';
+    const minimalPdfBase64 = 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4\n%Minimal PDF content for unit test\n%%EOF').toString('base64');
     const teacherRegRes = await api('/auth/register', {
       method: 'POST',
       body: {
@@ -69,6 +71,9 @@ test('SikchaKhub End-to-End Real Recruitment Platform & Database Persistence Wor
         role: 'TEACHER',
         city: 'Kota',
         subject: 'Physics',
+        phone: '9876543210',
+        resumeBase64: minimalPdfBase64,
+        resumeFileName: 'Dr_Test_Senior_Educator_CV.pdf',
       },
     });
     assert.strictEqual(teacherRegRes.ok, true, 'Teacher registration successful');
@@ -89,7 +94,11 @@ test('SikchaKhub End-to-End Real Recruitment Platform & Database Persistence Wor
         fullName: 'Principal Test Sharma',
         organizationName: 'Kota Premier Science Academy',
         role: 'EMPLOYER',
+        phone: '9812345678',
         city: 'Kota',
+        state: 'Rajasthan',
+        termsAccepted: true,
+        address: 'Vigyan Nagar, Kota',
       },
     });
     assert.strictEqual(employerRegRes.ok, true, 'Employer registration successful');
@@ -98,6 +107,27 @@ test('SikchaKhub End-to-End Real Recruitment Platform & Database Persistence Wor
     const employerToken = employerRegRes.data.token;
     const employerId = employerRegRes.data.user.id;
     cleanupIds.users.push(employerId);
+
+    // Verify both accounts in DB and in-memory store so they can perform recruitment workflows
+    const { UserModel } = await import('../src/db/mongodb');
+    await UserModel.updateMany(
+      { id: { $in: [teacherId, employerId] } },
+      { $set: { isVerified: true, verificationStatus: 'FULLY_VERIFIED', emailVerified: true, phoneVerified: true } }
+    );
+    const tUser = dbStore.getUserById(teacherId);
+    if (tUser) {
+      tUser.isVerified = true;
+      tUser.verificationStatus = 'FULLY_VERIFIED';
+      tUser.emailVerified = true;
+      tUser.phoneVerified = true;
+    }
+    const eUser = dbStore.getUserById(employerId);
+    if (eUser) {
+      eUser.isVerified = true;
+      eUser.verificationStatus = 'FULLY_VERIFIED';
+      eUser.emailVerified = true;
+      eUser.phoneVerified = true;
+    }
 
     // 3. Employer posts a real job vacancy
     const postJobRes = await api('/jobs', {
@@ -128,6 +158,17 @@ test('SikchaKhub End-to-End Real Recruitment Platform & Database Persistence Wor
     if (targetJob.institutionId) {
       cleanupIds.institutions.push(targetJob.institutionId);
     }
+
+    // Approve job as ACTIVE and institution as VERIFIED for public listing test
+    const { JobVacancyModel, InstitutionModel } = await import('../src/db/mongodb');
+    await JobVacancyModel.updateOne({ id: targetJob.id }, { $set: { status: 'ACTIVE' } });
+    if (targetJob.institutionId) {
+      await InstitutionModel.updateOne({ id: targetJob.institutionId }, { $set: { verificationStatus: 'VERIFIED' } });
+      const inMemInst = dbStore.institutions.find(i => i.id === targetJob.institutionId);
+      if (inMemInst) inMemInst.verificationStatus = 'VERIFIED';
+    }
+    const inMemJob = dbStore.jobs.find(j => j.id === targetJob.id);
+    if (inMemJob) inMemJob.status = 'ACTIVE';
 
     // 4. Teacher views live job vacancies
     const jobsRes = await api('/jobs');
@@ -257,6 +298,9 @@ test('SikchaKhub End-to-End Real Recruitment Platform & Database Persistence Wor
         password: 'OtherPassword123!',
         fullName: 'Other Educator',
         role: 'TEACHER',
+        phone: '9876543299',
+        resumeBase64: minimalPdfBase64,
+        resumeFileName: 'Other_Educator_CV.pdf',
       },
     });
     const otherToken = otherReg.data.token;
@@ -267,6 +311,9 @@ test('SikchaKhub End-to-End Real Recruitment Platform & Database Persistence Wor
     });
     assert.strictEqual(unauthorizedView.status, 403, 'Unauthorized access correctly rejected with 403 Forbidden');
 
+  } catch (testError: any) {
+    console.error('*** EXACT TEST ERROR ***:', testError.message, testError.stack);
+    throw testError;
   } finally {
     // Clean up test documents created in MongoDB Atlas
     if (mongoose.connection.readyState === 1) {

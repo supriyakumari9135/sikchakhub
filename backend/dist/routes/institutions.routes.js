@@ -91,8 +91,8 @@ router.get('/:id', authMiddleware_1.optionalJWT, async (req, res) => {
         return res.status(500).json({ success: false, message: 'Failed to retrieve institution profile' });
     }
 });
-// POST /api/v1/institutions - Register institution (requires verification)
-router.post('/', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
+// POST /api/v1/institutions - Register institution (requires full account verification)
+router.post('/', authMiddleware_1.authenticateJWT, authMiddleware_1.requireVerifiedAccount, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
     const parseResult = shared_validation_1.InstitutionSchema.safeParse(req.body);
     if (!parseResult.success) {
         return res.status(400).json({ success: false, errors: parseResult.error.format() });

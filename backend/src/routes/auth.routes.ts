@@ -8,11 +8,13 @@ import { UserModel, TeacherProfileModel, InstitutionModel, JobApplicationModel }
 import { authenticateJWT, requireRole } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
 import { RegisterSchema, LoginSchema } from '@sikchakhub/shared-validation';
+import { otpService } from '../services/otpService';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'sikchakhub-super-secret-jwt-key-2025';
 
 function generateToken(user: any) {
+  const isDualVerified = (user.emailVerified === true && user.phoneVerified === true) || user.role === 'ADMIN' || user.role === 'HR';
   return jwt.sign(
     {
       id: user.id,
@@ -20,6 +22,8 @@ function generateToken(user: any) {
       role: user.role,
       adminRole: user.adminRole,
       fullName: user.fullName,
+      isVerified: isDualVerified,
+      verificationStatus: isDualVerified ? 'FULLY_VERIFIED' : (user.verificationStatus || 'PENDING_VERIFICATION'),
     },
     JWT_SECRET,
     { expiresIn: '30d' }
@@ -39,20 +43,59 @@ router.post('/register', async (req: Request, res: Response) => {
   const parsedAge = age != null ? age : (req.body.age ? Number(req.body.age) : undefined);
 
   try {
-    // 1. Verify uniqueness against MongoDB Atlas and in-memory store
-    let existingUser = null;
+    // 1A. Validate and normalize mobile number (mandatory for both Job Seeker & Job Poster)
+    const rawPhone = (phone || req.body.phone || req.body.officialPhone || '').toString().trim();
+    const phoneDigits = rawPhone.replace(/\D/g, '').slice(-10);
+    if (!phoneDigits || phoneDigits.length !== 10) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'A valid 10-digit mobile number is mandatory to register.' 
+      });
+    }
+    const normalizedPhone = `+91${phoneDigits}`;
+
+    // 1B. Verify Email uniqueness across entire database (1 email = 1 account across all roles)
+    let existingEmailUser = null;
     try {
-      existingUser = await UserModel.findOne({ email: normalizedEmail }).lean();
+      existingEmailUser = await UserModel.findOne({ email: normalizedEmail }).lean();
     } catch (dbErr) {
-      console.warn('MongoDB query warning in register:', dbErr);
+      console.warn('MongoDB email uniqueness check warning in register:', dbErr);
     }
 
-    if (!existingUser) {
-      existingUser = dbStore.getUserByEmail(normalizedEmail);
+    if (!existingEmailUser) {
+      existingEmailUser = dbStore.getUserByEmail(normalizedEmail);
     }
 
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: 'An account with this email already exists.' });
+    if (existingEmailUser) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'An account with this email address already exists. Only one account can be created per email address.' 
+      });
+    }
+
+    // 1C. Verify Mobile Number uniqueness across entire database (1 mobile = 1 account across all roles)
+    let existingPhoneUser = null;
+    try {
+      existingPhoneUser = await UserModel.findOne({
+        phone: { $regex: `${phoneDigits}$` }
+      }).lean();
+    } catch (dbErr) {
+      console.warn('MongoDB phone uniqueness check warning in register:', dbErr);
+    }
+
+    if (!existingPhoneUser) {
+      existingPhoneUser = dbStore.users.find(u => {
+        if (!u.phone) return false;
+        const uDigits = u.phone.replace(/\D/g, '').slice(-10);
+        return uDigits === phoneDigits;
+      });
+    }
+
+    if (existingPhoneUser) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'An account with this mobile number already exists. Only one account can be created per mobile number.' 
+      });
     }
 
     // Administrative accounts cannot be registered via public registration
@@ -107,11 +150,14 @@ router.post('/register', async (req: Request, res: Response) => {
       passwordHash,
       fullName: userFullName,
       role: role as any,
-      phone: phone || req.body.phone || '',
+      phone: normalizedPhone,
       age: parsedAge,
       gender: req.body.gender || '',
       avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(userFullName)}`,
-      isVerified: true,
+      isVerified: false,
+      verificationStatus: 'PENDING_VERIFICATION',
+      emailVerified: false,
+      phoneVerified: false,
     };
 
     // 3. Persist User in MongoDB Atlas
@@ -272,7 +318,7 @@ router.post('/register', async (req: Request, res: Response) => {
       const orgName = req.body.organizationName || req.body.name || `${userFullName} Institution`;
       const instType = req.body.institutionType || req.body.type || 'SCHOOL';
       const contactPersonName = req.body.contactPerson || userFullName;
-      const officialPhone = phone || req.body.phone || '';
+      const officialPhone = normalizedPhone;
       const stateLoc = req.body.state || 'Delhi';
       const cityLoc = req.body.city || 'Delhi NCR';
       const addressLoc = req.body.address || req.body.fullAddress || cityLoc;
@@ -376,12 +422,19 @@ router.post('/register', async (req: Request, res: Response) => {
       dbStore.institutions.push(institutionDoc);
     }
 
+    // Automatically initiate email verification OTP upon signup
+    try {
+      await otpService.requestEmailOtp(userId);
+    } catch (otpErr) {
+      console.warn('Initial Email OTP request notice:', otpErr);
+    }
+
     const token = generateToken(newUserDoc);
     logAuditEvent(req, 'USER_REGISTERED', 'User', userId, { email: normalizedEmail, role });
 
     return res.status(201).json({
       success: true,
-      message: 'Registration successful!',
+      message: 'Registration successful! Verification code sent to your email.',
       token,
       user: {
         id: newUserDoc.id,
@@ -391,6 +444,10 @@ router.post('/register', async (req: Request, res: Response) => {
         avatarUrl: newUserDoc.avatarUrl,
         phone: newUserDoc.phone,
         age: newUserDoc.age,
+        isVerified: false,
+        verificationStatus: 'PENDING_VERIFICATION',
+        emailVerified: false,
+        phoneVerified: false,
       },
       profile: profileDoc,
       institution: institutionDoc,
@@ -514,6 +571,12 @@ router.post('/login', async (req: Request, res: Response) => {
         avatarUrl: user.avatarUrl,
         phone: user.phone,
         age: user.age,
+        isVerified: (user.emailVerified === true && user.phoneVerified === true) || user.role === 'ADMIN' || user.role === 'HR',
+        verificationStatus: (user.emailVerified === true && user.phoneVerified === true) || user.role === 'ADMIN' || user.role === 'HR'
+          ? 'FULLY_VERIFIED'
+          : (user.verificationStatus || 'PENDING_VERIFICATION'),
+        emailVerified: user.emailVerified === true || user.role === 'ADMIN' || user.role === 'HR',
+        phoneVerified: user.phoneVerified === true || user.role === 'ADMIN' || user.role === 'HR',
       },
       profile,
       institution,
@@ -655,6 +718,12 @@ router.post('/google', async (req: Request, res: Response) => {
         avatarUrl: user.avatarUrl,
         phone: user.phone,
         age: user.age,
+        isVerified: (user.emailVerified === true && user.phoneVerified === true) || user.role === 'ADMIN' || user.role === 'HR',
+        verificationStatus: (user.emailVerified === true && user.phoneVerified === true) || user.role === 'ADMIN' || user.role === 'HR'
+          ? 'FULLY_VERIFIED'
+          : (user.verificationStatus || 'PENDING_VERIFICATION'),
+        emailVerified: user.emailVerified === true || user.role === 'ADMIN' || user.role === 'HR',
+        phoneVerified: user.phoneVerified === true || user.role === 'ADMIN' || user.role === 'HR',
       },
       profile,
       institution,
@@ -712,6 +781,12 @@ router.get('/me', authenticateJWT, async (req: Request, res: Response) => {
         avatarUrl: user.avatarUrl,
         phone: user.phone,
         age: user.age,
+        isVerified: (user.emailVerified === true && user.phoneVerified === true) || user.role === 'ADMIN' || user.role === 'HR',
+        verificationStatus: (user.emailVerified === true && user.phoneVerified === true) || user.role === 'ADMIN' || user.role === 'HR'
+          ? 'FULLY_VERIFIED'
+          : (user.verificationStatus || 'PENDING_VERIFICATION'),
+        emailVerified: user.emailVerified === true || user.role === 'ADMIN' || user.role === 'HR',
+        phoneVerified: user.phoneVerified === true || user.role === 'ADMIN' || user.role === 'HR',
       },
       profile,
       institution,
@@ -1030,6 +1105,125 @@ router.post('/upload-resume', authenticateJWT, requireRole(['TEACHER', 'ADMIN'])
   } catch (err: any) {
     console.error('Resume upload error:', err);
     return res.status(500).json({ success: false, message: 'Server error processing PDF upload.' });
+  }
+});
+
+// ==============================================================================
+// UNIFIED EMAIL & MOBILE OTP VERIFICATION ENDPOINTS
+// ==============================================================================
+
+// POST /api/v1/auth/otp/send-email
+router.post('/otp/send-email', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const result = await otpService.requestEmailOtp(userId);
+    if (!result.success) {
+      return res.status(429).json(result);
+    }
+    return res.json(result);
+  } catch (err: any) {
+    console.error('send-email error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to send email verification code.' });
+  }
+});
+
+// POST /api/v1/auth/otp/resend-email
+router.post('/otp/resend-email', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const result = await otpService.requestEmailOtp(userId);
+    if (!result.success) {
+      return res.status(429).json(result);
+    }
+    return res.json(result);
+  } catch (err: any) {
+    console.error('resend-email error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to resend email verification code.' });
+  }
+});
+
+// POST /api/v1/auth/otp/verify-email
+router.post('/otp/verify-email', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { otp } = req.body;
+    if (!otp || typeof otp !== 'string' || otp.trim().length !== 6) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid 6-digit OTP code.' });
+    }
+
+    const result = await otpService.verifyEmailOtp(userId, otp.trim());
+    if (!result.success) {
+      const statusCode = result.message.includes('temporarily blocked') ? 429 : 400;
+      return res.status(statusCode).json(result);
+    }
+    return res.json(result);
+  } catch (err: any) {
+    console.error('verify-email error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to verify email code.' });
+  }
+});
+
+// POST /api/v1/auth/otp/send-phone
+router.post('/otp/send-phone', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const result = await otpService.requestPhoneTicket(userId);
+    if (!result.success) {
+      return res.status(429).json(result);
+    }
+    return res.json(result);
+  } catch (err: any) {
+    console.error('send-phone error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to authorize phone verification.' });
+  }
+});
+
+// POST /api/v1/auth/otp/confirm-phone-sent
+// Called strictly AFTER Firebase confirms successful SMS delivery
+router.post('/otp/confirm-phone-sent', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const result = await otpService.confirmPhoneSent(userId);
+    return res.json(result);
+  } catch (err: any) {
+    console.error('confirm-phone-sent error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to record SMS send.' });
+  }
+});
+
+// POST /api/v1/auth/otp/verify-phone
+router.post('/otp/verify-phone', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { idToken } = req.body;
+    if (!idToken || typeof idToken !== 'string' || idToken.trim().length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Firebase ID token is required. Please verify your mobile phone with SMS OTP via Firebase.' 
+      });
+    }
+
+    const result = await otpService.verifyPhoneWithFirebase(userId, idToken.trim());
+    if (!result.success) {
+      const statusCode = result.message.includes('temporarily blocked') ? 429 : 400;
+      return res.status(statusCode).json(result);
+    }
+    return res.json(result);
+  } catch (err: any) {
+    console.error('verify-phone error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to verify mobile number.' });
+  }
+});
+
+// GET /api/v1/auth/otp/status
+router.get('/otp/status', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const status = await otpService.getVerificationStatus(userId);
+    return res.json({ success: true, status });
+  } catch (err: any) {
+    console.error('otp-status error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to retrieve verification status.' });
   }
 });
 

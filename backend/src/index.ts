@@ -1,7 +1,7 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import mongoose from 'mongoose';
@@ -16,8 +16,6 @@ import masterDataRoutes from './routes/masterData.routes';
 import notificationRoutes from './routes/notifications.routes';
 import subscriptionRoutes from './routes/subscriptions.routes';
 import { connectMongoDB } from './db/mongodb';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -42,7 +40,9 @@ const allowedOrigins = [
   'https://www.sikchakhub.in',
   'https://api.sikchakhub.in',
   'http://localhost:5173',
+  'http://127.0.0.1:5173',
   'http://localhost:5001',
+  'http://127.0.0.1:5001',
   'http://localhost:3000',
 ];
 

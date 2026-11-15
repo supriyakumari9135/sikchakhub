@@ -15,7 +15,16 @@ const UserSchema = new mongoose.Schema({
   age: { type: Number },
   gender: { type: String },
   avatarUrl: { type: String },
-  isVerified: { type: Boolean, default: true },
+  isVerified: { type: Boolean, default: false },
+  verificationStatus: { 
+    type: String, 
+    enum: ['PENDING_VERIFICATION', 'EMAIL_VERIFIED', 'PHONE_VERIFIED', 'FULLY_VERIFIED', 'TEMPORARILY_BLOCKED'], 
+    default: 'PENDING_VERIFICATION' 
+  },
+  emailVerified: { type: Boolean, default: false },
+  phoneVerified: { type: Boolean, default: false },
+  emailVerifiedAt: { type: Date },
+  phoneVerifiedAt: { type: Date },
 }, { timestamps: true });
 
 UserSchema.index({ role: 1, status: 1 });
@@ -376,6 +385,29 @@ export const UserReportModel = mongoose.models.UserReport || mongoose.model('Use
 export const PlatformSettingModel = mongoose.models.PlatformSetting || mongoose.model('PlatformSetting', PlatformSettingSchema);
 export const CandidateGroupModel = mongoose.models.CandidateGroup || mongoose.model('CandidateGroup', CandidateGroupSchema);
 export const SubscriptionModel = mongoose.models.Subscription || mongoose.model('Subscription', SubscriptionSchema);
+// OTP Verification Schema (Strict rate limiting, secure hash, single-use)
+const OtpVerificationSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  userId: { type: String, required: true, index: true },
+  channel: { type: String, enum: ['EMAIL', 'PHONE'], required: true },
+  identifier: { type: String, required: true }, // email or phone
+  otpHash: { type: String, required: true },
+  expiresAt: { type: Date, required: true },
+  resendCooldownUntil: { type: Date },
+  sendCount24h: { type: Number, default: 1 },
+  firstSendAt24h: { type: Date, default: Date.now },
+  failedAttempts: { type: Number, default: 0 },
+  isBlocked: { type: Boolean, default: false },
+  blockedUntil: { type: Date },
+  isConsumed: { type: Boolean, default: false },
+  consumedAt: { type: Date },
+}, { timestamps: true });
+
+OtpVerificationSchema.index({ userId: 1, channel: 1 });
+OtpVerificationSchema.index({ identifier: 1, channel: 1 });
+OtpVerificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 86400 });
+
+export const OtpVerificationModel = mongoose.models.OtpVerification || mongoose.model('OtpVerification', OtpVerificationSchema);
 export const PaymentRecordModel = mongoose.models.PaymentRecord || mongoose.model('PaymentRecord', PaymentRecordSchema);
 
 export async function getGlobalFreeApplicantLimit(): Promise<number> {
@@ -453,7 +485,7 @@ export async function getOrInitEmployerSubscription(userId: string, institutionI
 export async function seedDefaultAdminIfNeeded() {
   try {
     const adminEmail = 'sikchakhub@gmail.com';
-    const legacyAdmin = await UserModel.findOne({ email: 'sikshahub@gmail.com' });
+    const legacyAdmin = await UserModel.findOne({ email: 'SikchakHub@gmail.com' });
     if (legacyAdmin) {
       await UserModel.updateOne(
         { _id: legacyAdmin._id },
@@ -481,6 +513,9 @@ export async function seedDefaultAdminIfNeeded() {
         age: 32,
         avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=SikchaKhubAdmin',
         isVerified: true,
+        verificationStatus: 'FULLY_VERIFIED',
+        emailVerified: true,
+        phoneVerified: true,
       };
       await UserModel.create(adminDoc);
       console.log('✅ Default Super Admin seeded in MongoDB: sikchakhub@gmail.com / admin@12345');

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { 
@@ -69,6 +70,17 @@ const MiniBarGraphic = ({ color = 'sky' }: { color?: 'sky' | 'emerald' | 'purple
 
 export const EmployerDashboard: React.FC = () => {
   const { user, institution, token, isLoading, updateAccount, changePassword } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect unverified users to verify-otp
+  useEffect(() => {
+    if (!isLoading && user && user.role !== 'ADMIN' && user.role !== 'HR') {
+      const isUnverified = user.isVerified === false || (user.verificationStatus && user.verificationStatus !== 'FULLY_VERIFIED');
+      if (isUnverified) {
+        navigate('/verify-otp');
+      }
+    }
+  }, [user, isLoading, navigate]);
 
   const [activeSidebarNav, setActiveSidebarNav] = useState('Overview');
   const [selectedJobId, setSelectedJobId] = useState<string>('ALL');

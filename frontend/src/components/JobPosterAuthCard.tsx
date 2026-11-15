@@ -65,7 +65,10 @@ export const JobPosterAuthCard: React.FC = () => {
 
     setLoading(false);
     if (res.success) {
-      setSuccessMsg('Institution registered successfully! Loading Recruiter Dashboard...');
+      setSuccessMsg('Institution registered successfully! Redirecting to email and mobile verification...');
+      setTimeout(() => {
+        navigate('/verify-otp');
+      }, 600);
     } else {
       setError(res.message || 'Registration failed. Please verify your details.');
     }
@@ -79,7 +82,23 @@ export const JobPosterAuthCard: React.FC = () => {
     const res = await login(email, password, 'EMPLOYER');
     setLoading(false);
     if (res.success) {
-      setSuccessMsg('Welcome back! Logging into Job Poster Dashboard...');
+      const loggedUser = res.user;
+      const isUnverified = loggedUser && 
+        loggedUser.role !== 'ADMIN' && 
+        loggedUser.role !== 'HR' && 
+        (loggedUser.isVerified === false || (loggedUser.verificationStatus && loggedUser.verificationStatus !== 'FULLY_VERIFIED'));
+
+      if (isUnverified) {
+        setSuccessMsg('Welcome back! Redirecting to email and mobile verification...');
+        setTimeout(() => {
+          navigate('/verify-otp');
+        }, 600);
+      } else {
+        setSuccessMsg('Welcome back! Logging into Job Poster Dashboard...');
+        setTimeout(() => {
+          navigate('/employer-dashboard');
+        }, 600);
+      }
     } else {
       setError(res.message || 'Invalid credentials. Please verify your email and password.');
     }

@@ -13,7 +13,7 @@ import {
   getOrInitEmployerSubscription,
   getGlobalFreeApplicantLimit
 } from '../db/mongodb';
-import { authenticateJWT, requireRole } from '../middleware/authMiddleware';
+import { authenticateJWT, requireRole, requireVerifiedAccount } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
 import { calculateCandidateScreening, analyzeApplicationATS } from '../services/screeningEngine';
 import { SubmitApplicationSchema } from '@sikchakhub/shared-validation';
@@ -21,7 +21,7 @@ import { SubmitApplicationSchema } from '@sikchakhub/shared-validation';
 const router = Router();
 
 // GET /api/v1/applications/stats/employer - Real database KPI metrics for logged-in employer
-router.get('/stats/employer', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
+router.get('/stats/employer', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
     let institution: any = null;
@@ -142,7 +142,7 @@ router.get('/stats/employer', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']
 });
 
 // POST /api/v1/applications - Submit Job Application directly to MongoDB Atlas
-router.post('/', authenticateJWT, async (req: Request, res: Response) => {
+router.post('/', authenticateJWT, requireVerifiedAccount, async (req: Request, res: Response) => {
   const parseResult = SubmitApplicationSchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({ success: false, errors: parseResult.error.format() });
@@ -293,7 +293,7 @@ router.post('/', authenticateJWT, async (req: Request, res: Response) => {
 });
 
 // GET /api/v1/applications/my-applications - For logged in teacher
-router.get('/my-applications', authenticateJWT, async (req: Request, res: Response) => {
+router.get('/my-applications', authenticateJWT, requireVerifiedAccount, async (req: Request, res: Response) => {
   const teacherId = req.user!.id;
 
   try {
@@ -377,7 +377,7 @@ router.get('/my-applications', authenticateJWT, async (req: Request, res: Respon
 });
 
 // GET /api/v1/applications/job/:jobId - Recruiter pipeline candidate list with authorization & auto ATS ranking
-router.get('/job/:jobId', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
+router.get('/job/:jobId', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
   const { jobId } = req.params;
   const { stage, minScore, status, q, limit } = req.query;
 
@@ -1056,7 +1056,7 @@ router.get('/:id/resume', authenticateJWT, async (req: Request, res: Response) =
 });
 
 // PATCH /api/v1/applications/:id/stage - Update recruitment stage in database with verification
-router.patch('/:id/stage', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN', 'HR']), async (req: Request, res: Response) => {
+router.patch('/:id/stage', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN', 'HR']), async (req: Request, res: Response) => {
   const { stage } = req.body;
   if (!stage) {
     return res.status(400).json({ success: false, message: 'Stage value is required.' });
@@ -1176,7 +1176,7 @@ router.patch('/:id/stage', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN', 'H
 });
 
 // PATCH /api/v1/applications/:id/notes - Add internal recruiter notes in database
-router.patch('/:id/notes', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
+router.patch('/:id/notes', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
   const { notes } = req.body;
 
   try {

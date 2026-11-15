@@ -9,14 +9,14 @@ import {
   getOrInitEmployerSubscription,
   getGlobalFreeApplicantLimit
 } from '../db/mongodb';
-import { authenticateJWT, requireRole } from '../middleware/authMiddleware';
+import { authenticateJWT, requireRole, requireVerifiedAccount } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
 import { ScheduleInterviewSchema } from '@sikchakhub/shared-validation';
 
 const router = Router();
 
 // POST /api/v1/interviews - Schedule an interview directly in MongoDB Atlas
-router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN', 'HR']), async (req: Request, res: Response) => {
+router.post('/', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN', 'HR']), async (req: Request, res: Response) => {
   const parseResult = ScheduleInterviewSchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({ success: false, errors: parseResult.error.format() });
@@ -143,7 +143,7 @@ router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN', 'HR']), asyn
 });
 
 // GET /api/v1/interviews/my-interviews - For teacher or employer from MongoDB Atlas
-router.get('/my-interviews', authenticateJWT, async (req: Request, res: Response) => {
+router.get('/my-interviews', authenticateJWT, requireVerifiedAccount, async (req: Request, res: Response) => {
   const userId = req.user!.id;
   const role = req.user!.role;
 

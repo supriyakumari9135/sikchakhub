@@ -13,6 +13,7 @@ class DataStore {
     savedJobs = [];
     subscriptions = [];
     payments = [];
+    otpRecords = [];
     // Helper getters
     getUserById(id) {
         return this.users.find(u => u.id === id);

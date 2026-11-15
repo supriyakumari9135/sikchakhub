@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { dbStore } from '../db/store';
 import { InstitutionModel, JobVacancyModel } from '../db/mongodb';
-import { authenticateJWT, optionalJWT, requireRole } from '../middleware/authMiddleware';
+import { authenticateJWT, optionalJWT, requireRole, requireVerifiedAccount } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
 import { InstitutionSchema } from '@sikchakhub/shared-validation';
 
@@ -95,8 +95,8 @@ router.get('/:id', optionalJWT, async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/v1/institutions - Register institution (requires verification)
-router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
+// POST /api/v1/institutions - Register institution (requires full account verification)
+router.post('/', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
   const parseResult = InstitutionSchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({ success: false, errors: parseResult.error.format() });

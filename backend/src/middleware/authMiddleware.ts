@@ -12,6 +12,8 @@ export interface AuthenticatedUser {
   adminRole?: string;
   institutionId?: string;
   status?: string;
+  isVerified?: boolean;
+  verificationStatus?: string;
 }
 
 declare global {
@@ -34,14 +36,21 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as AuthenticatedUser;
 
-    // Verify account active status to prevent revoked/suspended users from unauthorized access
+    // Verify account active status and hydrate live verification status
     try {
-      const liveUser = await UserModel.findOne({ id: decoded.id }).select('status').lean() as any;
+      const liveUser = await UserModel.findOne({ id: decoded.id })
+        .select('status isVerified verificationStatus emailVerified phoneVerified')
+        .lean() as any;
       if (liveUser && (liveUser.status === 'SUSPENDED' || liveUser.status === 'DEACTIVATED')) {
         return res.status(403).json({
           success: false,
           message: `Access denied. Your account is currently ${liveUser.status.toLowerCase()}. Please contact support@sikchakhub.ai.`,
         });
+      }
+      if (liveUser) {
+        const isDualVerified = (liveUser.emailVerified === true && liveUser.phoneVerified === true) || decoded.role === 'ADMIN' || decoded.role === 'HR';
+        decoded.isVerified = isDualVerified;
+        decoded.verificationStatus = isDualVerified ? 'FULLY_VERIFIED' : (liveUser.verificationStatus || 'PENDING_VERIFICATION');
       }
     } catch (e) {
       const fallbackUser: any = dbStore.getUserById(decoded.id);
@@ -50,6 +59,11 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
           success: false,
           message: `Access denied. Your account is currently ${fallbackUser.status.toLowerCase()}. Please contact support@sikchakhub.ai.`,
         });
+      }
+      if (fallbackUser) {
+        const isDualVerified = (fallbackUser.emailVerified === true && fallbackUser.phoneVerified === true) || decoded.role === 'ADMIN' || decoded.role === 'HR';
+        decoded.isVerified = isDualVerified;
+        decoded.verificationStatus = isDualVerified ? 'FULLY_VERIFIED' : (fallbackUser.verificationStatus || 'PENDING_VERIFICATION');
       }
     }
 
@@ -87,4 +101,27 @@ export function requireRole(allowedRoles: UserRole[]) {
     }
     next();
   };
+}
+
+export function requireVerifiedAccount(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Authentication required.' });
+  }
+
+  // Admins and HR bypass end-user email/phone OTP verification
+  if (req.user.role === 'ADMIN' || req.user.role === 'HR') {
+    return next();
+  }
+
+  const isFullyVerified = req.user.isVerified === true && req.user.verificationStatus === 'FULLY_VERIFIED';
+  if (!isFullyVerified) {
+    return res.status(403).json({
+      success: false,
+      code: 'VERIFICATION_REQUIRED',
+      message: 'Full account verification is required. Both your Gmail address and mobile number must be verified with OTP before you can access this service.',
+      verificationStatus: req.user.verificationStatus || 'PENDING_VERIFICATION',
+    });
+  }
+
+  next();
 }

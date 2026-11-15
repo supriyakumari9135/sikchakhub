@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { dbStore } from '../db/store';
 import { JobVacancyModel, InstitutionModel, JobApplicationModel } from '../db/mongodb';
-import { authenticateJWT, optionalJWT, requireRole } from '../middleware/authMiddleware';
+import { authenticateJWT, optionalJWT, requireRole, requireVerifiedAccount } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
 import { JobVacancySchema } from '@sikchakhub/shared-validation';
 
@@ -136,7 +136,7 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
           j.subject.toLowerCase().includes(query) ||
           (j.description && j.description.toLowerCase().includes(query)) ||
           'sikchakhub'.includes(query) ||
-          'sikshahub'.includes(query) ||
+          'SikchakHub'.includes(query) ||
           (isPrivileged && j.institution?.name && j.institution.name.toLowerCase().includes(query)) ||
           j.city.toLowerCase().includes(query)
       );
@@ -267,7 +267,7 @@ router.get('/:id', optionalJWT, async (req: Request, res: Response) => {
 });
 
 // POST /api/v1/jobs - Create Job Opening (Recruiter / Admin)
-router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
+router.post('/', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
   const parseResult = JobVacancySchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({ success: false, errors: parseResult.error.format() });
@@ -385,7 +385,7 @@ router.post('/', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req
 });
 
 // PUT /api/v1/jobs/:id - Update vacancy
-router.put('/:id', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
+router.put('/:id', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
   try {
     let updatedJob: any = null;
     try {
@@ -423,7 +423,7 @@ router.put('/:id', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (r
 });
 
 // PATCH /api/v1/jobs/:id/status - Change status (ACTIVE, PAUSED, CLOSED)
-router.patch('/:id/status', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
+router.patch('/:id/status', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
   const { status } = req.body;
 
   try {

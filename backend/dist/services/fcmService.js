@@ -79,6 +79,15 @@ class FCMService {
                     return;
                 }
             }
+            // 4. Default Project ID initialization
+            if (process.env.FIREBASE_PROJECT_ID && !this.isInitialized) {
+                this.app = (0, app_1.initializeApp)({
+                    projectId: process.env.FIREBASE_PROJECT_ID,
+                });
+                this.isInitialized = true;
+                console.log(`✅ Firebase Admin SDK initialized with project ID: ${process.env.FIREBASE_PROJECT_ID}`);
+                return;
+            }
             console.info('ℹ️ Firebase Admin SDK: No credentials found in environment. Operating in Smart Push simulation & In-App delivery mode.');
         }
         catch (err) {

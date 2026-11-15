@@ -114,7 +114,7 @@ router.get('/', authMiddleware_1.optionalJWT, async (req, res) => {
                 j.subject.toLowerCase().includes(query) ||
                 (j.description && j.description.toLowerCase().includes(query)) ||
                 'sikchakhub'.includes(query) ||
-                'sikshahub'.includes(query) ||
+                'SikchakHub'.includes(query) ||
                 (isPrivileged && j.institution?.name && j.institution.name.toLowerCase().includes(query)) ||
                 j.city.toLowerCase().includes(query));
         }
@@ -237,7 +237,7 @@ router.get('/:id', authMiddleware_1.optionalJWT, async (req, res) => {
     }
 });
 // POST /api/v1/jobs - Create Job Opening (Recruiter / Admin)
-router.post('/', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
+router.post('/', authMiddleware_1.authenticateJWT, authMiddleware_1.requireVerifiedAccount, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
     const parseResult = shared_validation_1.JobVacancySchema.safeParse(req.body);
     if (!parseResult.success) {
         return res.status(400).json({ success: false, errors: parseResult.error.format() });
@@ -346,7 +346,7 @@ router.post('/', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireR
     }
 });
 // PUT /api/v1/jobs/:id - Update vacancy
-router.put('/:id', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
+router.put('/:id', authMiddleware_1.authenticateJWT, authMiddleware_1.requireVerifiedAccount, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
     try {
         let updatedJob = null;
         try {
@@ -378,7 +378,7 @@ router.put('/:id', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requir
     }
 });
 // PATCH /api/v1/jobs/:id/status - Change status (ACTIVE, PAUSED, CLOSED)
-router.patch('/:id/status', authMiddleware_1.authenticateJWT, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
+router.patch('/:id/status', authMiddleware_1.authenticateJWT, authMiddleware_1.requireVerifiedAccount, (0, authMiddleware_1.requireRole)(['EMPLOYER', 'ADMIN']), async (req, res) => {
     const { status } = req.body;
     try {
         if (status === 'ACTIVE' && req.user.role !== 'ADMIN') {

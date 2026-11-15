@@ -3,10 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+require("dotenv/config");
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const morgan_1 = __importDefault(require("morgan"));
-const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const mongoose_1 = __importDefault(require("mongoose"));
@@ -20,7 +20,6 @@ const masterData_routes_1 = __importDefault(require("./routes/masterData.routes"
 const notifications_routes_1 = __importDefault(require("./routes/notifications.routes"));
 const subscriptions_routes_1 = __importDefault(require("./routes/subscriptions.routes"));
 const mongodb_1 = require("./db/mongodb");
-dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
 // Connect MongoDB Atlas
@@ -41,7 +40,9 @@ const allowedOrigins = [
     'https://www.sikchakhub.in',
     'https://api.sikchakhub.in',
     'http://localhost:5173',
+    'http://127.0.0.1:5173',
     'http://localhost:5001',
+    'http://127.0.0.1:5001',
     'http://localhost:3000',
 ];
 app.use((0, cors_1.default)({

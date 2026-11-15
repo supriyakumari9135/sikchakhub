@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authenticateJWT, requireRole } from '../middleware/authMiddleware';
+import { authenticateJWT, requireRole, requireVerifiedAccount } from '../middleware/authMiddleware';
 import { 
   SubscriptionModel, 
   PaymentRecordModel, 
@@ -159,7 +159,7 @@ router.get('/my-subscription', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN'
 });
 
 // POST /api/v1/subscriptions/subscribe - Purchase / Upgrade to Premium subscription
-router.post('/subscribe', authenticateJWT, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
+router.post('/subscribe', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
   const { plan: targetPlan, paymentMethod } = req.body;
 
   if (!targetPlan || !['PRO_MONTHLY', 'ANNUAL_ENTERPRISE'].includes(targetPlan)) {
