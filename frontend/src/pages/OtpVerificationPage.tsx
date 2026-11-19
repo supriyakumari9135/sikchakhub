@@ -75,17 +75,16 @@ export const OtpVerificationPage: React.FC = () => {
   const verifiedCount = (isEmailDone ? 1 : 0) + (isPhoneDone ? 1 : 0);
   const progressPercent = verifiedCount === 2 ? 100 : verifiedCount === 1 ? 50 : 0;
 
-  // Redirect if not logged in
-  useEffect(() => {
-    if (!token && !localStorage.getItem("sikchakhub_token")) {
-      navigate("/login");
-    }
-  }, [token, navigate]);
+  // Session check - don't crash or blindly redirect away; let user view gateway
+  const hasSession = Boolean(token || localStorage.getItem("sikchakhub_token"));
 
   // Load verification status from backend on mount
   const fetchStatus = async () => {
     const currentToken = token || localStorage.getItem("sikchakhub_token");
-    if (!currentToken) return;
+    if (!currentToken) {
+      setInitialLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch(apiUrl("/api/v1/auth/otp/status"), {
@@ -238,6 +237,11 @@ export const OtpVerificationPage: React.FC = () => {
     setEmailSuccess(null);
 
     const currentToken = token || localStorage.getItem("sikchakhub_token");
+    if (!currentToken) {
+      setEmailError("Active session required. Please sign in first.");
+      setEmailLoading(false);
+      return;
+    }
     try {
       const res = await fetch(apiUrl("/api/v1/auth/otp/resend-email"), {
         method: "POST",
@@ -272,6 +276,11 @@ export const OtpVerificationPage: React.FC = () => {
     setEmailSuccess(null);
 
     const currentToken = token || localStorage.getItem("sikchakhub_token");
+    if (!currentToken) {
+      setEmailError("Active session required. Please sign in first.");
+      setEmailLoading(false);
+      return;
+    }
     try {
       const res = await fetch(apiUrl("/api/v1/auth/otp/verify-email"), {
         method: "POST",
@@ -449,6 +458,11 @@ export const OtpVerificationPage: React.FC = () => {
     setPhoneSuccess(null);
 
     const currentToken = token || localStorage.getItem("sikchakhub_token");
+    if (!currentToken) {
+      setPhoneError("Active session required. Please sign in first.");
+      setSendingSms(false);
+      return;
+    }
     try {
       // 1. Authorize ticket with backend rate limiter first
       const ticketRes = await fetch(apiUrl("/api/v1/auth/otp/send-phone"), {
@@ -591,6 +605,11 @@ export const OtpVerificationPage: React.FC = () => {
     setPhoneSuccess(null);
 
     const currentToken = token || localStorage.getItem("sikchakhub_token");
+    if (!currentToken) {
+      setPhoneError("Active session required. Please sign in first.");
+      setPhoneLoading(false);
+      return;
+    }
 
     try {
       // 1. Ensure SMS was triggered and confirmationResult exists
@@ -789,6 +808,24 @@ export const OtpVerificationPage: React.FC = () => {
             />
           </div>
         </div>
+
+        {/* Unauthenticated Session Guidance Banner */}
+        {!hasSession && (
+          <div className="max-w-4xl mx-auto mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-amber-900 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+              <span>
+                <strong>Session Not Found:</strong> You are currently viewing the verification gateway in preview mode. Please sign in or register to verify your account.
+              </span>
+            </div>
+            <button
+              onClick={() => navigate('/login')}
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl text-xs shadow-xs transition-all cursor-pointer shrink-0"
+            >
+              Sign In to Verify
+            </button>
+          </div>
+        )}
 
         {/* Sequential Guidance Banner */}
         {!isEmailDone && (
