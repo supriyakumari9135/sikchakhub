@@ -291,6 +291,10 @@ export interface JobPosterSubscription {
   lastPaymentId?: string;
   grantedByAdmin?: boolean;
   adminNotes?: string;
+  requestStatus?: 'NONE' | 'PENDING' | 'CONTACTED' | 'APPROVED' | 'REJECTED';
+  requestedPlan?: string;
+  requestedAt?: string;
+  requestNotes?: string;
   createdAt: string;
   updatedAt: string;
 }

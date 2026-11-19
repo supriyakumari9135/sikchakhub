@@ -21,6 +21,7 @@ class DataStore {
   public auditLogs: AuditLog[] = inMemoryAuditLogs;
   public savedJobs: { userId: string; jobId: string; createdAt: string }[] = [];
   public subscriptions: JobPosterSubscription[] = [];
+  public subscriptionRequests: any[] = [];
   public payments: PaymentRecord[] = [];
   public otpRecords: any[] = [];
 

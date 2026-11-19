@@ -16,7 +16,9 @@ import {
   PlatformSettingModel,
   CandidateGroupModel,
   SubscriptionModel,
+  SubscriptionRequestModel,
   PaymentRecordModel,
+  UserInboxNotificationModel,
   getOrInitEmployerSubscription,
   getGlobalFreeApplicantLimit
 } from '../db/mongodb';
@@ -2212,6 +2214,13 @@ router.get('/subscriptions/summary', authenticateJWT, requireRole(['ADMIN', 'HR'
         .reduce((acc, curr) => acc + (curr.amount || 0), 0);
     }
 
+    let pendingRequestsCount = 0;
+    try {
+      pendingRequestsCount = await SubscriptionRequestModel.countDocuments({ status: { $in: ['PENDING', 'CONTACTED'] } });
+    } catch (e) {
+      pendingRequestsCount = dbStore.subscriptionRequests.filter(r => ['PENDING', 'CONTACTED'].includes(r.status)).length;
+    }
+
     return res.json({
       success: true,
       summary: {
@@ -2220,6 +2229,7 @@ router.get('/subscriptions/summary', authenticateJWT, requireRole(['ADMIN', 'HR'
         freeTierCount,
         totalRevenue,
         globalFreeLimit,
+        pendingRequestsCount,
       }
     });
   } catch (err: any) {
@@ -2309,6 +2319,9 @@ router.get('/subscriptions/posters', authenticateJWT, requireRole(['ADMIN', 'HR'
           lastPaymentId: sub.lastPaymentId,
           grantedByAdmin: sub.grantedByAdmin,
           adminNotes: sub.adminNotes,
+          requestStatus: sub.requestStatus || 'NONE',
+          requestedPlan: sub.requestedPlan,
+          requestedAt: sub.requestedAt,
           accessibleApplicants,
         }
       };
@@ -2640,6 +2653,266 @@ router.get('/subscriptions/payments', authenticateJWT, requireRole(['ADMIN', 'HR
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, message: 'Failed to retrieve payment records.' });
+  }
+});
+
+// GET /api/v1/admin/subscriptions/requests - List all job poster premium upgrade requests
+router.get('/subscriptions/requests', authenticateJWT, requireRole(['ADMIN', 'HR']), async (req: Request, res: Response) => {
+  try {
+    const { status, q } = req.query;
+    let filter: any = {};
+    if (status && status !== 'ALL') {
+      filter.status = status;
+    }
+
+    let requests: any[] = [];
+    try {
+      requests = await SubscriptionRequestModel.find(filter).sort({ createdAt: -1 }).lean();
+    } catch (e) {
+      requests = dbStore.subscriptionRequests;
+      if (status && status !== 'ALL') {
+        requests = requests.filter(r => r.status === status);
+      }
+    }
+
+    if (q && typeof q === 'string') {
+      const query = q.toLowerCase();
+      requests = requests.filter(r => 
+        r.institutionName?.toLowerCase().includes(query) ||
+        r.contactPerson?.toLowerCase().includes(query) ||
+        r.contactPhone?.toLowerCase().includes(query) ||
+        r.contactEmail?.toLowerCase().includes(query)
+      );
+    }
+
+    const pendingCount = requests.filter(r => r.status === 'PENDING').length;
+
+    return res.json({
+      success: true,
+      total: requests.length,
+      pendingCount,
+      requests,
+    });
+  } catch (err: any) {
+    console.error('Fetch subscription requests error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to retrieve subscription requests.' });
+  }
+});
+
+// PATCH /api/v1/admin/subscriptions/requests/:requestId/status - Update request status (e.g. CONTACTED or REJECTED)
+router.patch('/subscriptions/requests/:requestId/status', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const { requestId } = req.params;
+    const { status, adminNotes } = req.body;
+
+    if (!['PENDING', 'CONTACTED', 'REJECTED'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status specified.' });
+    }
+
+    let updatedReq: any = null;
+    try {
+      updatedReq = await SubscriptionRequestModel.findOneAndUpdate(
+        { id: requestId },
+        { 
+          $set: { 
+            status, 
+            adminNotes, 
+            processedBy: req.user!.id,
+            processedAt: new Date()
+          } 
+        },
+        { new: true }
+      ).lean();
+    } catch (e) {
+      const idx = dbStore.subscriptionRequests.findIndex(r => r.id === requestId);
+      if (idx >= 0) {
+        dbStore.subscriptionRequests[idx].status = status;
+        dbStore.subscriptionRequests[idx].adminNotes = adminNotes;
+        dbStore.subscriptionRequests[idx].processedBy = req.user!.id;
+        dbStore.subscriptionRequests[idx].processedAt = new Date();
+        updatedReq = dbStore.subscriptionRequests[idx];
+      }
+    }
+
+    if (!updatedReq) {
+      return res.status(404).json({ success: false, message: 'Subscription request not found.' });
+    }
+
+    // Also sync status to SubscriptionModel
+    try {
+      await SubscriptionModel.updateOne(
+        { userId: updatedReq.userId },
+        { $set: { requestStatus: status } }
+      );
+    } catch (e) {
+      const subIdx = dbStore.subscriptions.findIndex(s => s.userId === updatedReq.userId);
+      if (subIdx >= 0) {
+        dbStore.subscriptions[subIdx].requestStatus = status as any;
+      }
+    }
+
+    logAuditEvent(
+      req,
+      'SUBSCRIPTION_REQUEST_UPDATED',
+      'SubscriptionRequest',
+      requestId,
+      { newStatus: status, adminNotes }
+    );
+
+    return res.json({
+      success: true,
+      message: `Request marked as ${status}.`,
+      request: updatedReq,
+    });
+  } catch (err: any) {
+    console.error('Update request status error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to update request status.' });
+  }
+});
+
+// POST /api/v1/admin/subscriptions/requests/:requestId/approve - Admin approves request after taking payment
+router.post('/subscriptions/requests/:requestId/approve', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const { requestId } = req.params;
+    const { plan: overridePlan, durationDays: overrideDuration, paymentReference, adminNotes, amountPaid } = req.body;
+
+    let subReq: any = null;
+    try {
+      subReq = await SubscriptionRequestModel.findOne({ id: requestId }).lean();
+    } catch (e) {
+      subReq = dbStore.subscriptionRequests.find(r => r.id === requestId);
+    }
+
+    if (!subReq) {
+      return res.status(404).json({ success: false, message: 'Subscription request not found.' });
+    }
+
+    const finalPlan = overridePlan || subReq.requestedPlan || 'PRO_MONTHLY';
+    const finalDurationDays = overrideDuration || (finalPlan === 'ANNUAL_ENTERPRISE' ? 365 : 30);
+    const finalAmount = typeof amountPaid === 'number' ? amountPaid : subReq.amount;
+    const paymentId = paymentReference || `PAY_ADMIN_${Date.now()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    const startDate = new Date();
+    const endDate = new Date(startDate.getTime() + finalDurationDays * 24 * 60 * 60 * 1000);
+
+    // 1. Update Subscription in MongoDB
+    const subUpdate = {
+      plan: finalPlan,
+      status: 'ACTIVE',
+      hasUnlimitedAccess: true,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      amountPaid: finalAmount,
+      paymentStatus: 'PAID',
+      lastPaymentId: paymentId,
+      grantedByAdmin: true,
+      requestStatus: 'APPROVED',
+      adminNotes: adminNotes || `Approved and activated by Admin (${req.user!.email}) after payment confirmation.`,
+    };
+
+    let updatedSub: any = null;
+    try {
+      updatedSub = await SubscriptionModel.findOneAndUpdate(
+        { userId: subReq.userId },
+        { $set: subUpdate },
+        { new: true, upsert: true }
+      ).lean();
+    } catch (e) {
+      const idx = dbStore.subscriptions.findIndex(s => s.userId === subReq.userId);
+      const subItem = {
+        id: `sub_${Date.now()}`,
+        userId: subReq.userId,
+        institutionId: subReq.institutionId,
+        freeLimitPerJob: 5,
+        ...subUpdate,
+      };
+      if (idx >= 0) {
+        dbStore.subscriptions[idx] = subItem as any;
+      } else {
+        dbStore.subscriptions.push(subItem as any);
+      }
+      updatedSub = subItem;
+    }
+
+    // 2. Mark request as APPROVED
+    try {
+      await SubscriptionRequestModel.updateOne(
+        { id: requestId },
+        { 
+          $set: { 
+            status: 'APPROVED', 
+            processedBy: req.user!.id, 
+            processedAt: new Date(),
+            adminNotes: adminNotes || `Payment verified: ${paymentId}`
+          } 
+        }
+      );
+    } catch (e) {
+      const rIdx = dbStore.subscriptionRequests.findIndex(r => r.id === requestId);
+      if (rIdx >= 0) {
+        dbStore.subscriptionRequests[rIdx].status = 'APPROVED';
+        dbStore.subscriptionRequests[rIdx].processedBy = req.user!.id;
+        dbStore.subscriptionRequests[rIdx].processedAt = new Date();
+      }
+    }
+
+    // 3. Create verified PaymentRecord
+    const paymentRecordDoc = {
+      id: `pay_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      subscriptionId: updatedSub?.id || '',
+      userId: subReq.userId,
+      institutionId: subReq.institutionId,
+      plan: finalPlan,
+      amount: finalAmount,
+      currency: 'INR',
+      paymentGateway: 'MANUAL_ADMIN',
+      paymentId,
+      status: 'SUCCESS',
+      createdAt: new Date(),
+    };
+
+    try {
+      await PaymentRecordModel.create(paymentRecordDoc);
+    } catch (e) {
+      dbStore.payments.push(paymentRecordDoc as any);
+    }
+
+    // 4. Send in-app notification to the Job Poster
+    try {
+      await UserInboxNotificationModel.create({
+        id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        userId: subReq.userId,
+        title: '👑 Premium Access Activated!',
+        message: `Congratulations! Your payment for ${finalPlan === 'ANNUAL_ENTERPRISE' ? 'Annual Enterprise' : 'Pro Recruiter'} has been verified by the Administrator. 100% unlocked access is now active for ${finalDurationDays} days across all your vacancies!`,
+        type: 'SUBSCRIPTION_ACTIVATED',
+        isRead: false,
+        createdAt: new Date(),
+      });
+    } catch (e) {}
+
+    // 5. Audit log
+    logAuditEvent(
+      req,
+      'SUBSCRIPTION_ADMIN_ACTIVATED',
+      'Subscription',
+      updatedSub?.id || subReq.userId,
+      {
+        plan: finalPlan,
+        institution: subReq.institutionName,
+        paymentReference: paymentId,
+        amount: finalAmount,
+        durationDays: finalDurationDays,
+      }
+    );
+
+    return res.json({
+      success: true,
+      message: `🎉 Premium Unlimited Access successfully activated for ${subReq.institutionName}!`,
+      subscription: updatedSub,
+    });
+  } catch (err: any) {
+    console.error('Approve subscription request error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to approve subscription request.' });
   }
 });
 

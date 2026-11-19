@@ -24,7 +24,12 @@ import {
   ExternalLink,
   ChevronRight,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Phone,
+  Mail,
+  MessageSquare,
+  CheckCircle2,
+  Inbox
 } from 'lucide-react';
 import { apiUrl } from '../../config/api';
 
@@ -39,8 +44,20 @@ export const AdminSubscriptionManager: React.FC<AdminSubscriptionManagerProps> =
 }) => {
   const queryClient = useQueryClient();
 
-  // Sub-tabs: 'POSTERS' vs 'PAYMENTS'
-  const [activeSubTab, setActiveSubTab] = useState<'POSTERS' | 'PAYMENTS'>('POSTERS');
+  // Sub-tabs: 'REQUESTS' vs 'POSTERS' vs 'PAYMENTS'
+  const [activeSubTab, setActiveSubTab] = useState<'REQUESTS' | 'POSTERS' | 'PAYMENTS'>('REQUESTS');
+
+  // Requests filters & state
+  const [requestSearch, setRequestSearch] = useState('');
+  const [requestStatusFilter, setRequestStatusFilter] = useState('ALL');
+
+  // Request approval modal
+  const [selectedRequestForApproval, setSelectedRequestForApproval] = useState<any | null>(null);
+  const [approvalPlan, setApprovalPlan] = useState<'PRO_MONTHLY' | 'ANNUAL_ENTERPRISE'>('PRO_MONTHLY');
+  const [approvalDurationDays, setApprovalDurationDays] = useState<number>(30);
+  const [approvalAmount, setApprovalAmount] = useState<number>(1999);
+  const [approvalPaymentRef, setApprovalPaymentRef] = useState<string>('');
+  const [approvalAdminNotes, setApprovalAdminNotes] = useState<string>('');
 
   // Posters filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,7 +96,81 @@ export const AdminSubscriptionManager: React.FC<AdminSubscriptionManagerProps> =
     freeTierCount: 0,
     totalRevenue: 0,
     globalFreeLimit: 5,
+    pendingRequestsCount: 0,
   };
+
+  // 4. Fetch Premium Upgrade Requests
+  const { data: requestsData, isLoading: isLoadingRequests, refetch: refetchRequests } = useQuery({
+    queryKey: ['admin-subscription-requests', token, requestSearch, requestStatusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (requestSearch) params.append('q', requestSearch);
+      if (requestStatusFilter !== 'ALL') params.append('status', requestStatusFilter);
+
+      const res = await fetch(apiUrl(`/api/v1/admin/subscriptions/requests?${params.toString()}`), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.json();
+    },
+    enabled: !!token,
+  });
+
+  const upgradeRequests: any[] = requestsData?.requests || [];
+  const pendingRequestsCount: number = summary?.pendingRequestsCount ?? requestsData?.pendingCount ?? 0;
+
+  // Mutation: Update Request Status (Mark Contacted or Rejected)
+  const updateRequestStatusMutation = useMutation({
+    mutationFn: async ({ requestId, status, adminNotes }: { requestId: string; status: 'CONTACTED' | 'REJECTED'; adminNotes?: string }) => {
+      const res = await fetch(apiUrl(`/api/v1/admin/subscriptions/requests/${requestId}/status`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status, adminNotes }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to update request');
+      return data;
+    },
+    onSuccess: (data) => {
+      showToast(data.message || 'Request status updated.');
+      queryClient.invalidateQueries({ queryKey: ['admin-subscription-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-subscription-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-subscription-posters'] });
+    },
+    onError: (err: any) => {
+      showToast(err.message, 'error');
+    },
+  });
+
+  // Mutation: Approve Upgrade Request & Activate Premium Access
+  const approveRequestMutation = useMutation({
+    mutationFn: async (payload: { requestId: string; plan: string; durationDays: number; amountPaid: number; paymentReference: string; adminNotes: string }) => {
+      const res = await fetch(apiUrl(`/api/v1/admin/subscriptions/requests/${payload.requestId}/approve`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to approve request');
+      return data;
+    },
+    onSuccess: (data) => {
+      showToast(data.message || 'Premium Unlimited Access activated successfully!');
+      setSelectedRequestForApproval(null);
+      queryClient.invalidateQueries({ queryKey: ['admin-subscription-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-subscription-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-subscription-posters'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-subscription-payments'] });
+    },
+    onError: (err: any) => {
+      showToast(err.message, 'error');
+    },
+  });
 
   // Sync global limit input on load
   React.useEffect(() => {
@@ -269,10 +360,31 @@ export const AdminSubscriptionManager: React.FC<AdminSubscriptionManagerProps> =
     <div className="space-y-6">
       
       {/* 1. Header & KPI Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         
+        {/* Card 0: Pending Upgrade Requests */}
+        <div 
+          onClick={() => setActiveSubTab('REQUESTS')}
+          className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer shadow-2xs ${
+            pendingRequestsCount > 0 
+              ? 'bg-gradient-to-br from-amber-50 to-orange-50/60 border-amber-300 ring-2 ring-amber-400/20 hover:border-amber-400' 
+              : 'bg-white border-slate-200/90 hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">Upgrade Requests</span>
+            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+              <Clock className="w-4 h-4 animate-pulse" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-black text-amber-900">{pendingRequestsCount}</span>
+            <span className="text-xs text-amber-700 font-bold">Action Needed</span>
+          </div>
+        </div>
+
         {/* Card 1: Total Job Posters */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Job Posters</span>
             <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
@@ -286,7 +398,7 @@ export const AdminSubscriptionManager: React.FC<AdminSubscriptionManagerProps> =
         </div>
 
         {/* Card 2: Active Premium Subscribers */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Premium Active</span>
             <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -300,7 +412,7 @@ export const AdminSubscriptionManager: React.FC<AdminSubscriptionManagerProps> =
         </div>
 
         {/* Card 3: Free Tier Posters */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Free Tier</span>
             <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
@@ -314,7 +426,7 @@ export const AdminSubscriptionManager: React.FC<AdminSubscriptionManagerProps> =
         </div>
 
         {/* Card 4: Total Revenue */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Total Revenue</span>
             <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
@@ -375,18 +487,40 @@ export const AdminSubscriptionManager: React.FC<AdminSubscriptionManagerProps> =
 
       {/* 3. Main Navigation Sub-tabs */}
       <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('REQUESTS')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
+              activeSubTab === 'REQUESTS'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            <span>Premium Upgrade Requests</span>
+            {pendingRequestsCount > 0 ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-white text-amber-700 shadow-2xs animate-pulse">
+                {pendingRequestsCount} Pending
+              </span>
+            ) : (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-100 text-slate-600">
+                {upgradeRequests.length}
+              </span>
+            )}
+          </button>
+
           <button
             type="button"
             onClick={() => setActiveSubTab('POSTERS')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
               activeSubTab === 'POSTERS'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>Job Posters & Access Management</span>
+            <span>Job Posters & Access</span>
             <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
               activeSubTab === 'POSTERS' ? 'bg-slate-800 text-sky-400' : 'bg-slate-100 text-slate-600'
             }`}>
@@ -424,6 +558,284 @@ export const AdminSubscriptionManager: React.FC<AdminSubscriptionManagerProps> =
           </button>
         )}
       </div>
+
+      {/* 4. TAB CONTENT 0: Premium Upgrade Requests Table */}
+      {activeSubTab === 'REQUESTS' && (
+        <div className="space-y-4">
+          
+          {/* Top Notice / Guidance Banner */}
+          {pendingRequestsCount > 0 && (
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 flex items-start gap-3 shadow-2xs animate-in fade-in">
+              <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
+              <div className="text-xs space-y-1">
+                <p className="font-extrabold text-sm text-amber-900">
+                  {pendingRequestsCount} Institution{pendingRequestsCount > 1 ? 's' : ''} Applied for Premium Access
+                </p>
+                <p className="text-amber-800 leading-relaxed">
+                  Connect with the recruiter via phone or email to discuss and collect offline payment. Once payment is received, click <strong>"Approve & Activate Premium"</strong> to instantly unlock all applicants and CVs for their account.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Filters Bar */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search requests by institution, contact person, phone, email..."
+                value={requestSearch}
+                onChange={(e) => setRequestSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-medium"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={requestStatusFilter}
+                onChange={(e) => setRequestStatusFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 outline-none"
+              >
+                <option value="ALL">All Request Statuses</option>
+                <option value="PENDING">Pending Approval & Payment</option>
+                <option value="CONTACTED">Contacted Recruiter</option>
+                <option value="APPROVED">Approved & Activated</option>
+                <option value="REJECTED">Dismissed / Rejected</option>
+              </select>
+
+              {(requestSearch || requestStatusFilter !== 'ALL') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRequestSearch('');
+                    setRequestStatusFilter('ALL');
+                  }}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  title="Reset filters"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-black uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="py-3.5 px-4">INSTITUTION & CONTACT</th>
+                    <th className="py-3.5 px-4">REQUESTED PLAN</th>
+                    <th className="py-3.5 px-4">APPLICATION DATE</th>
+                    <th className="py-3.5 px-4">RECRUITER REMARKS</th>
+                    <th className="py-3.5 px-4">STATUS</th>
+                    <th className="py-3.5 px-4 text-right">ADMIN ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {isLoadingRequests ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400 font-medium">
+                        Loading premium upgrade applications...
+                      </td>
+                    </tr>
+                  ) : upgradeRequests.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400 font-medium">
+                        No upgrade requests found matching current filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    upgradeRequests.map((req) => {
+                      const isPending = req.status === 'PENDING';
+                      const isContacted = req.status === 'CONTACTED';
+                      const isApproved = req.status === 'APPROVED';
+
+                      return (
+                        <tr key={req.id} className="hover:bg-slate-50/70 transition">
+                          
+                          {/* Col 1: Institution & Recruiter Info */}
+                          <td className="py-3.5 px-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5 font-bold text-slate-900 text-sm">
+                                <Building2 className="w-4 h-4 text-sky-600 shrink-0" />
+                                <span>{req.institutionName}</span>
+                                {req.institutionCity && (
+                                  <span className="text-[11px] font-normal text-slate-500">({req.institutionCity})</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-700 font-semibold">
+                                {req.contactPerson}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                                <a 
+                                  href={`tel:${req.contactPhone}`}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 font-mono text-[11px] font-bold"
+                                  title="Click to call recruiter"
+                                >
+                                  <Phone className="w-3 h-3 text-sky-600" />
+                                  <span>{req.contactPhone}</span>
+                                </a>
+                                {req.contactEmail && (
+                                  <a 
+                                    href={`mailto:${req.contactEmail}`}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-[11px]"
+                                    title="Send email"
+                                  >
+                                    <Mail className="w-3 h-3 text-slate-500" />
+                                    <span>{req.contactEmail}</span>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Col 2: Requested Plan & Amount */}
+                          <td className="py-3.5 px-4">
+                            <div className="space-y-1">
+                              {req.requestedPlan === 'ANNUAL_ENTERPRISE' ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
+                                  <Crown className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Annual Enterprise</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-100 text-sky-800 border border-sky-300">
+                                  <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+                                  <span>Pro Monthly</span>
+                                </span>
+                              )}
+                              <p className="text-sm font-black text-slate-900">
+                                ₹{req.amount?.toLocaleString('en-IN') || (req.requestedPlan === 'ANNUAL_ENTERPRISE' ? '14,999' : '1,999')}
+                              </p>
+                            </div>
+                          </td>
+
+                          {/* Col 3: Date */}
+                          <td className="py-3.5 px-4 text-slate-600">
+                            <div className="text-[11px] font-medium">
+                              {req.createdAt ? new Date(req.createdAt).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }) : 'Recent'}
+                            </div>
+                          </td>
+
+                          {/* Col 4: Recruiter Notes */}
+                          <td className="py-3.5 px-4 max-w-xs">
+                            {req.requestNotes ? (
+                              <p className="text-xs text-slate-700 bg-slate-50 p-2 rounded-xl border border-slate-200 line-clamp-2">
+                                "{req.requestNotes}"
+                              </p>
+                            ) : (
+                              <span className="text-slate-400 italic text-[11px]">No remarks provided</span>
+                            )}
+                            {req.adminNotes && (
+                              <p className="text-[11px] text-amber-800 font-medium mt-1">
+                                Admin: {req.adminNotes}
+                              </p>
+                            )}
+                          </td>
+
+                          {/* Col 5: Status */}
+                          <td className="py-3.5 px-4">
+                            {isPending ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+                                <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
+                                <span>Pending Payment</span>
+                              </span>
+                            ) : isContacted ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-800 border border-blue-300">
+                                <Phone className="w-3 h-3 text-blue-600" />
+                                <span>Contacted</span>
+                              </span>
+                            ) : isApproved ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                <span>Premium Active</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-300">
+                                <X className="w-3 h-3 text-slate-500" />
+                                <span>Dismissed</span>
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Col 6: Admin Actions */}
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* If Pending: Can mark contacted */}
+                              {isPending && (
+                                <button
+                                  type="button"
+                                  onClick={() => updateRequestStatusMutation.mutate({ requestId: req.id, status: 'CONTACTED' })}
+                                  disabled={updateRequestStatusMutation.isPending}
+                                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 text-slate-700 bg-white font-bold text-xs shadow-2xs hover:bg-slate-50 transition active:scale-95 cursor-pointer"
+                                  title="Mark that admin has reached out to recruiter"
+                                >
+                                  Mark Contacted
+                                </button>
+                              )}
+
+                              {/* If Pending or Contacted: Primary Approve & Grant Premium Button */}
+                              {(isPending || isContacted) && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedRequestForApproval(req);
+                                      setApprovalPlan(req.requestedPlan || 'PRO_MONTHLY');
+                                      setApprovalDurationDays(req.requestedPlan === 'ANNUAL_ENTERPRISE' ? 365 : 30);
+                                      setApprovalAmount(req.amount || (req.requestedPlan === 'ANNUAL_ENTERPRISE' ? 14999 : 1999));
+                                      setApprovalPaymentRef('');
+                                      setApprovalAdminNotes('');
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                                  >
+                                    <Crown className="w-3.5 h-3.5 text-amber-300" />
+                                    <span>Approve & Grant Premium</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (confirm(`Dismiss/Reject upgrade request from ${req.institutionName}?`)) {
+                                        updateRequestStatusMutation.mutate({ requestId: req.id, status: 'REJECTED' });
+                                      }
+                                    }}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                                    title="Dismiss request"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+
+                              {isApproved && (
+                                <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
+                                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Activated</span>
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      )}
 
       {/* 4. TAB CONTENT 1: Job Posters & Access Management Table */}
       {activeSubTab === 'POSTERS' && (
@@ -906,6 +1318,145 @@ export const AdminSubscriptionManager: React.FC<AdminSubscriptionManagerProps> =
                 {updatePlanMutation.isPending ? 'Updating...' : 'Save Changes'}
               </button>
             </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 6. Approve Premium Upgrade Modal */}
+      {selectedRequestForApproval && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-8 space-y-5 animate-in fade-in zoom-in-95 duration-200">
+            
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
+                  <Crown className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Grant Premium Access</h3>
+                  <p className="text-xs text-slate-500">{selectedRequestForApproval.institutionName}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedRequestForApproval(null)}
+                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Recruiter Contact Snapshot */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/90 text-xs text-slate-700 space-y-1">
+              <div className="flex items-center justify-between font-bold text-slate-900">
+                <span>{selectedRequestForApproval.contactPerson}</span>
+                <span className="text-emerald-700 font-mono">+91 {selectedRequestForApproval.contactPhone}</span>
+              </div>
+              <p className="text-[11px] text-slate-500">{selectedRequestForApproval.contactEmail}</p>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                approveRequestMutation.mutate({
+                  requestId: selectedRequestForApproval.id,
+                  plan: approvalPlan,
+                  durationDays: approvalDurationDays,
+                  amountPaid: approvalAmount,
+                  paymentReference: approvalPaymentRef || `OFFLINE_PAY_${Date.now()}`,
+                  adminNotes: approvalAdminNotes,
+                });
+              }}
+              className="space-y-4 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">Select Plan Tier to Activate</label>
+                <select
+                  value={approvalPlan}
+                  onChange={(e) => {
+                    const val = e.target.value as 'PRO_MONTHLY' | 'ANNUAL_ENTERPRISE';
+                    setApprovalPlan(val);
+                    setApprovalDurationDays(val === 'ANNUAL_ENTERPRISE' ? 365 : 30);
+                    setApprovalAmount(val === 'ANNUAL_ENTERPRISE' ? 14999 : 1999);
+                  }}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-800 outline-none focus:border-amber-500"
+                >
+                  <option value="PRO_MONTHLY">Pro Recruiter (Monthly - Unlimited Access)</option>
+                  <option value="ANNUAL_ENTERPRISE">Annual Enterprise (365 Days - Unlimited Access)</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1.5">Access Duration (Days)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={3650}
+                    required
+                    value={approvalDurationDays}
+                    onChange={(e) => setApprovalDurationDays(parseInt(e.target.value) || 30)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 font-bold text-slate-800 outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1.5">Verified Amount Paid (₹)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    required
+                    value={approvalAmount}
+                    onChange={(e) => setApprovalAmount(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 font-bold text-slate-800 outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">Offline Payment Mode / Reference Note *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Paid via UPI / Bank Transfer / Cash - Ref: 987654321"
+                  value={approvalPaymentRef}
+                  onChange={(e) => setApprovalPaymentRef(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 font-medium text-slate-800 outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">Admin Approval Remarks</label>
+                <textarea
+                  rows={2}
+                  value={approvalAdminNotes}
+                  onChange={(e) => setApprovalAdminNotes(e.target.value)}
+                  placeholder="e.g. Verified by Super Admin. 100% unlocked faculty screening access granted."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-amber-500 font-medium resize-none"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setSelectedRequestForApproval(null)}
+                  disabled={approveRequestMutation.isPending}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={approveRequestMutation.isPending}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-700 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs shadow-md transition active:scale-95 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Crown className="w-3.5 h-3.5 text-amber-300" />
+                  <span>{approveRequestMutation.isPending ? 'Activating Access...' : 'Verify Payment & Activate Premium'}</span>
+                </button>
+              </div>
+
+            </form>
 
           </div>
         </div>

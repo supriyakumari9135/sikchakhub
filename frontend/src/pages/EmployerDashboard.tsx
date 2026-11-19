@@ -211,6 +211,7 @@ export const EmployerDashboard: React.FC = () => {
 
   const subscription = subscriptionData?.subscription;
   const isPremium = subscription?.isPremium ?? (subscription?.hasUnlimitedAccess === true && subscription?.status === 'ACTIVE');
+  const hasPendingRequest = Boolean(subscription?.hasPendingRequest || subscription?.requestStatus === 'PENDING' || subscription?.requestStatus === 'CONTACTED');
   const freeLimit = subscription?.freeLimitPerJob || 5;
 
   const employerInterviews: any[] = interviewsData?.interviews || [];
@@ -748,14 +749,24 @@ export const EmployerDashboard: React.FC = () => {
                     <Crown className="w-4 h-4 text-amber-600 fill-amber-500" />
                     <span>👑 Premium Active (Unlimited)</span>
                   </div>
+                ) : hasPendingRequest ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowUpgradeModal(true)}
+                    className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-amber-100 to-amber-200 border border-amber-300 text-amber-900 text-xs font-bold flex items-center gap-1.5 shadow-2xs hover:bg-amber-200 transition active:scale-95 cursor-pointer"
+                    title="Click to check your pending application status"
+                  >
+                    <Clock className="w-4 h-4 text-amber-700 animate-pulse" />
+                    <span>⏳ Premium Requested (Under Review)</span>
+                  </button>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setShowUpgradeModal(true)}
-                    className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition"
+                    className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                    <span>Upgrade to Premium</span>
+                    <span>Apply for Premium</span>
                   </button>
                 )}
 
@@ -2385,10 +2396,12 @@ export const EmployerDashboard: React.FC = () => {
           refetchCandidates();
           refetchSubscription();
           refetchStats();
-          setExportNotice("🎉 Upgraded to Premium! All candidate applications unlocked.");
-          setTimeout(() => setExportNotice(null), 4000);
         }}
         currentPlan={subscription?.plan || 'FREE'}
+        isPendingRequest={hasPendingRequest}
+        institutionName={institution?.name}
+        defaultContactPerson={institution?.contactPerson || user?.fullName}
+        defaultPhone={institution?.phone || user?.phone}
       />
 
     </div>

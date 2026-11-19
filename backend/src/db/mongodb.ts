@@ -345,10 +345,41 @@ const SubscriptionSchema = new mongoose.Schema({
   lastPaymentId: { type: String },
   grantedByAdmin: { type: Boolean, default: false },
   adminNotes: { type: String },
+  requestStatus: { 
+    type: String, 
+    enum: ['NONE', 'PENDING', 'CONTACTED', 'APPROVED', 'REJECTED'], 
+    default: 'NONE' 
+  },
+  requestedPlan: { type: String },
+  requestedAt: { type: String },
+  requestNotes: { type: String },
 }, { timestamps: true });
 
 SubscriptionSchema.index({ userId: 1, status: 1 });
 SubscriptionSchema.index({ status: 1, hasUnlimitedAccess: 1 });
+SubscriptionSchema.index({ requestStatus: 1 });
+
+// Job Poster Premium Upgrade Request Schema
+const SubscriptionRequestSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  userId: { type: String, required: true, index: true },
+  institutionId: { type: String },
+  institutionName: { type: String, required: true },
+  institutionCity: { type: String },
+  contactPerson: { type: String, required: true },
+  contactEmail: { type: String, required: true },
+  contactPhone: { type: String, required: true },
+  requestedPlan: { type: String, enum: ['PRO_MONTHLY', 'ANNUAL_ENTERPRISE'], required: true },
+  amount: { type: Number, required: true },
+  status: { type: String, enum: ['PENDING', 'CONTACTED', 'APPROVED', 'REJECTED'], default: 'PENDING', index: true },
+  requestNotes: { type: String },
+  adminNotes: { type: String },
+  processedBy: { type: String },
+  processedAt: { type: Date },
+}, { timestamps: true });
+
+SubscriptionRequestSchema.index({ status: 1, createdAt: -1 });
+SubscriptionRequestSchema.index({ userId: 1, createdAt: -1 });
 
 // Payment Record Schema
 const PaymentRecordSchema = new mongoose.Schema({
@@ -386,6 +417,7 @@ export const UserReportModel = mongoose.models.UserReport || mongoose.model('Use
 export const PlatformSettingModel = mongoose.models.PlatformSetting || mongoose.model('PlatformSetting', PlatformSettingSchema);
 export const CandidateGroupModel = mongoose.models.CandidateGroup || mongoose.model('CandidateGroup', CandidateGroupSchema);
 export const SubscriptionModel = mongoose.models.Subscription || mongoose.model('Subscription', SubscriptionSchema);
+export const SubscriptionRequestModel = mongoose.models.SubscriptionRequest || mongoose.model('SubscriptionRequest', SubscriptionRequestSchema);
 // OTP Verification Schema (Strict rate limiting, secure hash, single-use)
 const OtpVerificationSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
