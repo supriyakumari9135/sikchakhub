@@ -1,0 +1,12 @@
+{
+  "name": "sikchakhub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SikchaKhub - AI-Powered Teacher & Faculty Recruitment Platform",
+  "scripts": {
+    "build": "npm --prefix frontend run build",
+    "dev": "npm --prefix frontend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:backend": "npm --prefix backend run build"
+  }
+}

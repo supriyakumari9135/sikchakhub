@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
     'http://localhost:5001';
 
   return {
+    base: '/',
     plugins: [react()],
     resolve: {
       alias: {
