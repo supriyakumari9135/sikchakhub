@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { useAuth } from './context/AuthContext';
 
 // Optimized route-level code splitting via React.lazy
@@ -65,8 +66,9 @@ export const App: React.FC = () => {
     <div className="flex flex-col min-h-screen overflow-x-hidden bg-white text-slate-900">
       {!hideNavbarAndFooter && <Navbar />}
       <main className="flex-1">
-        <Suspense fallback={<PageLoadingSkeleton />}>
-          <Routes>
+        <ErrorBoundary>
+          <Suspense fallback={<PageLoadingSkeleton />}>
+            <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/jobs" element={<JobsPage />} />
             <Route path="/login" element={<AuthPage initialMode="LOGIN" />} />
@@ -97,7 +99,8 @@ export const App: React.FC = () => {
             <Route path="*" element={<HomePage />} />
           </Routes>
         </Suspense>
-      </main>
+      </ErrorBoundary>
+    </main>
       {!hideNavbarAndFooter && <Footer />}
     </div>
   );

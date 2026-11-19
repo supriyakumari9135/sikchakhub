@@ -351,6 +351,11 @@ export const OtpVerificationPage: React.FC = () => {
         if (!freshContainer) return null;
         freshContainer.innerHTML = "";
 
+        if (!firebaseAuth || !(firebaseAuth as any).app) {
+          console.warn("Firebase Auth not initialized, skipping reCAPTCHA.");
+          return null;
+        }
+
         const verifier = new RecaptchaVerifier(
           firebaseAuth,
           freshContainer,
