@@ -20,6 +20,7 @@ import {
   Zap,
   Users
 } from 'lucide-react';
+import { AuthWarningModal } from './AuthWarningModal';
 
 export const JobSeekerAuthCard: React.FC = () => {
   const navigate = useNavigate();
@@ -42,6 +43,27 @@ export const JobSeekerAuthCard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [warningModalOpen, setWarningModalOpen] = useState(false);
+  const [warningModalMessage, setWarningModalMessage] = useState('');
+  const [warningModalTitle, setWarningModalTitle] = useState<string | undefined>(undefined);
+
+  const triggerAuthWarning = (msg: string, customTitle?: string) => {
+    setError(msg);
+    setWarningModalMessage(msg);
+    if (customTitle) {
+      setWarningModalTitle(customTitle);
+    } else {
+      const lower = msg.toLowerCase();
+      if (lower.includes('already exists') && lower.includes('email')) {
+        setWarningModalTitle('Email Already Registered');
+      } else if (lower.includes('already exists') && (lower.includes('mobile') || lower.includes('phone'))) {
+        setWarningModalTitle('Mobile Number Already Registered');
+      } else {
+        setWarningModalTitle('Registration Notice');
+      }
+    }
+    setWarningModalOpen(true);
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +95,7 @@ export const JobSeekerAuthCard: React.FC = () => {
     if (res.success) {
       setSuccessMsg('Account created successfully in database! Loading your dashboard...');
     } else {
-      setError(res.message || 'Registration failed. Please verify your details.');
+      triggerAuthWarning(res.message || 'Registration failed. Please verify your details.');
     }
   };
 
@@ -87,7 +109,11 @@ export const JobSeekerAuthCard: React.FC = () => {
     if (res.success) {
       setSuccessMsg('Welcome back! Logging into Job Seeker Portal...');
     } else {
-      setError(res.message || 'Invalid credentials. Please verify your email and password.');
+      const errorMsg = res.message || 'Invalid credentials. Please verify your email and password.';
+      setError(errorMsg);
+      if (errorMsg.toLowerCase().includes('job poster') || errorMsg.toLowerCase().includes('employer') || errorMsg.toLowerCase().includes('super admin')) {
+        triggerAuthWarning(errorMsg, 'Job Seeker Access Notice');
+      }
     }
   };
 
@@ -149,29 +175,38 @@ export const JobSeekerAuthCard: React.FC = () => {
           {/* Form Card */}
           <div className="lg:col-span-7 bg-white rounded-3xl p-4 sm:p-8 shadow-xl border border-sky-100 space-y-5">
             {error && (
-              <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-start gap-2.5 animate-in fade-in">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <div className="space-y-1 flex-1">
-                  <p className="font-semibold leading-relaxed">{error}</p>
-                  {(error.includes('Job Poster') || error.includes('Employer')) && (
-                    <button
-                      type="button"
-                      onClick={() => navigate('/employer-dashboard')}
-                      className="font-bold underline text-sky-700 hover:text-sky-900 flex items-center gap-1 mt-1 text-xs"
-                    >
-                      <span>Switch to Job Poster (Employer) Login →</span>
-                    </button>
-                  )}
-                  {error.includes('Super Admin') && (
-                    <button
-                      type="button"
-                      onClick={() => navigate('/login?role=ADMIN')}
-                      className="font-bold underline text-purple-700 hover:text-purple-900 flex items-center gap-1 mt-1 text-xs"
-                    >
-                      <span>Switch to Super Admin Login →</span>
-                    </button>
-                  )}
+              <div 
+                onClick={() => triggerAuthWarning(error)}
+                className="p-3.5 bg-gradient-to-r from-red-50 to-amber-50/60 border border-amber-200/90 hover:border-amber-400 text-red-700 text-xs rounded-xl flex items-start justify-between gap-2.5 animate-in fade-in cursor-pointer transition-all hover:shadow-md group"
+                title="Click to open stylish security alert"
+              >
+                <div className="flex items-start gap-2.5 flex-1">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                  <div className="space-y-1 flex-1">
+                    <p className="font-semibold leading-relaxed">{error}</p>
+                    {(error.includes('Job Poster') || error.includes('Employer')) && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); navigate('/employer-dashboard'); }}
+                        className="font-bold underline text-sky-700 hover:text-sky-900 flex items-center gap-1 mt-1 text-xs"
+                      >
+                        <span>Switch to Job Poster (Employer) Login →</span>
+                      </button>
+                    )}
+                    {error.includes('Super Admin') && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); navigate('/login?role=ADMIN'); }}
+                        className="font-bold underline text-purple-700 hover:text-purple-900 flex items-center gap-1 mt-1 text-xs"
+                      >
+                        <span>Switch to Super Admin Login →</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
+                <span className="text-[11px] font-bold text-amber-800 bg-amber-100/90 px-2.5 py-1 rounded-lg border border-amber-200 shrink-0 group-hover:bg-amber-200 transition-colors">
+                  View Alert
+                </span>
               </div>
             )}
 
@@ -560,6 +595,33 @@ export const JobSeekerAuthCard: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Stylish Auth Warning Popup Modal Window */}
+      <AuthWarningModal
+        isOpen={warningModalOpen}
+        onClose={() => setWarningModalOpen(false)}
+        title={warningModalTitle}
+        message={warningModalMessage}
+        email={email}
+        phone={phone}
+        suggestedPortal={
+          warningModalMessage.toLowerCase().includes('job poster') || warningModalMessage.toLowerCase().includes('employer') ? 'EMPLOYER' :
+          warningModalMessage.toLowerCase().includes('super admin') ? 'ADMIN' : undefined
+        }
+        onSwitchPortal={(portal) => {
+          setWarningModalOpen(false);
+          setError(null);
+          if (portal === 'EMPLOYER') navigate('/employer-dashboard');
+          else if (portal === 'ADMIN') navigate('/login?role=ADMIN');
+        }}
+        onSwitchToSignIn={mode === 'REGISTER' ? () => {
+          setMode('LOGIN');
+          setWarningModalOpen(false);
+          setError(null);
+        } : undefined}
+        primaryActionLabel="Sign In to Existing Educator Account"
+        secondaryActionLabel="Change Email / Try Again"
+      />
     </div>
   );
 };

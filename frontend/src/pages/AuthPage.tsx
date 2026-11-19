@@ -39,6 +39,7 @@ import {
   UserCheck,
   Loader2
 } from 'lucide-react';
+import { AuthWarningModal } from '../components/AuthWarningModal';
 
 interface AuthPageProps {
   initialMode?: 'LOGIN' | 'REGISTER';
@@ -145,6 +146,29 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [warningModalOpen, setWarningModalOpen] = useState(false);
+  const [warningModalMessage, setWarningModalMessage] = useState('');
+  const [warningModalTitle, setWarningModalTitle] = useState<string | undefined>(undefined);
+
+  const triggerAuthWarning = (msg: string, customTitle?: string) => {
+    setError(msg);
+    setWarningModalMessage(msg);
+    if (customTitle) {
+      setWarningModalTitle(customTitle);
+    } else {
+      const lower = msg.toLowerCase();
+      if (lower.includes('already exists') && lower.includes('email')) {
+        setWarningModalTitle('Email Already Registered');
+      } else if (lower.includes('already exists') && (lower.includes('mobile') || lower.includes('phone'))) {
+        setWarningModalTitle('Mobile Number Already Registered');
+      } else if (lower.includes('already exists')) {
+        setWarningModalTitle('Account Already Exists');
+      } else {
+        setWarningModalTitle('Registration Warning');
+      }
+    }
+    setWarningModalOpen(true);
+  };
 
   // Sync mode with route changes (/login vs /signup)
   useEffect(() => {
@@ -395,10 +419,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
           }, 600);
         }
       } else {
-        setError(res.message || 'Invalid credentials. Please verify your email and password.');
+        const errorMsg = res.message || 'Invalid credentials. Please verify your email and password.';
+        setError(errorMsg);
+        if (errorMsg.toLowerCase().includes('portal') || errorMsg.toLowerCase().includes('registered as') || errorMsg.toLowerCase().includes('not found') || errorMsg.toLowerCase().includes('exist')) {
+          triggerAuthWarning(errorMsg, 'Account Login Notice');
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'Authentication failed. Please check network connection.');
+      const errorMsg = err.message || 'Authentication failed. Please check network connection.';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -535,10 +564,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
           navigate('/verify-otp');
         }, 600);
       } else {
-        setError(res.message || 'Registration failed. Please check the provided information.');
+        triggerAuthWarning(res.message || 'Registration failed. Please check the provided information.');
       }
     } catch (err: any) {
-      setError(err.message || 'Registration error occurred.');
+      triggerAuthWarning(err.message || 'Registration error occurred.');
     } finally {
       setLoading(false);
     }
@@ -897,9 +926,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
 
               {/* Error & Success Toasts */}
               {error && (
-                <div className="mb-4 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5 animate-in fade-in duration-150 shadow-xs">
-                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                  <span className="font-medium">{error}</span>
+                <div 
+                  onClick={() => triggerAuthWarning(error)}
+                  className="mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-red-50 to-amber-50/60 border border-amber-200/90 hover:border-amber-400 text-red-700 text-xs flex items-start justify-between gap-2.5 animate-in fade-in duration-150 shadow-xs cursor-pointer transition-all hover:shadow-md group"
+                  title="Click to open stylish security alert"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                    <span className="font-medium leading-relaxed">{error}</span>
+                  </div>
+                  <span className="text-[11px] font-bold text-amber-800 bg-amber-100/90 px-2.5 py-1 rounded-lg border border-amber-200 shrink-0 group-hover:bg-amber-200 transition-colors">
+                    View Alert
+                  </span>
                 </div>
               )}
 
@@ -2159,6 +2197,34 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
         </div>
       </div>
     </div>
+
+    {/* Stylish Auth Warning Popup Modal Window */}
+    <AuthWarningModal
+      isOpen={warningModalOpen}
+      onClose={() => setWarningModalOpen(false)}
+      title={warningModalTitle}
+      message={warningModalMessage}
+      email={email}
+      phone={phone}
+      suggestedPortal={
+        warningModalMessage.toLowerCase().includes('job seeker') || warningModalMessage.toLowerCase().includes('educator') ? 'TEACHER' :
+        warningModalMessage.toLowerCase().includes('job poster') || warningModalMessage.toLowerCase().includes('employer') ? 'EMPLOYER' :
+        warningModalMessage.toLowerCase().includes('hr') ? 'HR' :
+        warningModalMessage.toLowerCase().includes('super admin') ? 'ADMIN' : undefined
+      }
+      onSwitchPortal={(portal) => {
+        setSelectedPortal(portal);
+        setWarningModalOpen(false);
+        setError(null);
+      }}
+      onSwitchToSignIn={mode === 'REGISTER' ? () => {
+        setMode('LOGIN');
+        setWarningModalOpen(false);
+        setError(null);
+      } : undefined}
+      primaryActionLabel="Sign In to Existing Account"
+      secondaryActionLabel="Change Email / Try Again"
+    />
     </div>
   );
 };

@@ -20,6 +20,7 @@ import {
   Award,
   UserCheck
 } from 'lucide-react';
+import { AuthWarningModal } from './AuthWarningModal';
 
 export const AuthModal: React.FC = () => {
   const navigate = useNavigate();
@@ -54,6 +55,27 @@ export const AuthModal: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [warningModalOpen, setWarningModalOpen] = useState(false);
+  const [warningModalMessage, setWarningModalMessage] = useState('');
+  const [warningModalTitle, setWarningModalTitle] = useState<string | undefined>(undefined);
+
+  const triggerAuthWarning = (msg: string, customTitle?: string) => {
+    setError(msg);
+    setWarningModalMessage(msg);
+    if (customTitle) {
+      setWarningModalTitle(customTitle);
+    } else {
+      const lower = msg.toLowerCase();
+      if (lower.includes('already exists') && lower.includes('email')) {
+        setWarningModalTitle('Email Already Registered');
+      } else if (lower.includes('already exists') && (lower.includes('mobile') || lower.includes('phone'))) {
+        setWarningModalTitle('Mobile Number Already Registered');
+      } else {
+        setWarningModalTitle('Registration Notice');
+      }
+    }
+    setWarningModalOpen(true);
+  };
 
   // Sync state when modal is triggered
   useEffect(() => {
@@ -118,7 +140,11 @@ export const AuthModal: React.FC = () => {
         }, 700);
       }
     } else {
-      setError(res.message || 'Invalid credentials. Please verify your email and password.');
+      const errorMsg = res.message || 'Invalid credentials. Please verify your email and password.';
+      setError(errorMsg);
+      if (errorMsg.toLowerCase().includes('job poster') || errorMsg.toLowerCase().includes('employer') || errorMsg.toLowerCase().includes('job seeker') || errorMsg.toLowerCase().includes('educator') || errorMsg.toLowerCase().includes('super admin')) {
+        triggerAuthWarning(errorMsg, 'Portal Access Notice');
+      }
     }
   };
 
@@ -160,7 +186,7 @@ export const AuthModal: React.FC = () => {
         navigate('/verify-otp');
       }, 700);
     } else {
-      setError(res.message || 'Registration failed. Please check the provided information.');
+      triggerAuthWarning(res.message || 'Registration failed. Please check the provided information.');
     }
   };
 
@@ -367,38 +393,47 @@ export const AuthModal: React.FC = () => {
         {/* Modal Form Body */}
         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-start gap-2 animate-in fade-in">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <div className="space-y-1 flex-1">
-                <p className="font-semibold leading-relaxed">{error}</p>
-                {(error.includes('Job Poster') || error.includes('Employer')) && selectedPortal !== 'EMPLOYER' && (
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedPortal('EMPLOYER'); setError(null); }}
-                    className="font-bold underline text-sky-700 hover:text-sky-900 flex items-center gap-1 mt-1 text-xs"
-                  >
-                    <span>Switch to Job Poster Portal tab →</span>
-                  </button>
-                )}
-                {(error.includes('Job Seeker') || error.includes('Educator')) && selectedPortal !== 'TEACHER' && (
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedPortal('TEACHER'); setError(null); }}
-                    className="font-bold underline text-emerald-700 hover:text-emerald-900 flex items-center gap-1 mt-1 text-xs"
-                  >
-                    <span>Switch to Job Seeker Portal tab →</span>
-                  </button>
-                )}
-                {error.includes('Super Admin') && selectedPortal !== 'ADMIN' && (
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedPortal('ADMIN'); setError(null); }}
-                    className="font-bold underline text-purple-700 hover:text-purple-900 flex items-center gap-1 mt-1 text-xs"
-                  >
-                    <span>Switch to Super Admin Console tab →</span>
-                  </button>
-                )}
+            <div 
+              onClick={() => triggerAuthWarning(error)}
+              className="p-3 bg-gradient-to-r from-red-50 to-amber-50/60 border border-amber-200/90 hover:border-amber-400 text-red-700 text-xs rounded-xl flex items-start justify-between gap-2 animate-in fade-in cursor-pointer transition-all hover:shadow-md group"
+              title="Click to open stylish security alert"
+            >
+              <div className="flex items-start gap-2 flex-1">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                <div className="space-y-1 flex-1">
+                  <p className="font-semibold leading-relaxed">{error}</p>
+                  {(error.includes('Job Poster') || error.includes('Employer')) && selectedPortal !== 'EMPLOYER' && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setSelectedPortal('EMPLOYER'); setError(null); }}
+                      className="font-bold underline text-sky-700 hover:text-sky-900 flex items-center gap-1 mt-1 text-xs"
+                    >
+                      <span>Switch to Job Poster Portal tab →</span>
+                    </button>
+                  )}
+                  {(error.includes('Job Seeker') || error.includes('Educator')) && selectedPortal !== 'TEACHER' && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setSelectedPortal('TEACHER'); setError(null); }}
+                      className="font-bold underline text-emerald-700 hover:text-emerald-900 flex items-center gap-1 mt-1 text-xs"
+                    >
+                      <span>Switch to Job Seeker Portal tab →</span>
+                    </button>
+                  )}
+                  {error.includes('Super Admin') && selectedPortal !== 'ADMIN' && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setSelectedPortal('ADMIN'); setError(null); }}
+                      className="font-bold underline text-purple-700 hover:text-purple-900 flex items-center gap-1 mt-1 text-xs"
+                    >
+                      <span>Switch to Super Admin Console tab →</span>
+                    </button>
+                  )}
+                </div>
               </div>
+              <span className="text-[11px] font-bold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-lg border border-amber-200 shrink-0 group-hover:bg-amber-200 transition-colors">
+                View Alert
+              </span>
             </div>
           )}
 
@@ -715,6 +750,33 @@ export const AuthModal: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Stylish Auth Warning Popup Modal Window */}
+      <AuthWarningModal
+        isOpen={warningModalOpen}
+        onClose={() => setWarningModalOpen(false)}
+        title={warningModalTitle}
+        message={warningModalMessage}
+        email={email}
+        phone={phone}
+        suggestedPortal={
+          warningModalMessage.toLowerCase().includes('job poster') || warningModalMessage.toLowerCase().includes('employer') ? 'EMPLOYER' :
+          warningModalMessage.toLowerCase().includes('job seeker') || warningModalMessage.toLowerCase().includes('educator') ? 'TEACHER' :
+          warningModalMessage.toLowerCase().includes('super admin') ? 'ADMIN' : undefined
+        }
+        onSwitchPortal={(portal) => {
+          setSelectedPortal(portal);
+          setWarningModalOpen(false);
+          setError(null);
+        }}
+        onSwitchToSignIn={activeTab === 'REGISTER' ? () => {
+          setActiveTab('LOGIN');
+          setWarningModalOpen(false);
+          setError(null);
+        } : undefined}
+        primaryActionLabel="Sign In to Existing Account"
+        secondaryActionLabel="Change Email / Try Again"
+      />
     </div>
   );
 };
