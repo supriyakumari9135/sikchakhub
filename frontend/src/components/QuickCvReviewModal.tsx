@@ -94,6 +94,71 @@ export const QuickCvReviewModal: React.FC<QuickCvReviewModalProps> = ({
     : null;
   const cvFileName = currentCandidate.resumeFileName || profile?.resumeFileName || 'Educator_Resume.pdf';
 
+  const [blobCvUrl, setBlobCvUrl] = useState<string | null>(null);
+  const [isCvLoading, setIsCvLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!fullCvUrl) {
+      setBlobCvUrl(null);
+      setIsCvLoading(false);
+      return;
+    }
+
+    if (fullCvUrl.startsWith('data:application/pdf;base64,')) {
+      try {
+        const base64Data = fullCvUrl.replace(/^data:application\/pdf;base64,/, '');
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        setBlobCvUrl(url);
+        setIsCvLoading(false);
+        return () => URL.revokeObjectURL(url);
+      } catch (e) {
+        setBlobCvUrl(fullCvUrl);
+        setIsCvLoading(false);
+        return;
+      }
+    }
+
+    if (fullCvUrl.startsWith('blob:')) {
+      setBlobCvUrl(fullCvUrl);
+      setIsCvLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setIsCvLoading(true);
+
+    fetch(fullCvUrl, { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Fetch failed');
+        const blob = await res.blob();
+        const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+        const url = URL.createObjectURL(pdfBlob);
+        setBlobCvUrl(url);
+        setIsCvLoading(false);
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          setBlobCvUrl(fullCvUrl);
+          setIsCvLoading(false);
+        }
+      });
+
+    return () => {
+      controller.abort();
+      setBlobCvUrl((prev) => {
+        if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+        return null;
+      });
+    };
+  }, [fullCvUrl]);
+
   // Dynamic ATS Grade Badge
   const getGradeInfo = (atsScore: number) => {
     if (atsScore >= 80) {
@@ -341,9 +406,14 @@ export const QuickCvReviewModal: React.FC<QuickCvReviewModalProps> = ({
 
             {/* Embedded PDF Document Container */}
             <div className="flex-1 min-h-0 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col relative">
-              {fullCvUrl ? (
+              {isCvLoading ? (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-3">
+                  <div className="w-8 h-8 border-3 border-brand-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-xs font-semibold text-slate-700">Loading CV Document...</p>
+                </div>
+              ) : (blobCvUrl || fullCvUrl) ? (
                 <iframe
-                  src={`${fullCvUrl}#toolbar=0&navpanes=0`}
+                  src={`${blobCvUrl || fullCvUrl}#toolbar=0&navpanes=0`}
                   title="Candidate PDF Resume"
                   className="w-full h-full border-0 rounded-2xl bg-white"
                 />

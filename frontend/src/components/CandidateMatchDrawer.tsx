@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { JobApplication, ApplicationStage } from '@sikchakhub/shared-types';
 import { useAuth } from '../context/AuthContext';
 import { useQuery } from '@tanstack/react-query';
@@ -66,6 +66,60 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
   const rawResumeUrl = appRecord.resumeUrl || application.resumeUrl || profile?.resumeUrl;
   const fullResumeUrl = rawResumeUrl ? (rawResumeUrl.startsWith('http') || rawResumeUrl.startsWith('data:') ? rawResumeUrl : apiUrl(rawResumeUrl)) : null;
   const resumeFileName = appRecord.resumeFileName || profile?.resumeFileName || 'Educator_Resume.pdf';
+
+  const [blobResumeUrl, setBlobResumeUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!fullResumeUrl || !showInlinePdf) {
+      setBlobResumeUrl(null);
+      return;
+    }
+
+    if (fullResumeUrl.startsWith('data:application/pdf;base64,')) {
+      try {
+        const base64Data = fullResumeUrl.replace(/^data:application\/pdf;base64,/, '');
+        const byteChars = atob(base64Data);
+        const byteNumbers = new Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        setBlobResumeUrl(url);
+        return () => URL.revokeObjectURL(url);
+      } catch (e) {
+        setBlobResumeUrl(fullResumeUrl);
+        return;
+      }
+    }
+
+    if (fullResumeUrl.startsWith('blob:')) {
+      setBlobResumeUrl(fullResumeUrl);
+      return;
+    }
+
+    const controller = new AbortController();
+    fetch(fullResumeUrl, { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Fetch failed');
+        const blob = await res.blob();
+        const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+        const url = URL.createObjectURL(pdfBlob);
+        setBlobResumeUrl(url);
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          setBlobResumeUrl(fullResumeUrl);
+        }
+      });
+
+    return () => {
+      controller.abort();
+      setBlobResumeUrl((prev) => {
+        if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+        return null;
+      });
+    };
+  }, [fullResumeUrl, showInlinePdf]);
 
   const handleStageSelect = async (newStage: ApplicationStage) => {
     setStage(newStage);
@@ -261,7 +315,7 @@ export const CandidateMatchDrawer: React.FC<CandidateMatchDrawerProps> = ({
                 {showInlinePdf && (
                   <div className="rounded-xl overflow-hidden border border-slate-300 shadow-inner bg-slate-100 mt-2">
                     <iframe
-                      src={fullResumeUrl}
+                      src={blobResumeUrl || fullResumeUrl}
                       className="w-full h-96 bg-white"
                       title="Candidate CV Document"
                     />
