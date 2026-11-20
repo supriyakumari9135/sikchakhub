@@ -215,13 +215,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode, initialPortal: 
         (user.isVerified === false || (user.verificationStatus && user.verificationStatus !== 'FULLY_VERIFIED'));
 
       if (isUnverified) {
-        navigate('/verify-otp');
+        navigate('/verify-otp', { replace: true });
         return;
       }
 
-      if (user.role === 'ADMIN' || user.role === 'HR') navigate('/admin-dashboard');
-      else if (user.role === 'EMPLOYER') navigate('/employer-dashboard');
-      else navigate('/teacher-dashboard');
+      if (user.role === 'ADMIN' || user.role === 'HR') navigate('/admin-dashboard', { replace: true });
+      else if (user.role === 'EMPLOYER') navigate('/employer-dashboard', { replace: true });
+      else navigate('/teacher-dashboard', { replace: true });
     }
   }, [user, navigate]);
 

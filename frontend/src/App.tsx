@@ -50,6 +50,40 @@ const VerifiedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   return <>{children}</>;
 };
 
+// Root route: Automatically redirects authenticated users straight to their role dashboard
+const RootRoute: React.FC = () => {
+  const { user, token, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <PageLoadingSkeleton />;
+  }
+
+  const storedToken = token || localStorage.getItem('sikchakhub_token') || localStorage.getItem('sikcha_token') || localStorage.getItem('siksha_token');
+
+  if (user && storedToken) {
+    const isUnverified =
+      user.role !== 'ADMIN' &&
+      user.role !== 'HR' &&
+      (user.isVerified === false || (user.verificationStatus && user.verificationStatus !== 'FULLY_VERIFIED'));
+
+    if (isUnverified) {
+      return <Navigate to="/verify-otp" replace />;
+    }
+
+    if (user.role === 'ADMIN' || user.role === 'HR') {
+      return <Navigate to="/admin-dashboard" replace />;
+    }
+    if (user.role === 'EMPLOYER') {
+      return <Navigate to="/employer-dashboard" replace />;
+    }
+    if (user.role === 'TEACHER') {
+      return <Navigate to="/teacher-dashboard" replace />;
+    }
+  }
+
+  return <HomePage />;
+};
+
 export const App: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
@@ -69,7 +103,7 @@ export const App: React.FC = () => {
         <ErrorBoundary>
           <Suspense fallback={<PageLoadingSkeleton />}>
             <Routes>
-            <Route path="/" element={<HomePage />} />
+            <Route path="/" element={<RootRoute />} />
             <Route path="/jobs" element={<JobsPage />} />
             <Route path="/login" element={<AuthPage initialMode="LOGIN" />} />
             <Route path="/signin" element={<AuthPage initialMode="LOGIN" />} />
@@ -96,7 +130,7 @@ export const App: React.FC = () => {
               } 
             />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
-            <Route path="*" element={<HomePage />} />
+            <Route path="*" element={<RootRoute />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
@@ -42,6 +42,30 @@ export const HomePage: React.FC = () => {
   const [selectedJobForDetails, setSelectedJobForDetails] = useState<JobVacancy | null>(null);
   const [authPromptJob, setAuthPromptJob] = useState<JobVacancy | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  // Redirect authenticated users immediately to their role dashboard
+  useEffect(() => {
+    const storedToken = token || localStorage.getItem('sikchakhub_token') || localStorage.getItem('sikcha_token') || localStorage.getItem('siksha_token');
+    if (user && storedToken) {
+      const isUnverified =
+        user.role !== 'ADMIN' &&
+        user.role !== 'HR' &&
+        (user.isVerified === false || (user.verificationStatus && user.verificationStatus !== 'FULLY_VERIFIED'));
+
+      if (isUnverified) {
+        navigate('/verify-otp', { replace: true });
+        return;
+      }
+
+      if (user.role === 'ADMIN' || user.role === 'HR') {
+        navigate('/admin-dashboard', { replace: true });
+      } else if (user.role === 'EMPLOYER') {
+        navigate('/employer-dashboard', { replace: true });
+      } else if (user.role === 'TEACHER') {
+        navigate('/teacher-dashboard', { replace: true });
+      }
+    }
+  }, [user, token, navigate]);
 
   // Authentication check before applying
   const handleApplyClick = (job: JobVacancy) => {

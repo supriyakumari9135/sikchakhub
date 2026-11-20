@@ -34,6 +34,14 @@ export const Navbar: React.FC = () => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const brandTarget = user
+    ? (user.role === 'ADMIN' || user.role === 'HR'
+        ? '/admin-dashboard'
+        : user.role === 'EMPLOYER'
+          ? '/employer-dashboard'
+          : '/teacher-dashboard')
+    : '/';
+
   const cityDropdownRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -494,7 +502,7 @@ export const Navbar: React.FC = () => {
             
             {/* Left Column: Brand Logo & Location */}
             <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 min-w-0">
-              <Link to="/" className="cursor-pointer flex items-center gap-2 sm:gap-2.5 group shrink-0">
+              <Link to={brandTarget} className="cursor-pointer flex items-center gap-2 sm:gap-2.5 group shrink-0">
                 <img
                   src="/logo.jpeg"
                   alt="SikchaKhub Logo"
