@@ -201,10 +201,10 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="px-5 sm:px-7 py-5 border-b border-slate-100 bg-gradient-to-r from-sky-50/80 via-white to-blue-50/60 flex items-start justify-between gap-4 shrink-0">
-          <div className="flex items-start gap-3.5 sm:gap-4 min-w-0">
+        <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 shrink-0">
+          <div className="flex items-center gap-3.5 min-w-0">
             {/* Institution / Brand Logo Container with strict dimensions */}
-            <div className="w-13 h-13 min-w-[52px] min-h-[52px] max-w-[52px] max-h-[52px] sm:w-14 sm:h-14 sm:min-w-[56px] sm:min-h-[56px] sm:max-w-[56px] sm:max-h-[56px] rounded-2xl overflow-hidden border border-sky-200/80 bg-white p-1 flex items-center justify-center shrink-0 shadow-xs">
+            <div className="w-12 h-12 min-w-[48px] min-h-[48px] max-w-[48px] max-h-[48px] rounded-2xl overflow-hidden border border-amber-300/60 bg-white shrink-0 shadow-2xs flex items-center justify-center p-0.5">
               <img
                 src={job.institution?.logoUrl || '/logo.jpeg'}
                 alt={job.institution?.name || job.institutionName || 'Institution Logo'}
@@ -214,47 +214,35 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
             <div className="min-w-0 flex-1">
               {/* Category Badges Row */}
-              <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200/80">
-                  {formatLevel(job.teachingLevel)}
+              <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200/80">
+                  {formatLevel(job.teachingLevel)} {job.board ? `• ${job.board}` : ''}
                 </span>
-                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                  {job.board}
-                </span>
-                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                  Subject: {job.subject}
-                </span>
-                {job.department && (
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 border border-slate-200 hidden sm:inline-block">
-                    {job.department}
+                {job.subject && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                    Subject: {job.subject}
                   </span>
                 )}
               </div>
 
               {/* Vacancy Title */}
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 font-serif leading-tight">
+              <h3 className="text-lg sm:text-xl font-bold text-slate-900 font-serif leading-tight truncate">
                 {job.title}
-              </h2>
+              </h3>
 
               {/* Organization and Location */}
-              <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-600">
-                <span className="font-bold text-slate-900 flex items-center gap-1">
-                  <span>{job.institution?.name || job.institutionName || 'Verified Educational Institution'}</span>
-                  <BadgeCheck className="w-4 h-4 text-emerald-500 inline-block shrink-0" />
-                </span>
+              <p className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-0.5 truncate">
+                <span className="font-bold text-slate-800">{job.institution?.name || job.institutionName || 'SikchaKhub'}</span>
                 <span className="text-slate-300">•</span>
-                <span className="flex items-center gap-1 text-slate-500 font-medium">
-                  <MapPin className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-                  <span>{job.city}, {job.state}</span>
-                </span>
-              </div>
+                <span>{job.city}, {job.state}</span>
+              </p>
             </div>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="cursor-pointer p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all duration-200 active:scale-90 shrink-0 ml-1"
+            className="cursor-pointer p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all duration-200 active:scale-90 shrink-0 ml-2"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
@@ -262,41 +250,35 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="p-5 sm:p-7 overflow-y-auto space-y-6 text-xs sm:text-sm">
-          {/* Quick Specifications 4-Column Grid */}
-          <div className="bg-gradient-to-br from-sky-50/70 via-slate-50 to-blue-50/40 rounded-2xl p-4 sm:p-5 border border-sky-100/90 grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-4 shadow-2xs">
-            <div className="bg-white/80 p-3 rounded-xl border border-sky-100/60 shadow-2xs">
-              <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider mb-0.5">Offered CTC</span>
-              <span className="font-extrabold text-emerald-600 text-sm sm:text-base block">
+        <div className="p-6 overflow-y-auto space-y-5 text-xs sm:text-sm">
+          {/* Quick Specifications 4-Column Grid matching JobsPage */}
+          <div className="bg-sky-50/40 p-4 rounded-2xl border border-sky-100 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Salary CTC</span>
+              <span className="font-extrabold text-slate-900 text-sm">
                 ₹{job.minSalaryLPA} - ₹{job.maxSalaryLPA} LPA
               </span>
-              <span className="text-[10px] text-slate-500 block mt-0.5">Annual Fixed + Perks</span>
             </div>
 
-            <div className="bg-white/80 p-3 rounded-xl border border-sky-100/60 shadow-2xs">
-              <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider mb-0.5">Min Experience</span>
-              <span className="font-extrabold text-slate-900 text-sm sm:text-base block">
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Min Experience</span>
+              <span className="font-extrabold text-slate-900 text-sm">
                 {job.minExperienceYears}+ Years
               </span>
-              <span className="text-[10px] text-slate-500 block mt-0.5">
-                {job.maxExperienceYears ? `Up to ${job.maxExperienceYears} Yrs` : 'Relevant teaching'}
+            </div>
+
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Location</span>
+              <span className="font-extrabold text-slate-900 text-sm truncate">
+                {job.city}, {job.state}
               </span>
             </div>
 
-            <div className="bg-white/80 p-3 rounded-xl border border-sky-100/60 shadow-2xs">
-              <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider mb-0.5">Vacancies</span>
-              <span className="font-extrabold text-slate-900 text-sm sm:text-base block">
-                {job.vacanciesCount} {job.vacanciesCount > 1 ? 'Openings' : 'Opening'}
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Openings</span>
+              <span className="font-extrabold text-slate-900 text-sm">
+                {job.vacanciesCount} Seats
               </span>
-              <span className="text-[10px] text-slate-500 block mt-0.5">Active Hiring Intake</span>
-            </div>
-
-            <div className="bg-white/80 p-3 rounded-xl border border-sky-100/60 shadow-2xs">
-              <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider mb-0.5">Employment</span>
-              <span className="font-extrabold text-slate-900 text-sm sm:text-base block">
-                {formatEmployment(job.employmentType)}
-              </span>
-              <span className="text-[10px] text-slate-500 block mt-0.5">Direct School Hire</span>
             </div>
           </div>
 
@@ -398,17 +380,17 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           </button>
 
           {isApplied ? (
-            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold shadow-2xs">
+            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold shadow-2xs">
               <CheckCircle className="w-4 h-4" />
-              <span>Application Submitted</span>
+              <span>Application Submitted ✓</span>
             </div>
           ) : (
             <button
               type="button"
               onClick={() => onApply(job)}
-              className="cursor-pointer inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-all duration-200 shadow-md shadow-sky-500/25 hover:shadow-lg hover:shadow-sky-500/30 hover:-translate-y-0.5 active:scale-95"
+              className="cursor-pointer inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs sm:text-sm rounded-full transition-all duration-200 shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/35 hover:-translate-y-0.5 active:scale-95"
             >
-              <span>Quick Apply</span>
+              <span>Proceed to Quick Application</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           )}
