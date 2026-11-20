@@ -487,12 +487,12 @@ export const Navbar: React.FC = () => {
           {/* Right Direct Helpline */}
           <div className="flex items-center gap-2 shrink-0 text-xs">
             <a
-              href="tel:9876543210"
+              href="tel:6202033610"
               className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white/15 hover:bg-white/25 text-white transition-all text-[11px] sm:text-xs font-bold whitespace-nowrap"
               title="Call SikchaKhub Helpline"
             >
               <PhoneCall className="w-3.5 h-3.5" />
-              <span>+91 98765 43210</span>
+              <span>+91 62020 33610</span>
             </a>
           </div>
         </div>
@@ -759,11 +759,11 @@ export const Navbar: React.FC = () => {
           {/* Direct Helpline in Mobile Drawer */}
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 px-1">
             <div className="flex items-center gap-1.5">
-              <PhoneCall className="w-3.5 h-3.5 text-sky-600" />
+              <PhoneCall className="w-3.5 h-3.5 text-orange-600" />
               <span>Direct Support Helpline:</span>
             </div>
-            <a href="tel:9783143866" className="cursor-pointer font-bold text-sky-600 hover:underline">
-              9783143866
+            <a href="tel:6202033610" className="cursor-pointer font-bold text-orange-600 hover:underline">
+              +91 62020 33610
             </a>
           </div>
 

@@ -570,7 +570,7 @@ export async function seedDefaultAdminIfNeeded() {
         role: 'ADMIN',
         adminRole: 'SUPER_ADMIN',
         adminPermissions: ['ALL'],
-        phone: '9783143866',
+        phone: '6202033610',
         age: 32,
         avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=SikchaKhubAdmin',
         isVerified: true,
@@ -641,7 +641,7 @@ export async function seedDefaultAdminIfNeeded() {
       const initialSettings = [
         { id: 'set-1', key: 'siteName', value: 'SikchaKhub.AI', description: 'Platform brand name', category: 'BRANDING' },
         { id: 'set-2', key: 'supportEmail', value: 'support@sikchakhub.ai', description: 'Primary support and inquiry email', category: 'CONTACT' },
-        { id: 'set-3', key: 'supportPhone', value: '+91 9783143866', description: 'Helpline mobile number', category: 'CONTACT' },
+        { id: 'set-3', key: 'supportPhone', value: '+91 6202033610', description: 'Helpline mobile number', category: 'CONTACT' },
         { id: 'set-4', key: 'maxCvUploadSizeMB', value: 1, description: 'Maximum allowed candidate PDF CV size in Megabytes', category: 'UPLOADS' },
         { id: 'set-5', key: 'maintenanceMode', value: false, description: 'Toggle platform maintenance mode', category: 'SYSTEM' },
         { id: 'set-6', key: 'autoApproveJobs', value: true, description: 'Automatically publish vacancies without moderation queue', category: 'MODERATION' },

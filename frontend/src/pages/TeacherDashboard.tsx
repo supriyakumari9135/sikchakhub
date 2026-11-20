@@ -726,7 +726,7 @@ export const TeacherDashboard: React.FC = () => {
                 <p className="text-[11px] text-slate-500">Our advisor team is here</p>
               </div>
               <button
-                onClick={() => window.open('tel:9783143866')}
+                onClick={() => window.open('tel:6202033610')}
                 className="w-full py-1.5 text-xs font-bold text-sky-700 bg-white hover:bg-sky-50 rounded-xl border border-sky-200 transition shadow-2xs"
               >
                 Contact Counselor

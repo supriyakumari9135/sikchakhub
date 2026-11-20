@@ -139,7 +139,7 @@ class EmailService {
           <tr>
             <td style="padding: 20px 32px; background-color: #f1f5f9; border-top: 1px solid #e2e8f0; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #64748b;">
-                © ${new Date().getFullYear()} SikchakHub.AI • Helpline: +91 9783143866 • support@sikchakhub.ai
+                © ${new Date().getFullYear()} SikchakHub.AI • Helpline: +91 6202033610 • support@sikchakhub.ai
               </p>
             </td>
           </tr>

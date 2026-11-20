@@ -38,18 +38,20 @@ export const Footer: React.FC = () => {
 
           <div className="flex flex-wrap items-center justify-center gap-3 shrink-0">
             <a 
-              href="tel:9783143666" 
+              href="tel:6202033610" 
               className="cursor-pointer flex items-center gap-2.5 px-5 py-3 rounded-full bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs sm:text-sm shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/35 hover:-translate-y-0.5 active:scale-95 transition-all duration-200"
             >
               <PhoneCall className="w-4 h-4 text-white" />
-              <span>+91 97831 43666</span>
+              <span>+91 62020 33610</span>
             </a>
             <a 
-              href="tel:9728987999" 
+              href="https://wa.me/916202033610" 
+              target="_blank"
+              rel="noopener noreferrer"
               className="cursor-pointer flex items-center gap-2.5 px-5 py-3 rounded-full bg-orange-50/80 text-orange-900 hover:bg-orange-100 font-bold text-xs sm:text-sm border border-orange-200 hover:border-orange-300 shadow-2xs hover:shadow-md hover:shadow-orange-500/10 hover:-translate-y-0.5 active:scale-95 transition-all duration-200"
             >
               <PhoneCall className="w-4 h-4 text-orange-600" />
-              <span>+91 97289 87999</span>
+              <span>WhatsApp / Support Desk</span>
             </a>
           </div>
         </div>
