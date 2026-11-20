@@ -766,15 +766,11 @@ export const JobsPage: React.FC = () => {
                             {job.title}
                           </h3>
                           <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-600 mt-1 font-medium">
-                            <span className="flex items-center gap-1 text-slate-800 font-semibold">
-                              <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="flex items-center gap-1 text-slate-800 font-bold">
+                              <Building2 className="w-3.5 h-3.5 text-sky-500 shrink-0" />
                               <span className="truncate">{job.institution?.name || job.institutionName || 'Verified Institute'}</span>
                             </span>
-                            {job.posterName && (
-                              <span className="text-[11px] text-slate-500 font-normal">
-                                • Posted by <strong className="font-semibold text-slate-700">{job.posterName}</strong>
-                              </span>
-                            )}
+                            <span className="text-slate-300">•</span>
                             <span className="flex items-center gap-1 text-slate-500">
                               <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                               <span className="truncate">{job.city}, {job.state}</span>

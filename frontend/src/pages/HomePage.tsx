@@ -584,12 +584,7 @@ export const HomePage: React.FC = () => {
                             <span className="truncate">{job.institution?.name || job.institutionName || 'Verified Institute'}</span>
                             <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                           </h4>
-                          {job.posterName && (
-                            <p className="text-[10px] text-slate-500 font-medium truncate">
-                              Posted by: <strong className="font-semibold text-slate-700">{job.posterName}</strong>
-                            </p>
-                          )}
-                          <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                          <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
                             <MapPin className="w-3 h-3 text-sky-500 shrink-0" />
                             <span className="truncate">{job.city}, {job.state}</span>
                           </p>

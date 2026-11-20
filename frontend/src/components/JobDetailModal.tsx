@@ -236,20 +236,12 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 {job.title}
               </h2>
 
-              {/* Institution and Location and Actual Job Poster */}
+              {/* Organization and Location */}
               <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-600">
                 <span className="font-bold text-slate-900 flex items-center gap-1">
                   <span>{job.institution?.name || job.institutionName || 'Verified Educational Institution'}</span>
                   <BadgeCheck className="w-4 h-4 text-emerald-500 inline-block shrink-0" />
                 </span>
-                {job.posterName && (
-                  <>
-                    <span className="text-slate-300">•</span>
-                    <span className="text-slate-600 font-medium">
-                      Posted by: <strong className="text-slate-900 font-bold">{job.posterName}</strong>
-                    </span>
-                  </>
-                )}
                 <span className="text-slate-300">•</span>
                 <span className="flex items-center gap-1 text-slate-500 font-medium">
                   <MapPin className="w-3.5 h-3.5 text-sky-500 shrink-0" />
