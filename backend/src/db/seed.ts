@@ -114,7 +114,7 @@ async function main() {
         city: job.city,
         state: job.state,
         vacanciesCount: job.vacanciesCount,
-        deadline: job.deadline,
+        deadline: job.deadline || '',
         status: job.status,
         customFields: JSON.stringify(job.customFields || []),
         screeningRules: JSON.stringify(job.screeningRules || {}),

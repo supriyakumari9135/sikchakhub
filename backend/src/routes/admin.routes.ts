@@ -1141,11 +1141,28 @@ router.patch('/jobs/:id', authenticateJWT, requireRole(['ADMIN']), async (req: R
   const { title, subject, teachingLevel, minSalaryLPA, maxSalaryLPA, deadline, vacanciesCount, status } = req.body;
 
   try {
+    const updateFields: any = { 
+      title, 
+      subject, 
+      teachingLevel, 
+      minSalaryLPA: Number(minSalaryLPA), 
+      maxSalaryLPA: Number(maxSalaryLPA), 
+      vacanciesCount: Number(vacanciesCount), 
+      status, 
+      updatedAt: new Date() 
+    };
+    if (deadline !== undefined) updateFields.deadline = deadline;
+
     const updated = await JobVacancyModel.findOneAndUpdate(
       { id: req.params.id },
-      { $set: { title, subject, teachingLevel, minSalaryLPA, maxSalaryLPA, deadline, vacanciesCount, status, updatedAt: new Date() } },
+      { $set: updateFields },
       { new: true }
     ).lean();
+
+    const memJob = dbStore.jobs.find(j => j.id === req.params.id);
+    if (memJob) {
+      Object.assign(memJob, updateFields);
+    }
 
     logAuditEvent(req, 'JOB_ADMIN_MODERATED', 'JobVacancy', req.params.id, { title, status });
 

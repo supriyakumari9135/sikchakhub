@@ -841,16 +841,15 @@ export const JobsPage: React.FC = () => {
                     {/* Card Footer: Metadata & Buttons */}
                     <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
                       
-                      {/* Left: Deadline & Vacancies */}
+                      {/* Left: Vacancies & Employment */}
                       <div className="flex items-center gap-3 text-xs text-slate-500">
-                        <span className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Deadline: {job.deadline}</span>
-                        </span>
-                        <span className="text-slate-300">|</span>
-                        <span className="flex items-center gap-1.5">
-                          <Users className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                          <Users className="w-3.5 h-3.5 text-sky-500" />
                           <span>{job.vacanciesCount} Vacanc{job.vacanciesCount > 1 ? 'ies' : 'y'}</span>
+                        </span>
+                        <span className="text-slate-300">•</span>
+                        <span className="text-slate-600 font-medium">
+                          {job.employmentType ? job.employmentType.replace('_', ' ') : 'Full Time'}
                         </span>
                       </div>
 

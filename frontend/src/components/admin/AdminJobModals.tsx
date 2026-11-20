@@ -113,10 +113,6 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
           {/* Timing & Vacancies */}
           <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
             <div className="flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-slate-400" />
-              <span>Deadline: <strong>{job.deadline ? new Date(job.deadline).toLocaleDateString() : 'Rolling'}</strong></span>
-            </div>
-            <div className="flex items-center gap-1.5">
               <Users className="w-4 h-4 text-slate-400" />
               <span>Open Positions: <strong>{job.vacanciesCount || 1}</strong></span>
             </div>
@@ -256,7 +252,6 @@ export const JobEditModal: React.FC<JobEditModalProps> = ({
   const [minSalaryLPA, setMinSalaryLPA] = useState(job.minSalaryLPA || 4);
   const [maxSalaryLPA, setMaxSalaryLPA] = useState(job.maxSalaryLPA || 8);
   const [vacanciesCount, setVacanciesCount] = useState(job.vacanciesCount || 1);
-  const [deadline, setDeadline] = useState(job.deadline ? job.deadline.split('T')[0] : '');
   const [status, setStatus] = useState(job.status || 'ACTIVE');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -271,7 +266,6 @@ export const JobEditModal: React.FC<JobEditModalProps> = ({
         minSalaryLPA: Number(minSalaryLPA),
         maxSalaryLPA: Number(maxSalaryLPA),
         vacanciesCount: Number(vacanciesCount),
-        deadline,
         status,
       });
       onClose();
@@ -370,27 +364,17 @@ export const JobEditModal: React.FC<JobEditModalProps> = ({
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Application Deadline</label>
-              <input
-                type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
-              />
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Vacancy Status</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-brand-500 outline-none"
+              >
+                <option value="ACTIVE">ACTIVE - Live on Board</option>
+                <option value="PAUSED">PAUSED - Temporarily Hidden</option>
+                <option value="CLOSED">CLOSED - Filled / Expired</option>
+              </select>
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Vacancy Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-brand-500 outline-none"
-            >
-              <option value="ACTIVE">ACTIVE - Live on Board</option>
-              <option value="PAUSED">PAUSED - Temporarily Hidden</option>
-              <option value="CLOSED">CLOSED - Filled / Expired</option>
-            </select>
           </div>
 
           <div className="pt-2 flex justify-end gap-2">

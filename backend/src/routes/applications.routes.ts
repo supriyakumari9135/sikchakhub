@@ -187,13 +187,6 @@ router.post('/', authenticateJWT, requireVerifiedAccount, async (req: Request, r
       });
     }
 
-    if (job.deadline && new Date(job.deadline) < new Date()) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'The application deadline for this opening has passed.' 
-      });
-    }
-
     // 3. Prevent duplicate application
     let existingApp: any = null;
     try {

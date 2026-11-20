@@ -213,7 +213,7 @@ export interface JobVacancy {
   city: string;
   state: string;
   vacanciesCount: number;
-  deadline: string;
+  deadline?: string;
   status: JobStatus;
   customFields?: FormFieldDefinition[];
   screeningRules?: ScreeningRule;

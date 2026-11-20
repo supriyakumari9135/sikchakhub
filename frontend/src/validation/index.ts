@@ -98,7 +98,7 @@ export const JobVacancySchema = z.object({
   city: z.string().min(2, 'City is required'),
   state: z.string().min(2, 'State is required'),
   vacanciesCount: z.number().min(1).default(1),
-  deadline: z.string().min(4, 'Application deadline is required'),
+  deadline: z.string().optional(),
   customFields: z.array(FormFieldDefinitionSchema).optional(),
   screeningRules: ScreeningRuleSchema.optional(),
 });

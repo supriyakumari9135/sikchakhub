@@ -34,7 +34,6 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
   const [city, setCity] = useState(institution?.city || 'New Delhi');
   const [state, setState] = useState(institution?.state || 'Delhi');
   const [qualification, setQualification] = useState('Post Graduate with B.Ed');
-  const [deadline, setDeadline] = useState('2026-12-31');
   const [vacanciesCount, setVacanciesCount] = useState(2);
   const [description, setDescription] = useState(
     'Seeking passionate educator to teach senior secondary batches. Responsible for conceptual syllabus coverage, doubt resolution, and preparing students for competitive examinations.'
@@ -147,7 +146,6 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
           state,
           requiredQualification: qualification,
           description,
-          deadline,
           vacanciesCount: Number(vacanciesCount),
           customFields,
           requireResume,
@@ -335,8 +333,8 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
               </div>
             </div>
 
-            {/* City & Deadline */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* City & State */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700">City *</label>
                 <input
@@ -355,17 +353,6 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
                   required
                   value={state}
                   onChange={(e) => setState(e.target.value)}
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700">Application Deadline</label>
-                <input
-                  type="date"
-                  required
-                  value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
                   className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300"
                 />
               </div>

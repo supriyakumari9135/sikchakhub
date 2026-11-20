@@ -150,7 +150,7 @@ const JobVacancySchema = new mongoose.Schema({
   city: { type: String, required: true },
   state: { type: String, required: true },
   vacanciesCount: { type: Number, default: 1 },
-  deadline: { type: String, required: true },
+  deadline: { type: String, required: false },
   status: { type: String, enum: ['DRAFT', 'PENDING_APPROVAL', 'ACTIVE', 'PAUSED', 'CLOSED', 'REJECTED'], default: 'PENDING_APPROVAL' },
   customFields: { type: mongoose.Schema.Types.Mixed, default: [] },
   screeningRules: { type: mongoose.Schema.Types.Mixed, default: {} },
@@ -163,7 +163,6 @@ const JobVacancySchema = new mongoose.Schema({
 JobVacancySchema.index({ status: 1, createdAt: -1 });
 JobVacancySchema.index({ institutionId: 1, status: 1 });
 JobVacancySchema.index({ status: 1, subject: 1, city: 1 });
-JobVacancySchema.index({ deadline: 1 });
 
 // Job Application Schema
 const JobApplicationSchema = new mongoose.Schema({

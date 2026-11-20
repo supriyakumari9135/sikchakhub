@@ -308,8 +308,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Academic Criteria & Application Deadline */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          {/* Academic Criteria */}
+          <div className="text-xs">
             <div className="p-4 rounded-2xl border border-slate-200/80 bg-white flex items-start gap-3 shadow-2xs">
               <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100">
                 <GraduationCap className="w-4 h-4" />
@@ -318,18 +318,6 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Required Qualification</span>
                 <span className="font-semibold text-slate-800 text-xs sm:text-sm block mt-0.5">
                   {job.requiredQualification || 'Post Graduate / Relevant Degree with B.Ed'}
-                </span>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-2xl border border-slate-200/80 bg-white flex items-start gap-3 shadow-2xs">
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
-                <Calendar className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Application Deadline</span>
-                <span className="font-semibold text-slate-800 text-xs sm:text-sm block mt-0.5">
-                  {job.deadline ? job.deadline : 'Immediate Interview / Ongoing'}
                 </span>
               </div>
             </div>
