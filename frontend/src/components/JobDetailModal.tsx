@@ -18,7 +18,8 @@ import {
   BadgeCheck,
   IndianRupee,
   Building2,
-  FileText
+  FileText,
+  BookOpen
 } from 'lucide-react';
 
 interface JobDetailModalProps {
@@ -64,6 +65,130 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   const formatEmployment = (type?: string) => {
     if (!type) return 'Full Time';
     return type.replace('_', ' ');
+  };
+
+  // Helper to get an appropriate icon for structured role specification fields
+  const getFieldIcon = (key: string) => {
+    const k = key.toUpperCase();
+    if (k.includes('SUBJECT')) return <BookOpen className="w-3.5 h-3.5 text-sky-600 shrink-0" />;
+    if (k.includes('LEVEL') || k.includes('CLASS')) return <GraduationCap className="w-3.5 h-3.5 text-indigo-600 shrink-0" />;
+    if (k.includes('EXP')) return <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />;
+    if (k.includes('PROCESS') || k.includes('INTERVIEW')) return <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />;
+    if (k.includes('SALARY') || k.includes('CTC')) return <IndianRupee className="w-3.5 h-3.5 text-emerald-600 shrink-0" />;
+    if (k.includes('LOC') || k.includes('CAMPUS')) return <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />;
+    if (k.includes('QUALIF')) return <Award className="w-3.5 h-3.5 text-blue-600 shrink-0" />;
+    return <CheckCircle2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />;
+  };
+
+  // Helper to format structured or plain role overview descriptions
+  const renderRoleOverview = (description?: string) => {
+    if (!description || !description.trim()) {
+      return (
+        <p className="text-slate-500 italic text-xs">
+          No detailed description provided for this opening.
+        </p>
+      );
+    }
+
+    // Check for structured KEY - VALUE or KEY : VALUE pairs
+    const knownKeys = [
+      'SUBJECT',
+      'LEVEL/CLASS',
+      'CLASS/LEVEL',
+      'TEACHING LEVEL',
+      'LEVEL',
+      'CLASS',
+      'EXPERIENCE',
+      'MIN EXPERIENCE',
+      'SELECTION PROCESS',
+      'INTERVIEW PROCESS',
+      'PROCESS',
+      'SALARY',
+      'OFFERED CTC',
+      'CTC',
+      'LOCATION',
+      'CAMPUS',
+      'QUALIFICATION',
+      'MIN QUALIFICATION',
+      'BOARD',
+      'JOINING',
+      'TIMINGS',
+      'WORKING HOURS',
+      'REQUIREMENT',
+      'ELIGIBILITY',
+      'ROLES & RESPONSIBILITIES',
+      'RESPONSIBILITIES',
+      'BENEFITS'
+    ];
+
+    const sortedKeys = [...knownKeys].sort((a, b) => b.length - a.length);
+    const pattern = new RegExp(
+      '(?:^|\\s+)(' + sortedKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\s*[-:]\\s*',
+      'gi'
+    );
+    const matches = [...description.matchAll(pattern)];
+
+    if (matches.length >= 2) {
+      let introText = '';
+      if (matches.length > 0 && matches[0].index! > 0) {
+        introText = description.substring(0, matches[0].index!).trim();
+      }
+
+      const pairs: { key: string; val: string }[] = [];
+      for (let i = 0; i < matches.length; i++) {
+        const key = matches[i][1].trim();
+        const startIndex = matches[i].index! + matches[i][0].length;
+        const endIndex = i + 1 < matches.length ? matches[i + 1].index! : description.length;
+        const val = description.substring(startIndex, endIndex).trim().replace(/[-–,]$/, '');
+        if (val) {
+          pairs.push({ key, val });
+        }
+      }
+
+      if (pairs.length > 0) {
+        return (
+          <div className="space-y-3">
+            {introText && (
+              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+                {introText}
+              </p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {pairs.map((p, idx) => (
+                <div 
+                  key={idx} 
+                  className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs hover:border-sky-300 transition-colors"
+                >
+                  <div className="flex items-center gap-2 shrink-0 min-w-0">
+                    <div className="p-1 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
+                      {getFieldIcon(p.key)}
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      {p.key.replace('/', ' / ')}
+                    </span>
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-slate-900 text-right break-words pl-2">
+                    {p.val}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+    }
+
+    // Default: clean paragraphs with proper line height
+    const paragraphs = description.split(/\n+/).map((p) => p.trim()).filter(Boolean);
+    return (
+      <div className="space-y-2">
+        {paragraphs.map((p, idx) => (
+          <p key={idx} className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+            {p}
+          </p>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -226,8 +351,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               <Briefcase className="w-3.5 h-3.5 text-sky-600" />
               <span>Job Description & Role Overview</span>
             </h4>
-            <div className="text-xs sm:text-sm text-slate-700 leading-relaxed bg-slate-50/70 p-4 sm:p-5 rounded-2xl border border-slate-200/70 whitespace-pre-line shadow-2xs">
-              {job.description || 'No detailed description provided for this opening.'}
+            <div className="text-xs sm:text-sm text-slate-700 leading-relaxed bg-slate-50/70 p-4 sm:p-5 rounded-2xl border border-slate-200/70 shadow-2xs">
+              {renderRoleOverview(job.description)}
             </div>
           </div>
 

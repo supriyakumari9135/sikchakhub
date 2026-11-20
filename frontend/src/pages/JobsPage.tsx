@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { JobVacancy } from '@sikchakhub/shared-types';
 import { ApplyJobModal } from '../components/ApplyJobModal';
+import { JobDetailModal } from '../components/JobDetailModal';
 import { AuthRequiredModal } from '../components/AuthRequiredModal';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../config/api';
@@ -893,116 +894,17 @@ export const JobsPage: React.FC = () => {
       {/* ========================================================================= */}
       {/* 4. JOB DETAIL MODAL                                                       */}
       {/* ========================================================================= */}
-      {activeJobDetail && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100">
-            
-            {/* Modal Header */}
-            <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
-              <div className="flex items-center gap-3">
-                <img
-                  src="/logo.jpeg"
-                  alt="SikchaKhub"
-                  className="w-12 h-12 rounded-2xl object-cover border border-amber-300/60 bg-white shrink-0 shadow-2xs"
-                />
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200/80">
-                    {activeJobDetail.teachingLevel} • {activeJobDetail.board}
-                  </span>
-                  <h3 className="text-lg font-bold text-slate-900 mt-1 font-serif">{activeJobDetail.title}</h3>
-                  <p className="text-xs text-slate-500 font-medium">SikchaKhub • {activeJobDetail.city}, {activeJobDetail.state}</p>
-                </div>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setActiveJobDetail(null)} 
-                className="cursor-pointer p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-5 text-xs">
-              <div className="bg-sky-50/40 p-4 rounded-2xl border border-sky-100 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Salary CTC</span>
-                  <span className="font-extrabold text-slate-900 text-sm">₹{activeJobDetail.minSalaryLPA} - ₹{activeJobDetail.maxSalaryLPA} LPA</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Min Experience</span>
-                  <span className="font-extrabold text-slate-900 text-sm">{activeJobDetail.minExperienceYears}+ Years</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Location</span>
-                  <span className="font-extrabold text-slate-900 text-sm">{activeJobDetail.city}, {activeJobDetail.state}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Openings</span>
-                  <span className="font-extrabold text-slate-900 text-sm">{activeJobDetail.vacanciesCount} Seats</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 uppercase tracking-wide">Role Overview</h4>
-                <p className="text-slate-600 leading-relaxed text-xs">{activeJobDetail.description}</p>
-              </div>
-
-              {activeJobDetail.responsibilities && (
-                <div className="space-y-2">
-                  <h4 className="font-bold text-slate-900 uppercase tracking-wide">Key Responsibilities</h4>
-                  <ul className="list-disc pl-5 space-y-1 text-slate-600">
-                    {activeJobDetail.responsibilities.map((r, idx) => (
-                      <li key={idx}>{r}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {activeJobDetail.benefits && (
-                <div className="space-y-2">
-                  <h4 className="font-bold text-slate-900 uppercase tracking-wide">Institutional Benefits</h4>
-                  <ul className="list-disc pl-5 space-y-1 text-slate-600">
-                    {activeJobDetail.benefits.map((b, idx) => (
-                      <li key={idx}>{b}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Modal Footer */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setActiveJobDetail(null)}
-                  className="cursor-pointer px-4 py-2 text-slate-600 font-bold hover:text-slate-900"
-                >
-                  Close
-                </button>
-                {appliedJobIds.has(activeJobDetail.id) ? (
-                  <span className="px-5 py-2.5 bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-full flex items-center gap-1.5 shadow-2xs">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Already Applied ✓</span>
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const j = activeJobDetail;
-                      setActiveJobDetail(null);
-                      handleApplyClick(j);
-                    }}
-                    className="cursor-pointer px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-full shadow-md shadow-orange-500/25 transition active:scale-95"
-                  >
-                    Proceed to Quick Application ➔
-                  </button>
-                )}
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
+      <JobDetailModal
+        job={activeJobDetail as any}
+        isOpen={Boolean(activeJobDetail)}
+        onClose={() => setActiveJobDetail(null)}
+        onApply={(job) => {
+          const j = activeJobDetail || job;
+          setActiveJobDetail(null);
+          handleApplyClick(j as any);
+        }}
+        isApplied={Boolean(activeJobDetail && appliedJobIds.has(activeJobDetail.id))}
+      />
 
       {/* ========================================================================= */}
       {/* 5. AUTHENTICATION REQUIRED MODAL                                          */}
