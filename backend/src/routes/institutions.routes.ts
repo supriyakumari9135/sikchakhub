@@ -3,7 +3,7 @@ import { dbStore } from '../db/store';
 import { InstitutionModel, JobVacancyModel } from '../db/mongodb';
 import { authenticateJWT, optionalJWT, requireRole, requireVerifiedAccount } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
-import { InstitutionSchema } from '@sikchakhub/shared-validation';
+import { InstitutionSchema } from '../validation';
 
 const router = Router();
 

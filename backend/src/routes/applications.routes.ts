@@ -16,7 +16,8 @@ import {
 import { authenticateJWT, requireRole, requireVerifiedAccount } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
 import { calculateCandidateScreening, analyzeApplicationATS } from '../services/screeningEngine';
-import { SubmitApplicationSchema } from '@sikchakhub/shared-validation';
+import { SubmitApplicationSchema } from '../validation';
+import { getResumesDir } from '../utils/paths';
 
 const router = Router();
 
@@ -660,10 +661,7 @@ router.post('/upload-candidate', authenticateJWT, requireRole(['EMPLOYER', 'ADMI
         return res.status(400).json({ success: false, message: 'Invalid document signature. Only valid PDF files are accepted.' });
       }
 
-      const uploadDir = path.join(process.cwd(), 'uploads', 'resumes');
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
+      const uploadDir = getResumesDir();
 
       const uniqueFileName = `cv-${Date.now()}-${Math.random().toString(36).substring(2, 7)}-${safeFileName}`;
       const filePath = path.join(uploadDir, uniqueFileName);

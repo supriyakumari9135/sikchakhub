@@ -8,7 +8,7 @@ import {
   AuditLog,
   JobPosterSubscription,
   PaymentRecord
-} from '@sikchakhub/shared-types';
+} from '../types';
 import { inMemoryAuditLogs } from '../middleware/auditLogger';
 
 class DataStore {

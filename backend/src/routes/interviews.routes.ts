@@ -11,7 +11,7 @@ import {
 } from '../db/mongodb';
 import { authenticateJWT, requireRole, requireVerifiedAccount } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
-import { ScheduleInterviewSchema } from '@sikchakhub/shared-validation';
+import { ScheduleInterviewSchema } from '../validation';
 
 const router = Router();
 

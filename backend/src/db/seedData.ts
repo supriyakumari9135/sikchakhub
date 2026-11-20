@@ -5,7 +5,7 @@ import {
   JobVacancy, 
   JobApplication, 
   Interview 
-} from '@sikchakhub/shared-types';
+} from '../types';
 
 export const SEED_USERS: (User & { passwordHash?: string })[] = [];
 

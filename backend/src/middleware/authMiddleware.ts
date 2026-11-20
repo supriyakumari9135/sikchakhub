@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { UserRole } from '@sikchakhub/shared-types';
+import { UserRole } from '../types';
 import { UserModel } from '../db/mongodb';
 import { dbStore } from '../db/store';
 

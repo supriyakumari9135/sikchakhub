@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { AuditLog } from '@sikchakhub/shared-types';
+import { AuditLog } from '../types';
 
 export const inMemoryAuditLogs: AuditLog[] = [];
 

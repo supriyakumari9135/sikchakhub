@@ -3,7 +3,7 @@ import { dbStore } from '../db/store';
 import { JobVacancyModel, InstitutionModel, JobApplicationModel } from '../db/mongodb';
 import { authenticateJWT, optionalJWT, requireRole, requireVerifiedAccount } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
-import { JobVacancySchema } from '@sikchakhub/shared-validation';
+import { JobVacancySchema } from '../validation';
 
 const router = Router();
 

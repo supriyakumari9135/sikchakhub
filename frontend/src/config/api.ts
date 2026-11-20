@@ -23,8 +23,20 @@ export const API_BASE_URL: string =
  *   apiUrl('/api/v1/jobs') -> 'https://api.sikchakhub.in/api/v1/jobs'
  */
 export const apiUrl = (endpoint: string): string => {
+  if (!endpoint) return '';
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://') || endpoint.startsWith('data:')) {
+    return endpoint;
+  }
+
   const base = API_BASE_URL.replace(/\/+$/, '');
-  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  let path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+  // Handle static uploads specifically: strip trailing /api or /api/v1 from origin base
+  if (path.startsWith('/uploads/') || path.startsWith('/api/uploads/') || path.startsWith('/api/v1/uploads/')) {
+    const cleanUploadPath = path.replace(/^\/api(\/v1)?/, '');
+    const origin = base.replace(/\/api(\/v1)?$/, '');
+    return `${origin}${cleanUploadPath}`;
+  }
 
   // If base URL already includes /api/v1 and endpoint starts with /api/v1, prevent duplication
   if (base.endsWith('/api/v1') && path.startsWith('/api/v1')) {

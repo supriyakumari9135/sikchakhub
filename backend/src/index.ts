@@ -15,7 +15,8 @@ import adminRoutes from './routes/admin.routes';
 import masterDataRoutes from './routes/masterData.routes';
 import notificationRoutes from './routes/notifications.routes';
 import subscriptionRoutes from './routes/subscriptions.routes';
-import { connectMongoDB } from './db/mongodb';
+import { connectMongoDB, TeacherProfileModel, JobApplicationModel } from './db/mongodb';
+import { getUploadsDir, getResumesDir, getCertificatesDir, getLogosDir } from './utils/paths';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -26,8 +27,21 @@ connectMongoDB().catch(err => {
 });
 
 // Production Security Response Headers (Anti-Clickjacking, Anti-MIME sniffing, HSTS)
-app.use((_req, res, next) => {
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+app.use((req, res, next) => {
+  const isUploadPath = req.path.startsWith('/uploads') || 
+                       req.path.startsWith('/api/uploads') || 
+                       req.path.startsWith('/api/v1/uploads');
+  if (isUploadPath) {
+    // Allow embedding in iframes from sikchakhub domains, vercel deployments, and local development
+    res.setHeader(
+      'Content-Security-Policy',
+      "frame-ancestors 'self' https://sikchakhub.in https://*.sikchakhub.in https://*.vercel.app http://localhost:* http://127.0.0.1:*"
+    );
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  } else {
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  }
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -38,6 +52,7 @@ app.use((_req, res, next) => {
 const allowedOrigins = [
   'https://sikchakhub.in',
   'https://www.sikchakhub.in',
+  'https://app.sikchakhub.in',
   'https://api.sikchakhub.in',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
@@ -85,19 +100,121 @@ const authRateLimiter = (req: express.Request, res: express.Response, next: expr
 };
 
 // Static storage for local PDF CV/Resume & verification document uploads
-const resumesDir = path.join(__dirname, '../uploads/resumes');
-if (!fs.existsSync(resumesDir)) {
-  fs.mkdirSync(resumesDir, { recursive: true });
-}
-const certificatesDir = path.join(__dirname, '../uploads/certificates');
-if (!fs.existsSync(certificatesDir)) {
-  fs.mkdirSync(certificatesDir, { recursive: true });
-}
-const logosDir = path.join(__dirname, '../uploads/logos');
-if (!fs.existsSync(logosDir)) {
-  fs.mkdirSync(logosDir, { recursive: true });
-}
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+const uploadsDir = getUploadsDir();
+getResumesDir();
+getCertificatesDir();
+getLogosDir();
+
+const serveUploads = express.static(uploadsDir, {
+  setHeaders: (res, filePath) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader(
+      'Content-Security-Policy',
+      "frame-ancestors 'self' https://sikchakhub.in https://*.sikchakhub.in https://*.vercel.app http://localhost:* http://127.0.0.1:*"
+    );
+    if (filePath.endsWith('.pdf')) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');
+    }
+  },
+});
+
+// Mount static uploads under /uploads, /api/uploads, and /api/v1/uploads
+app.use('/uploads', serveUploads);
+app.use('/api/uploads', serveUploads);
+app.use('/api/v1/uploads', serveUploads);
+
+// Resilient CV/Resume streaming & database fallback handler
+const serveResumeFallback = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const rawFilename = req.params.filename;
+  if (!rawFilename) return next();
+
+  const safeFilename = path.basename(rawFilename);
+  const searchDirs = [
+    path.join(uploadsDir, 'resumes'),
+    path.resolve(__dirname, '../uploads/resumes'),
+    path.resolve(__dirname, '../../uploads/resumes'),
+    path.resolve(process.cwd(), 'uploads/resumes'),
+    path.resolve(process.cwd(), 'backend/uploads/resumes'),
+  ];
+
+  for (const sDir of searchDirs) {
+    const fullPath = path.join(sDir, safeFilename);
+    if (fs.existsSync(fullPath)) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${safeFilename}"`);
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader(
+        'Content-Security-Policy',
+        "frame-ancestors 'self' https://sikchakhub.in https://*.sikchakhub.in https://*.vercel.app http://localhost:* http://127.0.0.1:*"
+      );
+      return res.sendFile(fullPath);
+    }
+  }
+
+  // Attempt database retrieval if file was lost on ephemeral disk or newly registered
+  try {
+    const cleanName = safeFilename.replace(/\.pdf$/i, '');
+    const profile = await TeacherProfileModel.findOne({
+      $or: [
+        { resumeUrl: { $regex: safeFilename, $options: 'i' } },
+        { resumeFileName: { $regex: cleanName, $options: 'i' } },
+      ],
+    }).lean();
+
+    if (profile && (profile as any).resumeBase64) {
+      const base64Data = (profile as any).resumeBase64.replace(/^data:application\/pdf;base64,/, '');
+      const buf = Buffer.from(base64Data, 'base64');
+      const savePath = path.join(uploadsDir, 'resumes', safeFilename);
+      await fs.promises.writeFile(savePath, buf).catch(() => {});
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${safeFilename}"`);
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader(
+        'Content-Security-Policy',
+        "frame-ancestors 'self' https://sikchakhub.in https://*.sikchakhub.in https://*.vercel.app http://localhost:* http://127.0.0.1:*"
+      );
+      return res.send(buf);
+    }
+
+    const appRecord = await JobApplicationModel.findOne({
+      $or: [
+        { resumeUrl: { $regex: safeFilename, $options: 'i' } },
+        { resumeFileName: { $regex: cleanName, $options: 'i' } },
+      ],
+    }).lean();
+
+    if (appRecord && (appRecord as any).resumeBase64) {
+      const base64Data = (appRecord as any).resumeBase64.replace(/^data:application\/pdf;base64,/, '');
+      const buf = Buffer.from(base64Data, 'base64');
+      const savePath = path.join(uploadsDir, 'resumes', safeFilename);
+      await fs.promises.writeFile(savePath, buf).catch(() => {});
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${safeFilename}"`);
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader(
+        'Content-Security-Policy',
+        "frame-ancestors 'self' https://sikchakhub.in https://*.sikchakhub.in https://*.vercel.app http://localhost:* http://127.0.0.1:*"
+      );
+      return res.send(buf);
+    }
+  } catch (err) {
+    console.warn('Fallback resume DB search error:', err);
+  }
+
+  return res.status(404).json({
+    success: false,
+    message: `Resume file "${safeFilename}" was not found on SikchaKhub API.`,
+  });
+};
+
+app.get('/uploads/resumes/:filename', serveResumeFallback);
+app.get('/api/uploads/resumes/:filename', serveResumeFallback);
+app.get('/api/v1/uploads/resumes/:filename', serveResumeFallback);
 
 // Health check
 app.get('/api/health', (req, res) => {

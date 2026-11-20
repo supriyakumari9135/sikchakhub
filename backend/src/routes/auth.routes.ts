@@ -7,8 +7,9 @@ import { dbStore } from '../db/store';
 import { UserModel, TeacherProfileModel, InstitutionModel, JobApplicationModel } from '../db/mongodb';
 import { authenticateJWT, requireRole } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
-import { RegisterSchema, LoginSchema } from '@sikchakhub/shared-validation';
+import { RegisterSchema, LoginSchema } from '../validation';
 import { otpService } from '../services/otpService';
+import { getResumesDir } from '../utils/paths';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'sikchakhub-super-secret-jwt-key-2025';
@@ -219,10 +220,7 @@ router.post('/register', async (req: Request, res: Response) => {
         }
 
         // Save to secure local storage
-        const uploadsDir = path.join(__dirname, '../../uploads/resumes');
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
-        }
+        const uploadsDir = getResumesDir();
 
         const cleanName = (resumeFileName || 'resume.pdf').replace(/[^a-zA-Z0-9.-]/g, '_');
         const storedFileName = `cv-${userId}-${Date.now()}-${cleanName}`;
@@ -971,10 +969,7 @@ router.post('/upload-resume', authenticateJWT, requireRole(['TEACHER', 'ADMIN'])
     }
 
     // 4. Save to local storage asynchronously
-    const uploadsDir = path.join(__dirname, '../../uploads/resumes');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
+    const uploadsDir = getResumesDir();
 
     const cleanName = (fileName || 'resume.pdf').replace(/[^a-zA-Z0-9.-]/g, '_');
     const storedFileName = `cv-${userId}-${Date.now()}-${cleanName}`;
