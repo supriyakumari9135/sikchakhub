@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { dbStore } from '../db/store';
-import { JobVacancyModel, InstitutionModel, JobApplicationModel } from '../db/mongodb';
+import { JobVacancyModel, InstitutionModel, JobApplicationModel, UserModel, PlatformSettingModel } from '../db/mongodb';
 import { authenticateJWT, optionalJWT, requireRole, requireVerifiedAccount } from '../middleware/authMiddleware';
 import { logAuditEvent } from '../middleware/auditLogger';
 import { JobVacancySchema } from '../validation';
@@ -82,6 +82,15 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
     const instMap = new Map<string, any>();
     institutionsList.forEach(inst => instMap.set(inst.id, inst));
 
+    // Batch resolve user owners for actual poster names
+    const ownerIds = Array.from(new Set(institutionsList.map(i => i.ownerId).concat(combined.map(j => j.postedBy)).filter(Boolean)));
+    let usersList: any[] = [];
+    try {
+      usersList = await UserModel.find({ id: { $in: ownerIds } }, 'id fullName email role').lean();
+    } catch (e) {}
+    const userMap = new Map<string, any>();
+    usersList.forEach(u => userMap.set(u.id, u));
+
     // Batch aggregate applicant counts per job
     const appCountMap = new Map<string, number>();
     try {
@@ -101,17 +110,31 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
         appCount = dbStore.applications.filter(a => a.jobId === j.id).length;
       }
 
+      // Resolve real poster name and institution name
+      const posterUser = (inst && userMap.get(inst.ownerId)) || (j.postedBy && userMap.get(j.postedBy));
+      const resolvedPosterName = j.posterName || posterUser?.fullName || inst?.contactPerson || (inst?.name ? `${inst.name} Recruiter` : 'Educational Recruiter');
+      const resolvedInstitutionName = inst?.name || j.institutionName || 'Verified Educational Institution';
+
       return {
         ...j,
-        institution: inst,
+        institutionName: resolvedInstitutionName,
+        posterName: resolvedPosterName,
+        institution: inst ? {
+          ...inst,
+          name: resolvedInstitutionName,
+          contactPerson: resolvedPosterName,
+        } : {
+          name: resolvedInstitutionName,
+          contactPerson: resolvedPosterName,
+          logoUrl: '/logo.jpeg',
+          verificationStatus: 'VERIFIED',
+          description: `Verified educational opening at ${resolvedInstitutionName}.`,
+        },
         totalApplicants: appCount,
       };
     });
 
     // Moderation & Approval Filter:
-    // Only approved vacancies ('ACTIVE') from verified institutions ('VERIFIED') show on the public portal.
-    // Super Admin and HR can view all jobs.
-    // An employer can view all jobs for their own institution.
     const isSuperAdmin = req.user && req.user.role === 'ADMIN';
     const isHr = req.user && (req.user.role === 'HR' || req.user.adminRole === 'HR');
     const isPrivileged = isSuperAdmin || isHr;
@@ -124,7 +147,7 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
     }
 
     if (!isPrivileged && !isInstitutionOwner) {
-      results = results.filter(j => j.status === 'ACTIVE' && j.institution?.verificationStatus === 'VERIFIED');
+      results = results.filter(j => j.status === 'ACTIVE' && j.institution?.verificationStatus !== 'REJECTED' && j.institution?.verificationStatus !== 'SUSPENDED');
     } else {
       if (status && status !== 'ALL') {
         results = results.filter(j => j.status === status);
@@ -139,9 +162,9 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
           j.title.toLowerCase().includes(query) ||
           j.subject.toLowerCase().includes(query) ||
           (j.description && j.description.toLowerCase().includes(query)) ||
-          'sikchakhub'.includes(query) ||
-          'SikchakHub'.includes(query) ||
-          (isPrivileged && j.institution?.name && j.institution.name.toLowerCase().includes(query)) ||
+          (j.institutionName && j.institutionName.toLowerCase().includes(query)) ||
+          (j.posterName && j.posterName.toLowerCase().includes(query)) ||
+          (j.institution?.name && j.institution.name.toLowerCase().includes(query)) ||
           j.city.toLowerCase().includes(query)
       );
     }
@@ -151,38 +174,13 @@ router.get('/', optionalJWT, async (req: Request, res: Response) => {
     const total = results.length;
     const paginated = results.slice((pageNum - 1) * pageSize, pageNum * pageSize);
 
-    // Public Display Masking:
-    // Every job vacancy displayed publicly shows "SikchaKhub" as the company/employer name.
-    // Real institution names are preserved in database and shown only to Super Admin, HR, and the posting institution owner.
-    const sanitizedJobs = paginated.map(j => {
-      const isOwnerOfThisJob = req.user && j.institution && j.institution.ownerId === req.user.id;
-      if (isPrivileged || isOwnerOfThisJob) {
-        return j;
-      }
-      return {
-        ...j,
-        institution: j.institution ? {
-          ...j.institution,
-          name: 'SikchaKhub',
-          logoUrl: '/logo.jpeg',
-          description: 'Verified educational opening coordinated via SikchaKhub teacher recruitment network.',
-        } : {
-          name: 'SikchaKhub',
-          logoUrl: '/logo.jpeg',
-          verificationStatus: 'VERIFIED',
-          description: 'Verified educational opening coordinated via SikchaKhub teacher recruitment network.',
-        },
-        institutionName: 'SikchaKhub',
-      };
-    });
-
     return res.json({
       success: true,
       total,
       page: pageNum,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
-      jobs: sanitizedJobs,
+      jobs: paginated,
     });
   } catch (error: any) {
     console.error('Jobs fetch error:', error);
@@ -240,28 +238,35 @@ router.get('/:id', optionalJWT, async (req: Request, res: Response) => {
       }
     }
 
-    // Public Display Masking for Single Job Details:
-    // If not viewed by Super Admin, HR, or the institution owner, employer name is displayed as "SikchaKhub".
-    const displayedInstitution = (isPrivileged || isInstitutionOwner)
-      ? institution
-      : (institution ? {
-          ...institution,
-          name: 'SikchaKhub',
-          logoUrl: '/logo.jpeg',
-          description: 'Verified educational opportunity coordinated through SikchaKhub recruitment network.',
-        } : {
-          name: 'SikchaKhub',
-          logoUrl: '/logo.jpeg',
-          verificationStatus: 'VERIFIED',
-          description: 'Verified educational opportunity coordinated through SikchaKhub recruitment network.',
-        });
+    let user: any = null;
+    if (institution?.ownerId || job.postedBy) {
+      try {
+        user = await UserModel.findOne({ id: institution?.ownerId || job.postedBy }, 'id fullName email role').lean();
+      } catch (e) {}
+    }
+
+    const resolvedPosterName = job.posterName || user?.fullName || institution?.contactPerson || (institution?.name ? `${institution.name} Recruiter` : 'Educational Recruiter');
+    const resolvedInstitutionName = institution?.name || job.institutionName || 'Verified Educational Institution';
+
+    const displayedInstitution = institution ? {
+      ...institution,
+      name: resolvedInstitutionName,
+      contactPerson: resolvedPosterName,
+    } : {
+      name: resolvedInstitutionName,
+      contactPerson: resolvedPosterName,
+      logoUrl: '/logo.jpeg',
+      verificationStatus: 'VERIFIED',
+      description: `Verified educational opportunity at ${resolvedInstitutionName}.`,
+    };
 
     return res.json({
       success: true,
       job: {
         ...job,
         institution: displayedInstitution,
-        institutionName: (isPrivileged || isInstitutionOwner) ? (institution?.name || 'SikchaKhub') : 'SikchaKhub',
+        institutionName: resolvedInstitutionName,
+        posterName: resolvedPosterName,
         totalApplicants: applicationsCount,
       },
     });
@@ -311,34 +316,39 @@ router.post('/', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER
     }
 
     const isSuperAdmin = req.user!.role === 'ADMIN';
-    let initialStatus: any = 'DRAFT';
-    let message = '';
+    let initialStatus: any = 'ACTIVE';
+    let message = 'Job vacancy published successfully and is now live on the portal!';
 
-    if (isSuperAdmin) {
-      initialStatus = 'ACTIVE';
-      message = 'Job vacancy published successfully in database!';
-    } else {
-      const hasVerificationDoc = Boolean(institution.certificateUrl);
-      const isVerified = institution.verificationStatus === 'VERIFIED';
-
+    if (!isSuperAdmin) {
       if (req.body.status === 'DRAFT') {
         initialStatus = 'DRAFT';
         message = 'Job vacancy saved as draft in database.';
-      } else if (!hasVerificationDoc) {
-        initialStatus = 'DRAFT';
-        message = 'Institutional registration/verification certificate is mandatory before vacancies can be published live. Saved as Draft until verified.';
-      } else if (!isVerified) {
-        initialStatus = 'PENDING_APPROVAL';
-        message = 'Job vacancy submitted for review. It will appear on the public portal once approved by Super Admin.';
       } else {
-        initialStatus = 'PENDING_APPROVAL';
-        message = 'Job vacancy submitted for review. It will appear on the public portal once approved by Super Admin.';
+        let autoApprove = true;
+        try {
+          const setting: any = await PlatformSettingModel.findOne({ key: 'autoApproveJobs' }).lean();
+          if (setting && setting.value === false) autoApprove = false;
+        } catch (e) {}
+
+        if (!autoApprove) {
+          initialStatus = 'PENDING_APPROVAL';
+          message = 'Job vacancy submitted for review. It will appear on the public portal once approved by Super Admin.';
+        } else {
+          initialStatus = 'ACTIVE';
+          message = 'Job vacancy published successfully and is now live on the portal!';
+        }
       }
     }
+
+    const posterName = req.user?.fullName || institution?.contactPerson || institution?.name || 'Recruiter';
+    const institutionName = institution?.name || `${posterName}'s Institution`;
 
     const newJob: any = {
       id: `job-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       institutionId: institution.id,
+      institutionName: institutionName,
+      posterName: posterName,
+      postedBy: req.user!.id,
       ...parseResult.data,
       requireResume: req.body.requireResume !== undefined ? Boolean(req.body.requireResume) : true,
       syllabusDocumentUrl: req.body.syllabusDocumentUrl || '',
@@ -379,7 +389,13 @@ router.post('/', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER
       message,
       job: {
         ...newJob,
-        institution,
+        institutionName,
+        posterName,
+        institution: {
+          ...institution,
+          name: institutionName,
+          contactPerson: posterName,
+        },
       },
     });
   } catch (error: any) {

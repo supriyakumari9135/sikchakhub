@@ -752,27 +752,32 @@ export const JobsPage: React.FC = () => {
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 relative z-10">
                       
                       {/* Left: Emblem + Job Title + Subtitle */}
-                      <div className="flex items-start gap-3.5">
+                      <div className="flex items-start gap-3.5 min-w-0">
                         <img
-                          src="/logo.jpeg"
-                          alt="SikchaKhub"
+                          src={job.institution?.logoUrl || '/logo.jpeg'}
+                          alt={job.institution?.name || job.institutionName || 'Institution Logo'}
                           className="w-12 h-12 rounded-2xl border border-amber-300/70 bg-white object-cover shadow-2xs shrink-0 group-hover:scale-105 transition-transform"
                         />
-                        <div>
+                        <div className="min-w-0">
                           <h3 
                             onClick={() => setActiveJobDetail(job)}
                             className="text-lg font-bold text-slate-900 font-serif leading-snug hover:text-sky-700 transition cursor-pointer"
                           >
                             {job.title}
                           </h3>
-                          <div className="flex items-center gap-3 text-xs text-slate-600 mt-1 font-medium">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-600 mt-1 font-medium">
                             <span className="flex items-center gap-1 text-slate-800 font-semibold">
-                              <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                              <span>SikchaKhub</span>
+                              <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span className="truncate">{job.institution?.name || job.institutionName || 'Verified Institute'}</span>
                             </span>
+                            {job.posterName && (
+                              <span className="text-[11px] text-slate-500 font-normal">
+                                • Posted by <strong className="font-semibold text-slate-700">{job.posterName}</strong>
+                              </span>
+                            )}
                             <span className="flex items-center gap-1 text-slate-500">
-                              <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                              <span>{job.city}, {job.state}</span>
+                              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span className="truncate">{job.city}, {job.state}</span>
                             </span>
                           </div>
                         </div>

@@ -103,6 +103,9 @@ InstitutionSchema.index({ city: 1, type: 1 });
 const JobVacancySchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   institutionId: { type: String, required: true },
+  institutionName: { type: String },
+  posterName: { type: String },
+  postedBy: { type: String },
   title: { type: String, required: true },
   department: { type: String },
   subject: { type: String, required: true },

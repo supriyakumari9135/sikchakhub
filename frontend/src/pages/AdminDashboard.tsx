@@ -1758,7 +1758,10 @@ export const AdminDashboard: React.FC = () => {
                               <p className="text-[11px] text-slate-400">ID: {job.id}</p>
                             </td>
                             <td className="py-3 px-4 text-brand-700 font-semibold">
-                              {job.institutionName}
+                              <p className="font-bold text-slate-800">{job.institutionName || 'Educational Institute'}</p>
+                              {job.posterName && (
+                                <p className="text-[11px] text-slate-500 font-normal">By: {job.posterName}</p>
+                              )}
                             </td>
                             <td className="py-3 px-4">
                               <p className="text-slate-900 font-medium">{job.subject}</p>

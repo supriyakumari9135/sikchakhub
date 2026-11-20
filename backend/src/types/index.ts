@@ -189,6 +189,9 @@ export interface ScreeningRule {
 export interface JobVacancy {
   id: string;
   institutionId: string;
+  institutionName?: string;
+  posterName?: string;
+  postedBy?: string;
   institution?: Institution;
   title: string;
   department?: string;

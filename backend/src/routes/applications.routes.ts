@@ -352,21 +352,27 @@ router.get('/my-applications', authenticateJWT, requireVerifiedAccount, async (r
         interview = dbStore.interviews.find(i => i.applicationId === app.id);
       }
 
+      const resolvedInstitutionName = institution?.name || job?.institutionName || 'Verified Educational Institution';
+      const resolvedPosterName = job?.posterName || institution?.contactPerson || 'School HR';
+
       return {
         ...app,
         interview: interview || undefined,
-        institutionName: 'SikchaKhub',
+        institutionName: resolvedInstitutionName,
+        posterName: resolvedPosterName,
         job: job ? {
           ...job,
+          institutionName: resolvedInstitutionName,
+          posterName: resolvedPosterName,
           institution: institution ? {
             ...institution,
-            name: 'SikchaKhub',
-            logoUrl: '/logo.jpeg',
+            name: resolvedInstitutionName,
+            contactPerson: resolvedPosterName,
           } : {
-            name: 'SikchaKhub',
+            name: resolvedInstitutionName,
+            contactPerson: resolvedPosterName,
             logoUrl: '/logo.jpeg',
           },
-          institutionName: 'SikchaKhub',
         } : undefined,
       };
     });

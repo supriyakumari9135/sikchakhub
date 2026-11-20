@@ -206,8 +206,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             {/* Institution / Brand Logo Container with strict dimensions */}
             <div className="w-13 h-13 min-w-[52px] min-h-[52px] max-w-[52px] max-h-[52px] sm:w-14 sm:h-14 sm:min-w-[56px] sm:min-h-[56px] sm:max-w-[56px] sm:max-h-[56px] rounded-2xl overflow-hidden border border-sky-200/80 bg-white p-1 flex items-center justify-center shrink-0 shadow-xs">
               <img
-                src="/logo.jpeg"
-                alt={job.institution?.name || 'SikchaKhub'}
+                src={job.institution?.logoUrl || '/logo.jpeg'}
+                alt={job.institution?.name || job.institutionName || 'Institution Logo'}
                 className="w-full h-full object-cover rounded-xl"
               />
             </div>
@@ -236,12 +236,20 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 {job.title}
               </h2>
 
-              {/* Institution and Location */}
+              {/* Institution and Location and Actual Job Poster */}
               <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-600">
                 <span className="font-bold text-slate-900 flex items-center gap-1">
-                  <span>{job.institution?.name || 'SikchaKhub Partner Institution'}</span>
+                  <span>{job.institution?.name || job.institutionName || 'Verified Educational Institution'}</span>
                   <BadgeCheck className="w-4 h-4 text-emerald-500 inline-block shrink-0" />
                 </span>
+                {job.posterName && (
+                  <>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-slate-600 font-medium">
+                      Posted by: <strong className="text-slate-900 font-bold">{job.posterName}</strong>
+                    </span>
+                  </>
+                )}
                 <span className="text-slate-300">•</span>
                 <span className="flex items-center gap-1 text-slate-500 font-medium">
                   <MapPin className="w-3.5 h-3.5 text-sky-500 shrink-0" />
