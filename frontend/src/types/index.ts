@@ -1,6 +1,17 @@
 export type UserRole = 'TEACHER' | 'EMPLOYER' | 'ADMIN' | 'HR';
 
-export type InstitutionStatus = 'PENDING' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
+export type InstitutionStatus = 'PENDING' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED' | 'BLOCKED';
+
+export interface EmployerPenalty {
+  id: string;
+  amount: number;
+  reason: string;
+  status: 'ACTIVE' | 'PAID' | 'WAIVED';
+  imposedAt: string;
+  imposedBy?: string;
+  notes?: string;
+  paidAt?: string;
+}
 
 export type JobStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'ACTIVE' | 'PAUSED' | 'CLOSED' | 'REJECTED';
 
@@ -54,7 +65,12 @@ export interface User {
   phoneVerified?: boolean;
   emailVerifiedAt?: string;
   phoneVerifiedAt?: string;
-  status?: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | string;
+  status?: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | 'BLOCKED' | string;
+  isBlocked?: boolean;
+  blockReason?: string;
+  blockedAt?: string;
+  penalties?: EmployerPenalty[];
+  activePenaltyAmount?: number;
 }
 
 export interface OtpStatusResponse {
@@ -128,6 +144,11 @@ export interface Institution {
   termsAccepted?: boolean;
   verificationStatus: InstitutionStatus;
   verificationNotes?: string;
+  isBlocked?: boolean;
+  blockReason?: string;
+  blockedAt?: string;
+  penalties?: EmployerPenalty[];
+  activePenaltyAmount?: number;
   address: string;
   city: string;
   state: string;

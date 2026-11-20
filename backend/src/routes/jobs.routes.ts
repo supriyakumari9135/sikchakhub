@@ -315,6 +315,21 @@ router.post('/', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER
       dbStore.institutions.push(institution);
     }
 
+    // Check if employer is blocked or has active penalties
+    if (institution.isBlocked || req.user?.isBlocked || req.user?.status === 'BLOCKED') {
+      return res.status(403).json({
+        success: false,
+        message: `Account is blocked by administration.${institution.blockReason ? ` Reason: ${institution.blockReason}` : ''} Cannot publish job vacancies.`,
+      });
+    }
+
+    if (institution.activePenaltyAmount && institution.activePenaltyAmount > 0) {
+      return res.status(403).json({
+        success: false,
+        message: `Account restricted: An active penalty of ₹${institution.activePenaltyAmount} is pending for misleading job listings or candidate violations. Please clear the penalty with administration before posting new vacancies.`,
+      });
+    }
+
     const isSuperAdmin = req.user!.role === 'ADMIN';
     let initialStatus: any = 'ACTIVE';
     let message = 'Job vacancy published successfully and is now live on the portal!';

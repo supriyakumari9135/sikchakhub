@@ -43,7 +43,9 @@ import {
   Layers,
   UserCheck,
   Calendar,
-  CreditCard
+  CreditCard,
+  Ban,
+  AlertOctagon
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -62,7 +64,14 @@ import { apiUrl } from '../config/api';
 // Modular Admin Modals
 import { AdminCvPreviewModal } from '../components/admin/AdminCvPreviewModal';
 import { TeacherDossierModal, TeacherEditModal } from '../components/admin/AdminTeacherModals';
-import { EmployerDossierModal, EmployerEditModal, VerificationActionModal } from '../components/admin/AdminEmployerModals';
+import { 
+  EmployerDossierModal, 
+  EmployerEditModal, 
+  VerificationActionModal,
+  EmployerBlockModal,
+  EmployerPenaltyModal,
+  EmployerDeleteModal
+} from '../components/admin/AdminEmployerModals';
 import { JobDetailsModal, JobEditModal } from '../components/admin/AdminJobModals';
 import { ApplicationDossierModal, StageCorrectionModal } from '../components/admin/AdminAppModals';
 import { ScheduleInterviewModal } from '../components/ScheduleInterviewModal';
@@ -146,6 +155,9 @@ export const AdminDashboard: React.FC = () => {
   const [selectedEmployerForDossier, setSelectedEmployerForDossier] = useState<any | null>(null);
   const [selectedEmployerForEdit, setSelectedEmployerForEdit] = useState<any | null>(null);
   const [verificationDecisionTarget, setVerificationDecisionTarget] = useState<{ institution: any; decision: 'VERIFIED' | 'REJECTED' } | null>(null);
+  const [selectedEmployerForBlock, setSelectedEmployerForBlock] = useState<any | null>(null);
+  const [selectedEmployerForPenalty, setSelectedEmployerForPenalty] = useState<any | null>(null);
+  const [selectedEmployerForDelete, setSelectedEmployerForDelete] = useState<any | null>(null);
 
   // Job Modals
   const [selectedJobForDetails, setSelectedJobForDetails] = useState<any | null>(null);
@@ -516,6 +528,107 @@ export const AdminDashboard: React.FC = () => {
       showToast(`Institution status updated to ${status}.`);
       refetchEmployers();
       refetchKpis();
+    }
+  };
+
+  const handleBlockEmployer = async (institutionId: string, reason: string) => {
+    try {
+      const res = await fetch(apiUrl(`/api/v1/admin/employers/${institutionId}/block`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || 'Employer blocked and vacancies closed.');
+        refetchEmployers();
+        refetchJobs();
+        refetchKpis();
+      } else {
+        showToast(data.message || 'Failed to block employer.', 'error');
+      }
+    } catch (err: any) {
+      showToast('Network error while blocking employer.', 'error');
+    }
+  };
+
+  const handleUnblockEmployer = async (institutionId: string) => {
+    try {
+      const res = await fetch(apiUrl(`/api/v1/admin/employers/${institutionId}/unblock`), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || 'Employer unblocked successfully.');
+        refetchEmployers();
+        refetchKpis();
+      } else {
+        showToast(data.message || 'Failed to unblock employer.', 'error');
+      }
+    } catch (err: any) {
+      showToast('Network error while unblocking employer.', 'error');
+    }
+  };
+
+  const handleImposePenalty = async (institutionId: string, amount: number, reason: string, notes?: string) => {
+    try {
+      const res = await fetch(apiUrl(`/api/v1/admin/employers/${institutionId}/penalty`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount, reason, notes }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || `Penalty of ₹${amount} imposed.`);
+        refetchEmployers();
+        refetchKpis();
+      } else {
+        showToast(data.message || 'Failed to impose penalty.', 'error');
+      }
+    } catch (err: any) {
+      showToast('Network error while imposing penalty.', 'error');
+    }
+  };
+
+  const handleUpdatePenaltyStatus = async (institutionId: string, penaltyId: string, status: 'PAID' | 'WAIVED') => {
+    try {
+      const res = await fetch(apiUrl(`/api/v1/admin/employers/${institutionId}/penalty/${penaltyId}`), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || `Penalty status updated to ${status}.`);
+        refetchEmployers();
+        refetchKpis();
+      } else {
+        showToast(data.message || 'Failed to update penalty status.', 'error');
+      }
+    } catch (err: any) {
+      showToast('Network error updating penalty.', 'error');
+    }
+  };
+
+  const handleDeleteEmployer = async (institutionId: string) => {
+    try {
+      const res = await fetch(apiUrl(`/api/v1/admin/employers/${institutionId}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || 'Employer and all associated vacancies permanently deleted.');
+        refetchEmployers();
+        refetchJobs();
+        refetchKpis();
+        setSelectedEmployerForDossier(null);
+      } else {
+        showToast(data.message || 'Failed to delete employer.', 'error');
+      }
+    } catch (err: any) {
+      showToast('Network error while deleting employer.', 'error');
     }
   };
 
@@ -1486,15 +1599,31 @@ export const AdminDashboard: React.FC = () => {
                               </span>
                             </td>
                             <td className="py-3 px-4">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                emp.verificationStatus === 'VERIFIED'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : emp.verificationStatus === 'PENDING'
-                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                  : 'bg-red-50 text-red-700 border-red-200'
-                              }`}>
-                                {emp.verificationStatus}
-                              </span>
+                              <div className="flex flex-col items-start gap-1">
+                                {emp.isBlocked ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-100 text-red-800 border border-red-300 flex items-center gap-1">
+                                    <Ban className="w-3 h-3 text-red-600" />
+                                    <span>BLOCKED</span>
+                                  </span>
+                                ) : (
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                    emp.verificationStatus === 'VERIFIED'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : emp.verificationStatus === 'PENDING'
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                      : 'bg-red-50 text-red-700 border-red-200'
+                                  }`}>
+                                    {emp.verificationStatus}
+                                  </span>
+                                )}
+
+                                {emp.activePenaltyAmount > 0 && (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                                    <AlertOctagon className="w-3 h-3 text-amber-700" />
+                                    <span>Fine: ₹{Number(emp.activePenaltyAmount).toLocaleString()}</span>
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="py-3 px-4 font-mono font-bold text-slate-900">
                               {emp.totalJobs || 0}
@@ -1532,6 +1661,34 @@ export const AdminDashboard: React.FC = () => {
                                         <CheckCircle2 className="w-4 h-4" />
                                       </button>
                                     )}
+                                    {/* Penalty Action Button */}
+                                    <button
+                                      onClick={() => setSelectedEmployerForPenalty(emp)}
+                                      className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 transition"
+                                      title="Impose / Manage Penalty"
+                                    >
+                                      <AlertOctagon className="w-4 h-4" />
+                                    </button>
+                                    {/* Block / Unblock Action Button */}
+                                    <button
+                                      onClick={() => setSelectedEmployerForBlock(emp)}
+                                      className={`p-1.5 rounded-lg transition ${
+                                        emp.isBlocked
+                                          ? 'text-emerald-600 hover:bg-emerald-50'
+                                          : 'text-amber-600 hover:bg-amber-50'
+                                      }`}
+                                      title={emp.isBlocked ? 'Unblock Employer Account' : 'Block Employer & Revoke Access'}
+                                    >
+                                      {emp.isBlocked ? <ShieldCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                                    </button>
+                                    {/* Delete Action Button */}
+                                    <button
+                                      onClick={() => setSelectedEmployerForDelete(emp)}
+                                      className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition"
+                                      title="Permanently Delete Employer & Job Poster"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
                                   </>
                                 )}
                               </div>
@@ -2766,6 +2923,49 @@ export const AdminDashboard: React.FC = () => {
           setSelectedEmployerForEdit(e);
         }}
         onVerify={handleToggleEmployerStatus}
+        onBlock={(e) => {
+          setSelectedEmployerForDossier(null);
+          setSelectedEmployerForBlock(e);
+        }}
+        onUnblock={(e) => {
+          setSelectedEmployerForDossier(null);
+          setSelectedEmployerForBlock(e);
+        }}
+        onPenalty={(e) => {
+          setSelectedEmployerForDossier(null);
+          setSelectedEmployerForPenalty(e);
+        }}
+        onDelete={(e) => {
+          setSelectedEmployerForDossier(null);
+          setSelectedEmployerForDelete(e);
+        }}
+        onUpdatePenalty={handleUpdatePenaltyStatus}
+      />
+
+      {/* Employer Block Modal */}
+      <EmployerBlockModal
+        isOpen={!!selectedEmployerForBlock}
+        onClose={() => setSelectedEmployerForBlock(null)}
+        employer={selectedEmployerForBlock}
+        onConfirmBlock={handleBlockEmployer}
+        onConfirmUnblock={handleUnblockEmployer}
+      />
+
+      {/* Employer Penalty Modal */}
+      <EmployerPenaltyModal
+        isOpen={!!selectedEmployerForPenalty}
+        onClose={() => setSelectedEmployerForPenalty(null)}
+        employer={selectedEmployerForPenalty}
+        onImposePenalty={handleImposePenalty}
+        onUpdatePenaltyStatus={handleUpdatePenaltyStatus}
+      />
+
+      {/* Employer Delete Modal */}
+      <EmployerDeleteModal
+        isOpen={!!selectedEmployerForDelete}
+        onClose={() => setSelectedEmployerForDelete(null)}
+        employer={selectedEmployerForDelete}
+        onConfirmDelete={handleDeleteEmployer}
       />
 
       {/* Employer Edit Modal */}

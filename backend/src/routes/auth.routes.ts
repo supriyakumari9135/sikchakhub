@@ -499,11 +499,11 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: 'Invalid email or password credentials.' });
     }
 
-    // 2.3 Account Active Status Check
-    if (user.status === 'DEACTIVATED' || user.status === 'SUSPENDED') {
+    // 2.3 Account Active & Blocked Status Check
+    if (user.status === 'DEACTIVATED' || user.status === 'SUSPENDED' || user.status === 'BLOCKED' || user.isBlocked) {
       return res.status(403).json({
         success: false,
-        message: 'Your account has been deactivated or suspended by the Super Administrator. Please contact management.',
+        message: `Your account has been ${user.isBlocked || user.status === 'BLOCKED' ? 'blocked' : 'suspended'} by the Super Administrator.${user.blockReason ? ` Reason: ${user.blockReason}` : ''} Please contact management at support@sikchakhub.ai.`,
       });
     }
 

@@ -543,6 +543,10 @@ router.get('/employers', authenticateJWT, requireRole(['ADMIN', 'HR']), async (r
         ownerEmail: inst.email || owner?.email || 'email not listed',
         ownerPhone: inst.phone || owner?.phone || 'phone not listed',
         ownerStatus: owner?.status || 'ACTIVE',
+        isBlocked: Boolean(inst.isBlocked || owner?.isBlocked || owner?.status === 'BLOCKED'),
+        blockReason: inst.blockReason || owner?.blockReason || '',
+        activePenaltyAmount: inst.activePenaltyAmount || owner?.activePenaltyAmount || 0,
+        penalties: inst.penalties || owner?.penalties || [],
         totalJobs: jobsCount,
         totalApplicationsReceived: appsCount,
       };
@@ -566,7 +570,7 @@ router.get('/employers/:id', authenticateJWT, requireRole(['ADMIN', 'HR']), asyn
       return res.status(404).json({ success: false, message: 'Institution record not found' });
     }
 
-    const owner = await UserModel.findOne({ id: inst.ownerId }).lean();
+    const owner: any = await UserModel.findOne({ id: inst.ownerId }).lean();
     const jobs = await JobVacancyModel.find({ institutionId: inst.id }).sort({ createdAt: -1 }).lean();
 
     return res.json({
@@ -574,6 +578,11 @@ router.get('/employers/:id', authenticateJWT, requireRole(['ADMIN', 'HR']), asyn
       institution: {
         ...inst,
         owner,
+        isBlocked: Boolean(inst.isBlocked || owner?.isBlocked || owner?.status === 'BLOCKED'),
+        blockReason: inst.blockReason || owner?.blockReason || '',
+        activePenaltyAmount: inst.activePenaltyAmount || owner?.activePenaltyAmount || 0,
+        penalties: inst.penalties || owner?.penalties || [],
+        totalJobs: jobs.length,
         jobs,
       },
     });
@@ -675,23 +684,375 @@ router.post('/verify-institution', authenticateJWT, requireRole(['ADMIN']), asyn
   }
 });
 
-// DELETE /api/v1/admin/employers/:id - Controlled deletion / suspension
-router.delete('/employers/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+// POST /api/v1/admin/employers/:id/block - Block employer and job poster account
+router.post('/employers/:id/block', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { reason = 'Violation of platform guidelines or misleading postings' } = req.body;
+
   try {
-    const inst = await InstitutionModel.findOneAndUpdate(
-      { id: req.params.id },
-      { $set: { verificationStatus: 'SUSPENDED' } },
-      { new: true }
+    const inst: any = await InstitutionModel.findOne({ id: req.params.id });
+    if (!inst) {
+      return res.status(404).json({ success: false, message: 'Institution record not found.' });
+    }
+
+    const blockedAt = new Date();
+    // 1. Update Institution
+    await InstitutionModel.updateOne(
+      { id: inst.id },
+      { 
+        $set: { 
+          isBlocked: true, 
+          blockReason: reason, 
+          blockedAt, 
+          verificationStatus: 'BLOCKED',
+          verificationNotes: reason,
+          updatedAt: blockedAt 
+        } 
+      }
     );
 
-    logAuditEvent(req, 'INSTITUTION_SUSPENDED', 'Institution', req.params.id, { name: inst?.name });
+    // 2. Update Employer User
+    if (inst.ownerId) {
+      await UserModel.updateOne(
+        { id: inst.ownerId },
+        { 
+          $set: { 
+            isBlocked: true, 
+            status: 'BLOCKED', 
+            blockReason: reason, 
+            blockedAt, 
+            updatedAt: blockedAt 
+          } 
+        }
+      );
+    }
+
+    // 3. Close/hide all active job vacancies
+    await JobVacancyModel.updateMany(
+      { institutionId: inst.id, status: 'ACTIVE' },
+      { $set: { status: 'CLOSED', updatedAt: blockedAt } }
+    );
+
+    // Sync memory store
+    const memInst = dbStore.institutions.find(i => i.id === inst.id);
+    if (memInst) {
+      memInst.isBlocked = true;
+      memInst.blockReason = reason;
+      memInst.verificationStatus = 'BLOCKED' as any;
+    }
+    const memUser = dbStore.users.find(u => u.id === inst.ownerId);
+    if (memUser) {
+      memUser.status = 'BLOCKED' as any;
+      (memUser as any).isBlocked = true;
+      (memUser as any).blockReason = reason;
+    }
+    dbStore.jobs.filter(j => j.institutionId === inst.id && j.status === 'ACTIVE').forEach(j => {
+      j.status = 'CLOSED';
+    });
+
+    logAuditEvent(req, 'EMPLOYER_BLOCKED', 'Institution', inst.id, {
+      name: inst.name,
+      ownerId: inst.ownerId,
+      reason,
+    });
 
     return res.json({
       success: true,
-      message: 'Institution suspended and withdrawn from public recruitment listings.',
+      message: `Employer "${inst.name}" and job poster account successfully blocked. All active vacancies have been closed.`,
     });
   } catch (err: any) {
-    return res.status(500).json({ success: false, message: 'Failed to suspend institution' });
+    console.error('Error blocking employer:', err);
+    return res.status(500).json({ success: false, message: 'Failed to block employer' });
+  }
+});
+
+// POST /api/v1/admin/employers/:id/unblock - Unblock employer and restore account
+router.post('/employers/:id/unblock', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    const inst: any = await InstitutionModel.findOne({ id: req.params.id });
+    if (!inst) {
+      return res.status(404).json({ success: false, message: 'Institution record not found.' });
+    }
+
+    const now = new Date();
+    // 1. Update Institution
+    await InstitutionModel.updateOne(
+      { id: inst.id },
+      { 
+        $set: { 
+          isBlocked: false, 
+          blockReason: '', 
+          verificationStatus: 'VERIFIED',
+          updatedAt: now 
+        } 
+      }
+    );
+
+    // 2. Update Employer User
+    if (inst.ownerId) {
+      await UserModel.updateOne(
+        { id: inst.ownerId },
+        { 
+          $set: { 
+            isBlocked: false, 
+            status: 'ACTIVE', 
+            blockReason: '', 
+            updatedAt: now 
+          } 
+        }
+      );
+    }
+
+    // Sync memory store
+    const memInst = dbStore.institutions.find(i => i.id === inst.id);
+    if (memInst) {
+      memInst.isBlocked = false;
+      memInst.blockReason = '';
+      memInst.verificationStatus = 'VERIFIED' as any;
+    }
+    const memUser = dbStore.users.find(u => u.id === inst.ownerId);
+    if (memUser) {
+      memUser.status = 'ACTIVE' as any;
+      (memUser as any).isBlocked = false;
+      (memUser as any).blockReason = '';
+    }
+
+    logAuditEvent(req, 'EMPLOYER_UNBLOCKED', 'Institution', inst.id, {
+      name: inst.name,
+      ownerId: inst.ownerId,
+    });
+
+    return res.json({
+      success: true,
+      message: `Employer "${inst.name}" and job poster account successfully unblocked and restored.`,
+    });
+  } catch (err: any) {
+    console.error('Error unblocking employer:', err);
+    return res.status(500).json({ success: false, message: 'Failed to unblock employer' });
+  }
+});
+
+// POST /api/v1/admin/employers/:id/penalty - Impose penalty on employer for misleading users
+router.post('/employers/:id/penalty', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { amount, reason, notes } = req.body;
+
+  const penaltyAmount = Number(amount);
+  if (!penaltyAmount || penaltyAmount <= 0) {
+    return res.status(400).json({ success: false, message: 'Please provide a valid penalty amount greater than 0.' });
+  }
+
+  if (!reason || !reason.trim()) {
+    return res.status(400).json({ success: false, message: 'A violation reason for the penalty is mandatory (e.g. misleading salary, fake requirements, false accreditation).' });
+  }
+
+  try {
+    const inst: any = await InstitutionModel.findOne({ id: req.params.id });
+    if (!inst) {
+      return res.status(404).json({ success: false, message: 'Institution record not found.' });
+    }
+
+    const newPenalty = {
+      id: `pen-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      amount: penaltyAmount,
+      reason: reason.trim(),
+      notes: notes ? notes.trim() : '',
+      status: 'ACTIVE',
+      imposedAt: new Date().toISOString(),
+      imposedBy: req.user?.fullName || 'Super Administrator',
+    };
+
+    const existingPenalties = inst.penalties || [];
+    const updatedPenalties = [...existingPenalties, newPenalty];
+    const newActivePenaltyTotal = updatedPenalties
+      .filter((p: any) => p.status === 'ACTIVE')
+      .reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+
+    // 1. Update Institution
+    await InstitutionModel.updateOne(
+      { id: inst.id },
+      { 
+        $set: { 
+          penalties: updatedPenalties,
+          activePenaltyAmount: newActivePenaltyTotal,
+          updatedAt: new Date(),
+        } 
+      }
+    );
+
+    // 2. Update Employer User
+    if (inst.ownerId) {
+      await UserModel.updateOne(
+        { id: inst.ownerId },
+        { 
+          $set: { 
+            penalties: updatedPenalties,
+            activePenaltyAmount: newActivePenaltyTotal,
+            updatedAt: new Date(),
+          } 
+        }
+      );
+    }
+
+    // Sync memory store
+    const memInst = dbStore.institutions.find(i => i.id === inst.id);
+    if (memInst) {
+      (memInst as any).penalties = updatedPenalties;
+      (memInst as any).activePenaltyAmount = newActivePenaltyTotal;
+    }
+
+    logAuditEvent(req, 'EMPLOYER_PENALTY_IMPOSED', 'Institution', inst.id, {
+      name: inst.name,
+      amount: penaltyAmount,
+      reason,
+      penaltyId: newPenalty.id,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Penalty of ₹${penaltyAmount.toLocaleString()} imposed on "${inst.name}" for: ${reason}.`,
+      penalty: newPenalty,
+      activePenaltyAmount: newActivePenaltyTotal,
+    });
+  } catch (err: any) {
+    console.error('Error imposing penalty:', err);
+    return res.status(500).json({ success: false, message: 'Failed to impose penalty' });
+  }
+});
+
+// PATCH /api/v1/admin/employers/:id/penalty/:penaltyId - Update penalty status (WAIVE or MARK_PAID)
+router.patch('/employers/:id/penalty/:penaltyId', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  const { status, notes } = req.body; // 'PAID' | 'WAIVED' | 'ACTIVE'
+
+  if (!['PAID', 'WAIVED', 'ACTIVE'].includes(status)) {
+    return res.status(400).json({ success: false, message: 'Invalid penalty status.' });
+  }
+
+  try {
+    const inst: any = await InstitutionModel.findOne({ id: req.params.id });
+    if (!inst) {
+      return res.status(404).json({ success: false, message: 'Institution record not found.' });
+    }
+
+    const penalties = inst.penalties || [];
+    const penaltyIndex = penalties.findIndex((p: any) => p.id === req.params.penaltyId);
+    if (penaltyIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Penalty record not found.' });
+    }
+
+    penalties[penaltyIndex].status = status;
+    if (notes) penalties[penaltyIndex].notes = notes;
+    if (status === 'PAID') penalties[penaltyIndex].paidAt = new Date().toISOString();
+
+    const newActivePenaltyTotal = penalties
+      .filter((p: any) => p.status === 'ACTIVE')
+      .reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+
+    // Update in Mongo
+    await InstitutionModel.updateOne(
+      { id: inst.id },
+      { $set: { penalties, activePenaltyAmount: newActivePenaltyTotal, updatedAt: new Date() } }
+    );
+    if (inst.ownerId) {
+      await UserModel.updateOne(
+        { id: inst.ownerId },
+        { $set: { penalties, activePenaltyAmount: newActivePenaltyTotal, updatedAt: new Date() } }
+      );
+    }
+
+    logAuditEvent(req, `EMPLOYER_PENALTY_${status}`, 'Institution', inst.id, {
+      penaltyId: req.params.penaltyId,
+      status,
+    });
+
+    return res.json({
+      success: true,
+      message: `Penalty marked as ${status}.`,
+      penalties,
+      activePenaltyAmount: newActivePenaltyTotal,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to update penalty' });
+  }
+});
+
+// DELETE /api/v1/admin/employers/:id - Permanently delete employer, institution, vacancies & user account
+router.delete('/employers/:id', authenticateJWT, requireRole(['ADMIN']), async (req: Request, res: Response) => {
+  try {
+    let inst: any = await InstitutionModel.findOne({ id: req.params.id });
+    let ownerId = inst?.ownerId;
+    let instId = inst?.id;
+
+    if (!inst) {
+      // Check if req.params.id is an ownerId or email
+      inst = await InstitutionModel.findOne({ ownerId: req.params.id });
+      if (inst) {
+        ownerId = inst.ownerId;
+        instId = inst.id;
+      } else {
+        const user: any = await UserModel.findOne({
+          $or: [{ id: req.params.id }, { email: req.params.id }]
+        });
+        if (user) {
+          ownerId = user.id;
+          inst = await InstitutionModel.findOne({ ownerId });
+          instId = inst?.id;
+        }
+      }
+    }
+
+    if (!inst && !ownerId) {
+      return res.status(404).json({ success: false, message: 'Employer or institution record not found.' });
+    }
+
+    let jobIds: string[] = [];
+    if (instId) {
+      // 1. Find all jobs posted by this institution
+      const jobs = await JobVacancyModel.find({ institutionId: instId }, 'id').lean();
+      jobIds = jobs.map(j => j.id);
+
+      // 2. Delete all applications for those jobs
+      if (jobIds.length > 0) {
+        await JobApplicationModel.deleteMany({ jobId: { $in: jobIds } });
+      }
+
+      // 3. Delete all jobs of this institution
+      await JobVacancyModel.deleteMany({ institutionId: instId });
+
+      // 4. Delete the institution
+      await InstitutionModel.deleteOne({ id: instId });
+    }
+
+    // 5. Delete the employer user account
+    if (ownerId) {
+      await UserModel.deleteOne({ id: ownerId });
+      // Delete any subscription records for this employer
+      try {
+        await SubscriptionModel.deleteMany({ userId: ownerId });
+      } catch (e) {}
+    }
+
+    // 6. Synchronize memory store
+    dbStore.institutions = dbStore.institutions.filter(i => i.id !== instId);
+    dbStore.jobs = dbStore.jobs.filter(j => j.institutionId !== instId);
+    if (jobIds.length > 0) {
+      dbStore.applications = dbStore.applications.filter(a => !jobIds.includes(a.jobId));
+    }
+    if (ownerId) {
+      dbStore.users = dbStore.users.filter(u => u.id !== ownerId);
+    }
+
+    logAuditEvent(req, 'EMPLOYER_PERMANENTLY_DELETED', 'Institution', instId, {
+      name: inst.name,
+      ownerId,
+      deletedJobsCount: jobIds.length,
+    });
+
+    return res.json({
+      success: true,
+      message: `Employer "${inst.name}", recruiter account, and ${jobIds.length} job vacancies permanently deleted from the database.`,
+    });
+  } catch (err: any) {
+    console.error('Error permanently deleting employer:', err);
+    return res.status(500).json({ success: false, message: 'Failed to delete employer' });
   }
 });
 

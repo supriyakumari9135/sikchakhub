@@ -37,7 +37,9 @@ import {
   Eye,
   Loader2,
   Lock,
-  Crown
+  Crown,
+  Ban,
+  AlertOctagon
 } from 'lucide-react';
 import { JobVacancy, JobApplication, ApplicationStage } from '@sikchakhub/shared-types';
 import { CandidateMatchDrawer } from '../components/CandidateMatchDrawer';
@@ -780,6 +782,50 @@ export const EmployerDashboard: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* Institution Blocked Alert */}
+            {institution?.isBlocked && (
+              <div className="p-4 sm:p-5 rounded-2xl bg-red-50 border border-red-200 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-red-100 border border-red-200 flex items-center justify-center text-red-600 shrink-0 mt-0.5">
+                    <Ban className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-red-900 font-serif">Account Suspended & Blocked for Policy Violation</h4>
+                    <p className="text-xs text-red-800 mt-0.5 max-w-2xl leading-relaxed">
+                      Your employer account and institution (<strong>{institution?.name}</strong>) have been blocked by the Super Administrator.
+                      {institution.blockReason && <span> Reason: <strong>{institution.blockReason}</strong>. </span>}
+                      All published job postings have been halted. Please contact administration at <strong>support@sikchakhub.in</strong> to resolve this issue.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-red-200 text-red-900 border border-red-300 shrink-0">
+                  Account Blocked
+                </span>
+              </div>
+            )}
+
+            {/* Institution Active Penalty Alert */}
+            {Boolean(institution?.activePenaltyAmount && institution.activePenaltyAmount > 0) && (
+              <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-200 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0 mt-0.5">
+                    <AlertOctagon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-900 font-serif">
+                      Administrative Fine Imposed: ₹{Number(institution?.activePenaltyAmount).toLocaleString()}
+                    </h4>
+                    <p className="text-xs text-amber-800 mt-0.5 max-w-2xl leading-relaxed">
+                      A penalty has been imposed on your institution for misleading listings or recruitment policy non-compliance. Creation of new job openings is restricted until the fine is cleared with the SikchaKhub governance desk.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-amber-200 text-amber-900 border border-amber-300 shrink-0">
+                  Posting Restricted
+                </span>
+              </div>
+            )}
 
             {/* Institution Pending Verification Alert */}
             {institution?.verificationStatus === 'PENDING' && (

@@ -12,6 +12,8 @@ export interface AuthenticatedUser {
   adminRole?: string;
   institutionId?: string;
   status?: string;
+  isBlocked?: boolean;
+  blockReason?: string;
   isVerified?: boolean;
   verificationStatus?: string;
 }
@@ -46,12 +48,12 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
     // Verify account active status, session freshness, and hydrate live verification status
     try {
       const liveUser = await UserModel.findOne({ id: decoded.id })
-        .select('status isVerified verificationStatus emailVerified phoneVerified passwordChangedAt')
+        .select('status isBlocked blockReason isVerified verificationStatus emailVerified phoneVerified passwordChangedAt')
         .lean() as any;
-      if (liveUser && (liveUser.status === 'SUSPENDED' || liveUser.status === 'DEACTIVATED')) {
+      if (liveUser && (liveUser.status === 'SUSPENDED' || liveUser.status === 'DEACTIVATED' || liveUser.status === 'BLOCKED' || liveUser.isBlocked)) {
         return res.status(403).json({
           success: false,
-          message: `Access denied. Your account is currently ${liveUser.status.toLowerCase()}. Please contact support@sikchakhub.ai.`,
+          message: `Access denied. Your account is currently ${liveUser.isBlocked || liveUser.status === 'BLOCKED' ? 'blocked' : liveUser.status.toLowerCase()} by administration.${liveUser.blockReason ? ` Reason: ${liveUser.blockReason}` : ''} Please contact support@sikchakhub.ai.`,
         });
       }
 
