@@ -16,6 +16,8 @@ export interface AuthenticatedUser {
   blockReason?: string;
   isVerified?: boolean;
   verificationStatus?: string;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
 }
 
 declare global {
@@ -70,9 +72,9 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
       }
 
       if (liveUser) {
-        const isDualVerified = (liveUser.emailVerified === true && liveUser.phoneVerified === true) || decoded.role === 'ADMIN' || decoded.role === 'HR';
-        decoded.isVerified = isDualVerified;
-        decoded.verificationStatus = isDualVerified ? 'FULLY_VERIFIED' : (liveUser.verificationStatus || 'PENDING_VERIFICATION');
+        const isDualVerified = (liveUser.emailVerified === true && liveUser.phoneVerified === true) || decoded.role === 'ADMIN' || decoded.role === 'HR' || decoded.role === 'EMPLOYER';
+        decoded.isVerified = isDualVerified || liveUser.isVerified === true;
+        decoded.verificationStatus = (isDualVerified || liveUser.isVerified === true) ? 'FULLY_VERIFIED' : (liveUser.verificationStatus || 'PENDING_VERIFICATION');
       }
     } catch (e) {
       const fallbackUser: any = dbStore.getUserById(decoded.id);
@@ -94,9 +96,9 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
       }
 
       if (fallbackUser) {
-        const isDualVerified = (fallbackUser.emailVerified === true && fallbackUser.phoneVerified === true) || decoded.role === 'ADMIN' || decoded.role === 'HR';
-        decoded.isVerified = isDualVerified;
-        decoded.verificationStatus = isDualVerified ? 'FULLY_VERIFIED' : (fallbackUser.verificationStatus || 'PENDING_VERIFICATION');
+        const isDualVerified = (fallbackUser.emailVerified === true && fallbackUser.phoneVerified === true) || decoded.role === 'ADMIN' || decoded.role === 'HR' || decoded.role === 'EMPLOYER';
+        decoded.isVerified = isDualVerified || fallbackUser.isVerified === true;
+        decoded.verificationStatus = (isDualVerified || fallbackUser.isVerified === true) ? 'FULLY_VERIFIED' : (fallbackUser.verificationStatus || 'PENDING_VERIFICATION');
       }
     }
 
@@ -144,6 +146,20 @@ export function requireVerifiedAccount(req: Request, res: Response, next: NextFu
   // Admins and HR bypass end-user email/phone OTP verification
   if (req.user.role === 'ADMIN' || req.user.role === 'HR') {
     return next();
+  }
+
+  // Employers who have verified email or whose status is active can access services and post jobs
+  if (req.user.role === 'EMPLOYER') {
+    if (
+      req.user.emailVerified || 
+      req.user.isVerified || 
+      req.user.verificationStatus === 'FULLY_VERIFIED' || 
+      req.user.verificationStatus === 'EMAIL_VERIFIED' ||
+      req.user.status === 'ACTIVE' || 
+      !req.user.status
+    ) {
+      return next();
+    }
   }
 
   const isFullyVerified = req.user.isVerified === true && req.user.verificationStatus === 'FULLY_VERIFIED';

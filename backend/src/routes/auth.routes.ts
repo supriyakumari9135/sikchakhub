@@ -926,8 +926,8 @@ router.put('/password', authenticateJWT, async (req: Request, res: Response) => 
 });
 
 // POST /api/v1/auth/upload-resume
-// Free local storage setup for PDF CV uploads with strict 1MB size limit
-router.post('/upload-resume', authenticateJWT, requireRole(['TEACHER', 'ADMIN']), async (req: Request, res: Response) => {
+// Free local storage setup for PDF CV / Syllabus document uploads with strict 1MB size limit
+router.post('/upload-resume', authenticateJWT, requireRole(['TEACHER', 'EMPLOYER', 'ADMIN', 'HR']), async (req: Request, res: Response) => {
   const userId = req.user!.id;
   const { base64Data, fileName } = req.body;
 

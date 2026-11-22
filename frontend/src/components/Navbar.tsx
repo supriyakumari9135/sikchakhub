@@ -239,11 +239,11 @@ export const Navbar: React.FC = () => {
 
             {/* Right: Actions & User Dropdown */}
             <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-              {/* Employer CTA */}
-              {isEmployer && (
+              {/* Employer / Admin CTA */}
+              {(isEmployer || isAdmin) && (
                 <Link
-                  to="/employer-dashboard"
-                  className="cursor-pointer h-10 hidden sm:inline-flex items-center gap-1.5 px-3.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 active:scale-95 shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  to={isAdmin ? "/admin-dashboard" : "/employer-dashboard"}
+                  className="cursor-pointer h-10 hidden sm:inline-flex items-center gap-1.5 px-3.5 rounded-full font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 active:scale-95 shrink-0 whitespace-nowrap"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Post Vacancy</span>

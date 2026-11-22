@@ -275,11 +275,16 @@ router.get('/:id', optionalJWT, async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/v1/jobs - Create Job Opening (Recruiter / Admin)
-router.post('/', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN']), async (req: Request, res: Response) => {
+// POST /api/v1/jobs - Create Job Opening (Recruiter / Admin / HR)
+router.post('/', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER', 'ADMIN', 'HR']), async (req: Request, res: Response) => {
   const parseResult = JobVacancySchema.safeParse(req.body);
   if (!parseResult.success) {
-    return res.status(400).json({ success: false, errors: parseResult.error.format() });
+    const firstErrorMessage = parseResult.error.errors[0]?.message || 'Please check all required fields.';
+    return res.status(400).json({ 
+      success: false, 
+      message: firstErrorMessage,
+      errors: parseResult.error.format() 
+    });
   }
 
   try {
@@ -297,15 +302,15 @@ router.post('/', authenticateJWT, requireVerifiedAccount, requireRole(['EMPLOYER
       institution = {
         id: `inst-${Date.now()}`,
         ownerId: req.user!.id,
-        name: `${req.user!.fullName}'s Institution`,
+        name: req.body.institutionName || `${req.user!.fullName || 'Recruiter'}'s Institution`,
         type: 'SCHOOL',
         logoUrl: '/logo.jpeg',
         website: '',
         description: 'Verified educational institution on SikchaKhub.',
         affiliationNumber: 'REG-PENDING',
         verificationStatus: 'PENDING',
-        city: 'Delhi NCR',
-        state: 'Delhi',
+        city: req.body.city || 'Delhi NCR',
+        state: req.body.state || 'Delhi',
         address: 'Main Campus',
         pincode: '110001',
       };

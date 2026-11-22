@@ -10,7 +10,8 @@ import {
   HelpCircle,
   Sliders,
   Upload,
-  FileText
+  FileText,
+  AlertCircle
 } from 'lucide-react';
 import { FormFieldDefinition } from '@sikchakhub/shared-types';
 import { apiUrl } from '../config/api';
@@ -58,6 +59,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
   const [syllabusNotice, setSyllabusNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSyllabusChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -74,6 +76,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
 
     setSyllabusFile(file);
     setIsUploadingSyllabus(true);
+    setErrorMessage(null);
     try {
       const base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -94,9 +97,12 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
       if (data.success) {
         setSyllabusUrl(data.resumeUrl);
         setSyllabusNotice(`Uploaded "${file.name}"!`);
+      } else {
+        setErrorMessage(data.message || 'Failed to upload syllabus PDF document.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setErrorMessage('Failed to upload syllabus PDF. Please try again.');
     } finally {
       setIsUploadingSyllabus(false);
     }
@@ -123,56 +129,98 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle || trimmedTitle.length < 2) {
+      setErrorMessage('Please enter a job title (at least 2 characters).');
+      return;
+    }
+
+    const trimmedSubject = subject.trim();
+    if (!trimmedSubject) {
+      setErrorMessage('Please specify the primary teaching subject.');
+      return;
+    }
+
+    const trimmedCity = (city || institution?.city || 'Delhi NCR').trim();
+    const trimmedState = (state || institution?.state || 'Delhi').trim();
+    const trimmedQual = (qualification || 'Post Graduate with B.Ed').trim();
+    const trimmedDesc = (description || `Seeking passionate ${trimmedSubject} educator for ${teachingLevel} level students. Responsible for conceptual coverage, doubt resolution, and academic excellence.`).trim();
+
+    const parsedMinExp = Math.max(0, isNaN(Number(minExp)) ? 0 : Number(minExp));
+    const parsedMinSalary = Math.max(0, isNaN(Number(minSalary)) ? 3 : Number(minSalary));
+    const parsedMaxSalary = Math.max(parsedMinSalary, isNaN(Number(maxSalary)) ? parsedMinSalary + 3 : Number(maxSalary));
+    const parsedVacancies = Math.max(1, isNaN(Number(vacanciesCount)) ? 1 : Number(vacanciesCount));
+    const parsedPassingScore = Math.min(100, Math.max(0, isNaN(Number(minPassingScore)) ? 40 : Number(minPassingScore)));
+
+    const cleanedCustomFields = customFields.filter(f => f.label && f.label.trim().length > 0);
+
     setIsSubmitting(true);
 
     try {
+      const payload = {
+        title: trimmedTitle,
+        department: department.trim() || 'Senior Secondary Wing',
+        subject: trimmedSubject,
+        teachingLevel,
+        board,
+        employmentType: 'FULL_TIME',
+        minExperienceYears: parsedMinExp,
+        minSalaryLPA: parsedMinSalary,
+        maxSalaryLPA: parsedMaxSalary,
+        city: trimmedCity,
+        state: trimmedState,
+        requiredQualification: trimmedQual,
+        description: trimmedDesc,
+        vacanciesCount: parsedVacancies,
+        customFields: cleanedCustomFields,
+        requireResume,
+        syllabusDocumentUrl: syllabusUrl || '',
+        syllabusDocumentName: syllabusFile?.name || '',
+        screeningRules: {
+          minExperienceYears: parsedMinExp,
+          requiredQualifications: [trimmedQual],
+          requiredSubjects: [trimmedSubject],
+          requiredTeachingLevels: [teachingLevel],
+          requiredBoards: [board],
+          maxExpectedSalaryLPA: parsedMaxSalary * 1.15,
+          autoRejectBelowScore: parsedPassingScore,
+        },
+      };
+
       const res = await fetch(apiUrl('/api/v1/jobs'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          title,
-          department,
-          subject,
-          teachingLevel,
-          board,
-          employmentType: 'FULL_TIME',
-          minExperienceYears: Number(minExp),
-          minSalaryLPA: Number(minSalary),
-          maxSalaryLPA: Number(maxSalary),
-          city,
-          state,
-          requiredQualification: qualification,
-          description,
-          vacanciesCount: Number(vacanciesCount),
-          customFields,
-          requireResume,
-          syllabusDocumentUrl: syllabusUrl,
-          syllabusDocumentName: syllabusFile?.name || '',
-          screeningRules: {
-            minExperienceYears: Number(minExp),
-            requiredQualifications: [qualification],
-            requiredSubjects: [subject],
-            requiredTeachingLevels: [teachingLevel],
-            requiredBoards: [board],
-            maxExpectedSalaryLPA: Number(maxSalary) * 1.15,
-            autoRejectBelowScore: Number(minPassingScore),
-          },
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setIsSuccess(true);
         setTimeout(() => {
           onJobCreated();
           onClose();
         }, 1500);
+      } else {
+        let msg = data.message;
+        if (!msg && data.errors) {
+          const fieldErrs = Object.entries(data.errors)
+            .map(([field, val]: [string, any]) => {
+              if (val?._errors && val._errors.length > 0) return `${field}: ${val._errors.join(', ')}`;
+              return null;
+            })
+            .filter(Boolean);
+          if (fieldErrs.length > 0) msg = fieldErrs.join(' • ');
+        }
+        setErrorMessage(msg || 'Failed to publish job opening. Please verify required fields and try again.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to post job:', err);
+      setErrorMessage(err.message || 'Network connection error while posting job opening. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -183,34 +231,48 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
       <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+        <div className="px-6 py-4.5 border-b border-orange-100 flex items-center justify-between bg-gradient-to-r from-orange-50/70 via-white to-amber-50/50">
           <div className="flex items-center gap-3">
-            <img src="/logo.jpeg" alt="SikchaKhub" className="w-10 h-10 rounded-xl object-cover border border-amber-300/40 bg-white shrink-0" />
+            <img src="/logo.jpeg" alt="SikchaKhub" className="w-11 h-11 rounded-2xl object-cover border border-amber-300/70 bg-white shrink-0 shadow-2xs" />
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
-                Recruitment Posting Wizard
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-orange-800 bg-orange-100 px-2.5 py-0.5 rounded-full border border-orange-200">
+                AI Recruitment Engine
               </span>
               <h3 className="text-lg font-bold text-slate-900 mt-0.5 font-serif">Create New Vacancy Opening</h3>
-              <p className="text-xs text-slate-500">Post for: {institution?.name || 'Your Institution'}</p>
+              <p className="text-xs text-slate-500">Post for: <strong className="text-slate-800">{institution?.name || 'Your Educational Institution'}</strong></p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className="cursor-pointer p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {isSuccess ? (
           <div className="p-8 text-center space-y-3">
-            <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+            <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-xs">
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <h4 className="text-xl font-bold text-slate-900">Job Vacancy Submitted!</h4>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">
-              Your vacancy has been submitted for Super Admin review. In accordance with platform governance, it will appear on the public portal once approved by administration.
+            <h4 className="text-xl font-bold text-slate-900 font-serif">Job Vacancy Published!</h4>
+            <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+              Your teaching opening has been registered and is now live for qualified educators to view and apply.
             </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 flex-1">
+            {/* Error Notification Alert */}
+            {errorMessage && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5 shadow-2xs animate-in fade-in duration-150">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-bold text-rose-900">Unable to Post Opening:</p>
+                  <p className="text-[11px] text-rose-700 leading-relaxed mt-0.5">{errorMessage}</p>
+                </div>
+              </div>
+            )}
             
             {/* Title & Department */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -502,21 +564,21 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
             </div>
 
             {/* Actions */}
-            <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100">
+            <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-100">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900"
+                className="cursor-pointer px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition active:scale-95"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-5 py-2.5 bg-brand-600 text-white text-xs font-semibold rounded-xl hover:bg-brand-700 shadow-sm flex items-center gap-2 transition"
+                className="cursor-pointer px-6 py-2.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 text-white text-xs sm:text-sm font-bold rounded-full shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/35 flex items-center gap-2 transition active:scale-95"
               >
-                <Briefcase className="w-3.5 h-3.5" />
-                <span>{isSubmitting ? 'Publishing...' : 'Publish Job Vacancy'}</span>
+                <Briefcase className="w-4 h-4" />
+                <span>{isSubmitting ? 'Publishing Opening...' : 'Publish Job Vacancy'}</span>
               </button>
             </div>
           </form>

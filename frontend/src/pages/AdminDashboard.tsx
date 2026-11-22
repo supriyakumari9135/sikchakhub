@@ -82,6 +82,7 @@ import { ReviewReportModal } from '../components/admin/AdminReportModals';
 import { AdminCvScreeningVault } from '../components/admin/AdminCvScreeningVault';
 import { AdminCandidateGroupsManager } from '../components/admin/AdminCandidateGroupsManager';
 import { AdminSubscriptionManager } from '../components/admin/AdminSubscriptionManager';
+import { PostJobModal } from '../components/PostJobModal';
 
 type AdminTab = 
   | 'DASHBOARD'
@@ -136,6 +137,7 @@ export const AdminDashboard: React.FC = () => {
   const [jobSubjectFilter, setJobSubjectFilter] = useState('ALL');
   const [jobLevelFilter, setJobLevelFilter] = useState('ALL');
   const [jobStatusFilter, setJobStatusFilter] = useState('ALL');
+  const [showAdminPostJobModal, setShowAdminPostJobModal] = useState(false);
 
   const [appSearch, setAppSearch] = useState('');
   const [appStageFilter, setAppStageFilter] = useState('ALL');
@@ -1875,13 +1877,23 @@ export const AdminDashboard: React.FC = () => {
                   </select>
                 </div>
 
-                <button
-                  onClick={() => downloadExport('jobs', `jobs_export_${Date.now()}.csv`)}
-                  className="px-3 py-2 text-xs font-semibold rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition flex items-center gap-1.5 shadow-2xs"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Export CSV</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminPostJobModal(true)}
+                    className="cursor-pointer px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white transition flex items-center gap-1.5 shadow-md shadow-orange-500/20 active:scale-95"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Post New Vacancy</span>
+                  </button>
+                  <button
+                    onClick={() => downloadExport('jobs', `jobs_export_${Date.now()}.csv`)}
+                    className="cursor-pointer px-3 py-2 text-xs font-semibold rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Export CSV</span>
+                  </button>
+                </div>
               </div>
 
               {/* Jobs Table */}
@@ -3075,6 +3087,17 @@ export const AdminDashboard: React.FC = () => {
         report={selectedReportForReview}
         onResolve={handleResolveReport}
       />
+
+      {/* Post Job Modal for Admin */}
+      {showAdminPostJobModal && (
+        <PostJobModal
+          onClose={() => setShowAdminPostJobModal(false)}
+          onJobCreated={() => {
+            setShowAdminPostJobModal(false);
+            refetchJobs();
+          }}
+        />
+      )}
 
     </div>
   );
