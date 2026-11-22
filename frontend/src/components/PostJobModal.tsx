@@ -174,6 +174,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ onClose, onJobCreate
         requiredQualification: trimmedQual,
         description: trimmedDesc,
         vacanciesCount: parsedVacancies,
+        deadline: 'Ongoing / Immediate Recruitment',
         customFields: cleanedCustomFields,
         requireResume,
         syllabusDocumentUrl: syllabusUrl || '',

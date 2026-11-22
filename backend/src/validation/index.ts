@@ -98,7 +98,7 @@ export const JobVacancySchema = z.object({
   city: z.string().min(1, 'City is required').default('Delhi NCR'),
   state: z.string().min(1, 'State is required').default('Delhi'),
   vacanciesCount: z.number().min(1).default(1),
-  deadline: z.string().optional(),
+  deadline: z.string().optional().default(''),
   customFields: z.array(FormFieldDefinitionSchema).optional(),
   screeningRules: ScreeningRuleSchema.optional(),
 });
