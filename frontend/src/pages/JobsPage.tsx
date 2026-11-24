@@ -29,6 +29,7 @@ import { JobDetailModal } from '../components/JobDetailModal';
 import { AuthRequiredModal } from '../components/AuthRequiredModal';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../config/api';
+import { formatDescriptionSnippet } from '../utils/jobFormatter';
 
 export const JobsPage: React.FC = () => {
   const { user, token } = useAuth();
@@ -184,6 +185,7 @@ export const JobsPage: React.FC = () => {
   const TEACHING_LEVELS = [
     { value: 'COACHING_JEE', label: 'IIT-JEE Faculty', count: 8 },
     { value: 'COACHING_NEET', label: 'NEET Medical Faculty', count: 6 },
+    { value: 'COACHING_JEE_NEET', label: 'JEE/NEET Faculty', count: 12 },
     { value: 'PGT', label: 'PGT (Grades 11–12)', count: 20 },
     { value: 'TGT', label: 'TGT (Grades 6–10)', count: 18 },
     { value: 'PRT', label: 'PRT (Grades 1–5)', count: 12 },
@@ -830,8 +832,8 @@ export const JobsPage: React.FC = () => {
                     </div>
 
                     {/* Job Description Snippet */}
-                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed line-clamp-2 relative z-10">
-                      {job.description}
+                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed line-clamp-2 relative z-10 break-words">
+                      {formatDescriptionSnippet(job.description)}
                     </p>
 
                     {/* Card Footer: Metadata & Buttons */}

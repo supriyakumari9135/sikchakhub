@@ -126,8 +126,8 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
           {job.description && (
             <div className="space-y-1">
               <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Job Description</h4>
-              <p className="text-xs text-slate-600 bg-white p-3.5 rounded-xl border border-slate-200 whitespace-pre-line">
-                {job.description}
+              <p className="text-xs text-slate-600 bg-white p-3.5 rounded-xl border border-slate-200 whitespace-pre-line break-words leading-relaxed">
+                {job.description.replace(/\t/g, ' ')}
               </p>
             </div>
           )}
@@ -324,6 +324,7 @@ export const JobEditModal: React.FC<JobEditModalProps> = ({
                 <option value="PGT">PGT - Senior Secondary (11-12)</option>
                 <option value="COACHING_JEE">IIT-JEE Faculty</option>
                 <option value="COACHING_NEET">NEET Faculty</option>
+                <option value="COACHING_JEE_NEET">JEE/NEET Faculty</option>
                 <option value="PRINCIPAL">Principal / Vice Principal</option>
                 <option value="COLLEGE_PROFESSOR">College Professor</option>
               </select>

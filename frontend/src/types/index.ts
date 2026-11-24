@@ -24,6 +24,8 @@ export type TeachingLevel =
   | 'PGT' // Post Graduate Teacher (Grade 11-12)
   | 'COACHING_JEE' 
   | 'COACHING_NEET' 
+  | 'COACHING_JEE_NEET'
+  | 'COACHING_FOUNDATION'
   | 'COLLEGE_PROFESSOR' 
   | 'ADMINISTRATOR' 
   | 'PRINCIPAL';

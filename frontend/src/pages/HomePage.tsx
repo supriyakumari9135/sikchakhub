@@ -38,6 +38,7 @@ import { JobDetailModal } from '../components/JobDetailModal';
 import { AuthRequiredModal } from '../components/AuthRequiredModal';
 import { ThreeHeroAnimation } from '../components/ThreeHeroAnimation';
 import { useAuth } from '../context/AuthContext';
+import { formatDescriptionSnippet } from '../utils/jobFormatter';
 import { apiUrl } from '../config/api';
 
 export const HomePage: React.FC = () => {
@@ -613,8 +614,8 @@ export const HomePage: React.FC = () => {
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
-                      {job.description}
+                    <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed break-words">
+                      {formatDescriptionSnippet(job.description)}
                     </p>
                   </div>
 

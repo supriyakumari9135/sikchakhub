@@ -19,7 +19,8 @@ import {
   IndianRupee,
   Building2,
   FileText,
-  BookOpen
+  BookOpen,
+  AlertCircle
 } from 'lucide-react';
 
 interface JobDetailModalProps {
@@ -57,6 +58,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
     if (!level) return 'Faculty';
     if (level === 'COACHING_NEET') return 'NEET Coaching';
     if (level === 'COACHING_JEE') return 'IIT-JEE Coaching';
+    if (level === 'COACHING_JEE_NEET') return 'JEE/NEET Faculty';
     if (level === 'COACHING_FOUNDATION') return 'Foundation Coaching';
     return level.replace('_', ' ');
   };
@@ -73,9 +75,10 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
     if (k.includes('SUBJECT')) return <BookOpen className="w-3.5 h-3.5 text-sky-600 shrink-0" />;
     if (k.includes('LEVEL') || k.includes('CLASS')) return <GraduationCap className="w-3.5 h-3.5 text-indigo-600 shrink-0" />;
     if (k.includes('EXP')) return <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />;
-    if (k.includes('PROCESS') || k.includes('INTERVIEW')) return <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />;
+    if (k.includes('PROCESS') || k.includes('SELECTION') || k.includes('INTERVIEW')) return <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />;
     if (k.includes('SALARY') || k.includes('CTC')) return <IndianRupee className="w-3.5 h-3.5 text-emerald-600 shrink-0" />;
-    if (k.includes('LOC') || k.includes('CAMPUS')) return <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />;
+    if (k.includes('LOC') || k.includes('CAMPUS') || k.includes('CITY')) return <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />;
+    if (k.includes('EMPLOY') || k.includes('TYPE')) return <Briefcase className="w-3.5 h-3.5 text-sky-600 shrink-0" />;
     if (k.includes('QUALIF')) return <Award className="w-3.5 h-3.5 text-blue-600 shrink-0" />;
     return <CheckCircle2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />;
   };
@@ -90,30 +93,52 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
       );
     }
 
+    // Clean up tabs and excessive divider lines to prevent line length breaks
+    const cleanRaw = description
+      .replace(/\t/g, ' ')
+      .replace(/[-=_]{4,}/g, '') // remove horizontal lines
+      .trim();
+
     // Check for structured KEY - VALUE or KEY : VALUE pairs
     const knownKeys = [
       'SUBJECT',
+      'SUBJECTS',
       'LEVEL/CLASS',
       'CLASS/LEVEL',
       'TEACHING LEVEL',
       'LEVEL',
       'CLASS',
-      'EXPERIENCE',
-      'MIN EXPERIENCE',
       'SELECTION PROCESS',
       'INTERVIEW PROCESS',
+      'SELECTION',
       'PROCESS',
+      'EXPERIENCE',
+      'MIN EXPERIENCE',
+      'EXP',
       'SALARY',
       'OFFERED CTC',
       'CTC',
       'LOCATION',
       'CAMPUS',
+      'CITY',
+      'EMPLOYMENT TYPE',
+      'EMPLOYMENT',
+      'JOB TYPE',
       'QUALIFICATION',
       'MIN QUALIFICATION',
       'BOARD',
+      'CURRICULUM',
       'JOINING',
+      'JOINING DATE',
       'TIMINGS',
       'WORKING HOURS',
+      'NOTE',
+      'NOTES',
+      'SPECIAL NOTE',
+      'IMPORTANT NOTE',
+      'NOTICE',
+      'TA/DA',
+      'TERMS',
       'REQUIREMENT',
       'ELIGIBILITY',
       'ROLES & RESPONSIBILITIES',
@@ -123,67 +148,101 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
     const sortedKeys = [...knownKeys].sort((a, b) => b.length - a.length);
     const pattern = new RegExp(
-      '(?:^|\\s+)(' + sortedKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\s*[-:]\\s*',
+      '(?:^|\\n|\\r|\\s{2,})(' + sortedKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\s*[-:]\\s*',
       'gi'
     );
-    const matches = [...description.matchAll(pattern)];
+    const matches = [...cleanRaw.matchAll(pattern)];
 
     if (matches.length >= 2) {
       let introText = '';
       if (matches.length > 0 && matches[0].index! > 0) {
-        introText = description.substring(0, matches[0].index!).trim();
+        introText = cleanRaw.substring(0, matches[0].index!).trim();
       }
 
-      const pairs: { key: string; val: string }[] = [];
+      const specPairs: { key: string; val: string }[] = [];
+      const noteBanners: string[] = [];
+
       for (let i = 0; i < matches.length; i++) {
-        const key = matches[i][1].trim();
+        const rawKey = matches[i][1].trim().toUpperCase();
         const startIndex = matches[i].index! + matches[i][0].length;
-        const endIndex = i + 1 < matches.length ? matches[i + 1].index! : description.length;
-        const val = description.substring(startIndex, endIndex).trim().replace(/[-–,]$/, '');
+        const endIndex = i + 1 < matches.length ? matches[i + 1].index! : cleanRaw.length;
+        let val = cleanRaw.substring(startIndex, endIndex).trim().replace(/[-–,]$/, '').trim();
+        // Remove trailing dashes or underscores that were part of divider lines
+        val = val.replace(/[-=_]{3,}$/, '').trim();
+
         if (val) {
-          pairs.push({ key, val });
+          if (rawKey.includes('NOTE') || rawKey.includes('NOTICE') || rawKey.includes('TA/DA') || rawKey.includes('TERMS')) {
+            noteBanners.push(val);
+          } else {
+            specPairs.push({ key: rawKey, val });
+          }
         }
       }
 
-      if (pairs.length > 0) {
+      if (specPairs.length > 0 || noteBanners.length > 0) {
         return (
-          <div className="space-y-3">
+          <div className="space-y-3.5">
             {introText && (
               <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
                 {introText}
               </p>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {pairs.map((p, idx) => (
-                <div 
-                  key={idx} 
-                  className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs hover:border-sky-300 transition-colors"
-                >
-                  <div className="flex items-center gap-2 shrink-0 min-w-0">
-                    <div className="p-1 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
-                      {getFieldIcon(p.key)}
+
+            {/* Structured Specifications Grid */}
+            {specPairs.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {specPairs.map((p, idx) => (
+                  <div 
+                    key={idx} 
+                    className="flex items-center justify-between gap-2.5 p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs hover:border-orange-300 transition-colors min-w-0 max-w-full overflow-hidden"
+                  >
+                    <div className="flex items-center gap-2 shrink-0 min-w-0">
+                      <div className="p-1 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
+                        {getFieldIcon(p.key)}
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 truncate max-w-[110px] sm:max-w-[130px]">
+                        {p.key.replace('/', ' / ')}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                      {p.key.replace('/', ' / ')}
+                    <span className="text-xs sm:text-sm font-bold text-slate-900 text-right break-words min-w-0 max-w-[65%] pl-1">
+                      {p.val}
                     </span>
                   </div>
-                  <span className="text-xs sm:text-sm font-bold text-slate-900 text-right break-words pl-2">
-                    {p.val}
+                ))}
+              </div>
+            )}
+
+            {/* Important Note / Terms Banner */}
+            {noteBanners.length > 0 && (
+              <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300/80 text-amber-950 flex items-start gap-2.5 shadow-2xs">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 block">
+                    Candidate Terms / Policy Note
                   </span>
+                  {noteBanners.map((note, i) => (
+                    <p key={i} className="text-xs sm:text-sm font-bold text-amber-950 mt-0.5 break-words">
+                      {note}
+                    </p>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
         );
       }
     }
 
-    // Default: clean paragraphs with proper line height
-    const paragraphs = description.split(/\n+/).map((p) => p.trim()).filter(Boolean);
+    // Default: clean paragraphs with proper line height, tabs removed
+    const paragraphs = cleanRaw
+      .split(/\n+/)
+      .map((p) => p.trim())
+      .filter(p => p && !p.match(/^[-=_]{3,}$/));
+
     return (
       <div className="space-y-2">
         {paragraphs.map((p, idx) => (
-          <p key={idx} className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+          <p key={idx} className="text-xs sm:text-sm text-slate-700 leading-relaxed break-words">
             {p}
           </p>
         ))}

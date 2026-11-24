@@ -29,6 +29,7 @@ const DEFAULT_TEACHING_LEVELS = [
   { value: 'PGT', label: 'PGT - Post Graduate Teacher (Grades 11-12)' },
   { value: 'COACHING_JEE', label: 'IIT-JEE Coaching Faculty' },
   { value: 'COACHING_NEET', label: 'NEET Medical Faculty' },
+  { value: 'COACHING_JEE_NEET', label: 'JEE/NEET Faculty' },
   { value: 'COLLEGE_PROFESSOR', label: 'College / University Professor' },
   { value: 'PRINCIPAL', label: 'Principal / Vice Principal / Dean' },
   { value: 'ADMINISTRATOR', label: 'Academic Coordinator / Administrator' },
